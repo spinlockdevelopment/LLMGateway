@@ -1,0 +1,47 @@
+# Local model configuration for Apple Silicon inference.
+#
+# Supported runtimes:
+#   ollama    — Ollama (recommended, easiest setup)
+#   mlx       — MLX (Apple-native, best Metal performance)
+#   llamacpp  — llama.cpp server
+#
+# Models with auto_load: true will be pulled/loaded on gateway startup.
+
+models:
+  llama3.2-1b:
+    runtime: ollama
+    model_path: "llama3.2:1b"
+    context_length: 8192
+    auto_load: true
+    parameters:
+      num_gpu: 99  # use all GPU layers
+
+  llama3.2-3b:
+    runtime: ollama
+    model_path: "llama3.2:3b"
+    context_length: 8192
+    auto_load: false
+    parameters:
+      num_gpu: 99
+
+  llama3.1-8b:
+    runtime: ollama
+    model_path: "llama3.1:8b"
+    context_length: 8192
+    auto_load: false
+    parameters:
+      num_gpu: 99
+
+  # Example MLX model (uncomment to use)
+  # llama3-8b-mlx:
+  #   runtime: mlx
+  #   model_path: "mlx-community/Meta-Llama-3-8B-Instruct-4bit"
+  #   context_length: 8192
+  #   auto_load: false
+
+  # Example llama.cpp model (uncomment to use)
+  # llama3-8b-gguf:
+  #   runtime: llamacpp
+  #   model_path: "/models/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf"
+  #   context_length: 8192
+  #   auto_load: false
