@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Gateway</title>
+<style>
+:root {
+  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+  --fg: #c9d1d9; --fg2: #8b949e; --fg3: #484f58;
+  --accent: #58a6ff; --green: #3fb950; --red: #f85149;
+  --yellow: #d29922; --border: #30363d;
+  --radius: 6px; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+button {
+  background: var(--bg3); color: var(--fg); border: 1px solid var(--border);
+  padding: 6px 14px; border-radius: var(--radius); cursor: pointer; font-size: 13px;
+}
+button:hover { background: var(--border); }
+button.primary { background: #1f6feb; border-color: #1f6feb; }
+button.primary:hover { background: #388bfd; }
+button.danger { border-color: var(--red); color: var(--red); }
+button.danger:hover { background: rgba(248,81,73,.15); }
+input, textarea, select {
+  background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+  padding: 6px 10px; border-radius: var(--radius); font-size: 13px; font-family: var(--font);
+}
+textarea { font-family: var(--mono); resize: vertical; }
+
+/* Layout */
+.header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
+.header h1 { font-size: 18px; font-weight: 600; }
+.header .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg2); }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.green { background: var(--green); }
+.dot.red { background: var(--red); }
+.dot.yellow { background: var(--yellow); }
+.dot.gray { background: var(--fg3); }
+
+.tabs { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 0; }
+.tab {
+  padding: 10px 16px; cursor: pointer; color: var(--fg2); border-bottom: 2px solid transparent;
+  font-size: 13px; transition: all .15s;
+}
+.tab:hover { color: var(--fg); }
+.tab.active { color: var(--fg); border-bottom-color: var(--accent); }
+.tab.external { margin-left: auto; }
+.tab.external::after { content: " ↗"; font-size: 11px; }
+
+.content { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.card .card-title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+.card .card-meta { font-size: 12px; color: var(--fg2); }
+.card .card-actions { display: flex; gap: 8px; margin-top: 4px; }
+
+/* Memory bar */
+.mem-bar-wrap { background: var(--bg3); border-radius: 4px; height: 20px; overflow: hidden; position: relative; margin: 8px 0; }
+.mem-bar { height: 100%; border-radius: 4px; transition: width .3s; }
+.mem-bar.ok { background: var(--green); }
+.mem-bar.warn { background: var(--yellow); }
+.mem-bar.crit { background: var(--red); }
+.mem-label { position: absolute; top: 0; left: 0; right: 0; text-align: center; line-height: 20px; font-size: 12px; color: #fff; }
+
+/* Config editor */
+.editor-wrap { display: flex; flex-direction: column; gap: 12px; }
+.editor-wrap textarea { width: 100%; min-height: 500px; line-height: 1.5; tab-size: 2; }
+.editor-toolbar { display: flex; gap: 8px; align-items: center; }
+.validation-msg { font-size: 13px; padding: 8px 12px; border-radius: var(--radius); }
+.validation-msg.ok { background: rgba(63,185,80,.1); color: var(--green); }
+.validation-msg.error { background: rgba(248,81,73,.1); color: var(--red); }
+.validation-msg.warn { background: rgba(210,153,34,.1); color: var(--yellow); }
+
+/* Service list */
+.svc-row {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 16px; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 16px;
+}
+.svc-row .svc-info { flex: 1; }
+.svc-row .svc-name { font-weight: 600; }
+.svc-row .svc-desc { font-size: 12px; color: var(--fg2); }
+.svc-row .svc-state { font-size: 13px; display: flex; align-items: center; gap: 6px; min-width: 100px; }
+.svc-row .svc-actions { display: flex; gap: 6px; }
+
+/* Ollama section */
+.pull-form { display: flex; gap: 8px; align-items: center; margin: 16px 0; }
+.pull-form input { flex: 1; max-width: 400px; }
+.model-list { margin-top: 12px; }
+.model-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--fg2); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
+  border-radius: var(--radius); font-size: 13px; opacity: 0;
+  transition: opacity .3s; z-index: 1000; max-width: 400px;
+}
+.toast.show { opacity: 1; }
+.toast.success { background: rgba(63,185,80,.9); color: #fff; }
+.toast.error { background: rgba(248,81,73,.9); color: #fff; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>LLM Gateway</h1>
+  <div class="status">
+    <span class="dot gray" id="gateway-dot"></span>
+    <span id="gateway-uptime">loading...</span>
+  </div>
+</div>
+
+<div class="tabs" id="tab-bar">
+  <div class="tab active" data-tab="dashboard">Dashboard</div>
+  <div class="tab" data-tab="services">Services</div>
+  <div class="tab" data-tab="config">Config</div>
+  <div class="tab external" onclick="window.open('http://localhost:4000/ui','_blank')">LiteLLM</div>
+  <div class="tab external" onclick="window.open('http://localhost:3000','_blank')">Grafana</div>
+</div>
+
+<div class="content">
+
+  <!-- ══════════ Dashboard ══════════ -->
+  <div class="panel active" id="panel-dashboard">
+    <h2 style="margin-bottom:16px">System Overview</h2>
+
+    <div id="mem-section" style="margin-bottom:24px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--fg2)">
+        <span id="mem-label-left">Memory</span>
+        <span id="mem-label-right">--</span>
+      </div>
+      <div class="mem-bar-wrap">
+        <div class="mem-bar ok" id="mem-bar" style="width:0%"></div>
+        <div class="mem-label" id="mem-bar-label">--</div>
+      </div>
+    </div>
+
+    <h3 style="margin-bottom:12px;font-size:14px;color:var(--fg2)">Services</h3>
+    <div class="cards" id="dashboard-cards">
+      <div class="card"><div class="card-meta">Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- ══════════ Services ══════════ -->
+  <div class="panel" id="panel-services">
+    <h2 style="margin-bottom:16px">Managed Services</h2>
+    <div id="service-list">
+      <div class="svc-row"><span class="svc-info">Loading...</span></div>
+    </div>
+
+    <h3 style="margin:24px 0 8px;font-size:14px">Ollama Model Management</h3>
+    <div class="pull-form">
+      <input type="text" id="pull-model-input" placeholder="Model name (e.g. llama3.2:3b)">
+      <button class="primary" onclick="pullModel()">Pull Model</button>
+    </div>
+    <div id="pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:200px;overflow:auto;margin-bottom:12px"></div>
+    <div class="model-list" id="ollama-models"></div>
+  </div>
+
+  <!-- ══════════ Config ══════════ -->
+  <div class="panel" id="panel-config">
+    <h2 style="margin-bottom:16px">Configuration Editor</h2>
+    <div class="editor-wrap">
+      <div class="editor-toolbar">
+        <button class="primary" onclick="saveConfig()">Save</button>
+        <button onclick="validateConfig()">Validate</button>
+        <button class="danger" onclick="resetConfig()">Reset to Defaults</button>
+        <span id="config-status" class="validation-msg" style="display:none"></span>
+      </div>
+      <textarea id="config-editor" spellcheck="false" placeholder="Loading configuration..."></textarea>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let refreshTimer = null;
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+document.querySelectorAll('.tab[data-tab]').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'config') loadConfigEditor();
+    if (tab.dataset.tab === 'services') { refreshServices(); loadOllamaModels(); }
+  });
+});
+
+// ── API helpers ────────────────────────────────────────────────────────────
+async function api(path, opts) {
+  try {
+    const r = await fetch(path, opts);
+    return await r.json();
+  } catch (e) {
+    console.error('API error:', path, e);
+    return null;
+  }
+}
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function stateColor(state) {
+  if (state === 'running') return 'green';
+  if (state === 'unhealthy' || state === 'starting') return 'yellow';
+  if (state === 'failed') return 'red';
+  return 'gray';
+}
+
+function fmtUptime(sec) {
+  if (!sec) return '--';
+  if (sec < 60) return Math.round(sec) + 's';
+  if (sec < 3600) return Math.round(sec / 60) + 'm';
+  const h = Math.floor(sec / 3600);
+  const m = Math.round((sec % 3600) / 60);
+  return h + 'h ' + m + 'm';
+}
+
+// ── Dashboard refresh ──────────────────────────────────────────────────────
+async function refreshDashboard() {
+  const data = await api('/api/status');
+  if (!data) return;
+
+  // Gateway status
+  const dot = document.getElementById('gateway-dot');
+  dot.className = 'dot green';
+  document.getElementById('gateway-uptime').textContent =
+    'Up ' + fmtUptime(data.gateway.uptime_sec);
+
+  // Memory
+  const mem = data.memory;
+  const pct = mem.percent;
+  const bar = document.getElementById('mem-bar');
+  bar.style.width = pct + '%';
+  bar.className = 'mem-bar ' + (pct > 90 ? 'crit' : pct > 75 ? 'warn' : 'ok');
+  document.getElementById('mem-bar-label').textContent =
+    mem.used_gb + ' / ' + mem.total_gb + ' GB (' + pct + '%)';
+  document.getElementById('mem-label-right').textContent =
+    mem.available_gb + ' GB available';
+
+  // Service cards
+  const container = document.getElementById('dashboard-cards');
+  if (!data.services || data.services.length === 0) {
+    container.innerHTML = '<div class="card"><div class="card-meta">No services configured</div></div>';
+    return;
+  }
+  container.innerHTML = data.services.map(s => `
+    <div class="card">
+      <div class="card-title">
+        <span class="dot ${stateColor(s.state)}"></span> ${s.name}
+      </div>
+      <div class="card-meta">${s.description || ''}</div>
+      <div class="card-meta">
+        State: <strong>${s.state}</strong>
+        ${s.port ? ' · Port ' + s.port : ''}
+        ${s.uptime_sec ? ' · Up ' + fmtUptime(s.uptime_sec) : ''}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── Services panel ─────────────────────────────────────────────────────────
+async function refreshServices() {
+  const data = await api('/api/services');
+  if (!data) return;
+  const container = document.getElementById('service-list');
+
+  if (!data.services || data.services.length === 0) {
+    container.innerHTML = '<div class="svc-row"><span class="svc-info">No services configured</span></div>';
+    return;
+  }
+
+  container.innerHTML = data.services.map(s => {
+    const canStart = ['stopped', 'failed'].includes(s.state);
+    const canStop = ['running', 'unhealthy', 'starting'].includes(s.state);
+    const disabled = s.state === 'disabled';
+
+    return `<div class="svc-row">
+      <div class="svc-info">
+        <div class="svc-name">${s.name}</div>
+        <div class="svc-desc">${s.description || ''}${s.pid ? ' (pid ' + s.pid + ')' : ''}${s.restart_count ? ' · restarts: ' + s.restart_count : ''}</div>
+        ${s.last_error ? '<div class="svc-desc" style="color:var(--red)">Error: ' + s.last_error + '</div>' : ''}
+      </div>
+      <div class="svc-state">
+        <span class="dot ${stateColor(s.state)}"></span> ${s.state}
+      </div>
+      <div class="svc-actions">
+        ${disabled ? '<span style="color:var(--fg3);font-size:12px">disabled in config</span>' :
+          (canStart ? `<button onclick="svcAction('${s.name}','start')">Start</button>` : '') +
+          (canStop ? `<button onclick="svcAction('${s.name}','stop')">Stop</button>` : '') +
+          (canStop ? `<button onclick="svcAction('${s.name}','restart')">Restart</button>` : '')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function svcAction(name, action) {
+  toast(action.charAt(0).toUpperCase() + action.slice(1) + 'ing ' + name + '...', 'success');
+  const r = await api('/ui/services/' + name + '/' + action, { method: 'POST' });
+  if (r) {
+    toast(name + ': ' + (r.status || 'done'), r.status === 'failed' ? 'error' : 'success');
+  } else {
+    toast('Action failed', 'error');
+  }
+  setTimeout(() => { refreshServices(); refreshDashboard(); }, 1000);
+}
+
+// ── Ollama models ──────────────────────────────────────────────────────────
+async function loadOllamaModels() {
+  const data = await api('/ui/ollama/models');
+  const el = document.getElementById('ollama-models');
+  if (!data || !data.models || data.models.length === 0) {
+    el.innerHTML = '<div class="model-item">No models loaded (pull one above)</div>';
+    return;
+  }
+  el.innerHTML = '<div style="font-size:13px;color:var(--fg2);margin-bottom:4px">Available models:</div>' +
+    data.models.map(m => {
+      const name = m.name || m;
+      const size = m.size ? ' (' + (m.size / 1e9).toFixed(1) + ' GB)' : '';
+      return `<div class="model-item">${name}${size}</div>`;
+    }).join('');
+}
+
+async function pullModel() {
+  const input = document.getElementById('pull-model-input');
+  const model = input.value.trim();
+  if (!model) { toast('Enter a model name', 'error'); return; }
+
+  const output = document.getElementById('pull-output');
+  output.style.display = 'block';
+  output.textContent = 'Pulling ' + model + '... (this may take several minutes)';
+
+  const r = await api('/ui/ollama/pull', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model }),
+  });
+
+  if (r && r.status === 'success') {
+    output.textContent = r.output || 'Pull complete';
+    toast('Model pulled: ' + model, 'success');
+    loadOllamaModels();
+  } else {
+    output.textContent = (r && r.output) || 'Pull failed';
+    toast('Pull failed', 'error');
+  }
+}
+
+// ── Config editor ──────────────────────────────────────────────────────────
+async function loadConfigEditor() {
+  const data = await api('/ui/config/yaml');
+  if (data && data.yaml) {
+    document.getElementById('config-editor').value = data.yaml;
+  }
+  hideConfigStatus();
+}
+
+function showConfigStatus(msg, type) {
+  const el = document.getElementById('config-status');
+  el.style.display = 'inline-block';
+  el.textContent = msg;
+  el.className = 'validation-msg ' + type;
+}
+function hideConfigStatus() {
+  document.getElementById('config-status').style.display = 'none';
+}
+
+async function saveConfig() {
+  const yaml = document.getElementById('config-editor').value;
+  const r = await api('/ui/config/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ yaml }),
+  });
+  if (!r) { showConfigStatus('Save failed — network error', 'error'); return; }
+  if (r.errors && r.errors.length) {
+    showConfigStatus('Errors: ' + r.errors.join('; '), 'error');
+  } else {
+    showConfigStatus('Saved' + (r.warnings && r.warnings.length ? ' (with warnings: ' + r.warnings.join('; ') + ')' : ''), 'ok');
+    toast('Config saved', 'success');
+  }
+}
+
+async function validateConfig() {
+  const yaml = document.getElementById('config-editor').value;
+  const r = await api('/ui/config/validate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ yaml }),
+  });
+  if (!r) { showConfigStatus('Validation failed — network error', 'error'); return; }
+  if (r.valid) {
+    const warnMsg = r.warnings && r.warnings.length ? ' Warnings: ' + r.warnings.join('; ') : '';
+    showConfigStatus('Valid ✓' + warnMsg, r.warnings && r.warnings.length ? 'warn' : 'ok');
+  } else {
+    showConfigStatus('Invalid: ' + (r.errors || []).join('; '), 'error');
+  }
+}
+
+async function resetConfig() {
+  if (!confirm('Reset configuration to shipped defaults? Your current config will be backed up.')) return;
+  const r = await api('/ui/config/reset', { method: 'POST' });
+  if (r && r.yaml) {
+    document.getElementById('config-editor').value = r.yaml;
+    showConfigStatus('Reset to defaults', 'ok');
+    toast('Config reset to defaults', 'success');
+  }
+}
+
+// ── Auto-refresh ───────────────────────────────────────────────────────────
+function startAutoRefresh() {
+  refreshDashboard();
+  refreshTimer = setInterval(refreshDashboard, 10000);
+}
+
+// Handle tab key in textarea (insert spaces instead of switching focus)
+document.getElementById('config-editor').addEventListener('keydown', function(e) {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = this.selectionStart;
+    this.value = this.value.substring(0, s) + '  ' + this.value.substring(this.selectionEnd);
+    this.selectionStart = this.selectionEnd = s + 2;
+  }
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+startAutoRefresh();
+</script>
+</body>
+</html>

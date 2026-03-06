@@ -1,0 +1,4 @@
+fastapi>=0.104
+uvicorn[standard]>=0.24
+pyyaml>=6.0
+psutil>=5.9

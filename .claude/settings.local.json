@@ -8,7 +8,22 @@
       "Bash(find /c/Users/User/src/LLMGateway -not -path '*/.git/*' -not -name '.git' -type f -exec ls -lh {} ;)",
       "Bash(git ls-tree -r --name-only HEAD)",
       "Bash(git ls-tree -r --long HEAD)",
-      "Bash(sort -k5)"
+      "Bash(sort -k5)",
+      "Bash(python3 -m py_compile provisioning/setup-llmgateway.py provisioning/steps/__init__.py provisioning/steps/git_repo.py provisioning/steps/nodejs.py provisioning/steps/claude_code.py provisioning/steps/docker.py provisioning/steps/ollama.py provisioning/steps/ssh_config.py provisioning/steps/env_file.py provisioning/steps/docker_stack.py)",
+      "Bash(py -3 -m py_compile provisioning/setup-llmgateway.py provisioning/steps/__init__.py provisioning/steps/git_repo.py provisioning/steps/nodejs.py provisioning/steps/claude_code.py provisioning/steps/docker.py provisioning/steps/ollama.py provisioning/steps/ssh_config.py provisioning/steps/env_file.py provisioning/steps/docker_stack.py)",
+      "WebFetch(domain:claude.ai)",
+      "Bash(py -3 -m py_compile scripts/llmgateway.py)",
+      "Bash(py -3 -m py_compile scripts/config/manager.py)",
+      "Bash(py -3 -m py_compile scripts/config/schema.py)",
+      "Bash(py -3 -m py_compile scripts/services/__init__.py)",
+      "Bash(py -3 -m py_compile scripts/services/ollama.py)",
+      "Bash(py -3 -m py_compile scripts/services/llamacpp.py)",
+      "Bash(py -3 -m py_compile scripts/services/whisper.py)",
+      "Bash(py -3 -m py_compile scripts/web/__init__.py)",
+      "Bash(py -3 -m py_compile scripts/web/api.py)",
+      "Bash(py -3 -m py_compile scripts/web/ui.py)",
+      "Bash(py -3 -m py_compile scripts/launchd/manager.py)",
+      "Bash(py -3 -m py_compile scripts/setup-llmgateway.py)"
     ]
   }
 }
