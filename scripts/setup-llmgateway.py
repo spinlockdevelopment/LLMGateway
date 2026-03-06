@@ -16,10 +16,9 @@ Components provisioned (in order):
   8. Docker Compose Stack  — launch if not running, health checks
 
 Usage:
-    ./bootstrap.sh                     # normal provisioning
-    ./bootstrap.sh --status            # status check only (no changes)
-    python3 provisioning/setup-llmgateway.py
-    python3 provisioning/setup-llmgateway.py --status
+    ./bootstrap-llmgateway.sh   # start gateway (or --status / --install)
+    python3 scripts/setup-llmgateway.py   # normal provisioning
+    python3 scripts/setup-llmgateway.py --status   # status check only (no changes)
 """
 
 from __future__ import annotations
@@ -123,7 +122,7 @@ def main() -> int:
         from steps.docker_stack import DockerStack
     except ImportError as e:
         log.error(f"Failed to import provisioning steps: {e}")
-        log.error(f"Ensure you are running from the repository root or via bootstrap.sh")
+        log.error("Ensure you are running from the repository root or via bootstrap-llmgateway.sh")
         return 1
 
     # ── Step sequence ─────────────────────────────────────────────────────────
@@ -158,7 +157,7 @@ def main() -> int:
         for name in failures:
             log.error(f"    ✗ {name}")
         log.error("")
-        log.error("  Fix the issues above and re-run: ./bootstrap.sh")
+        log.error("  Fix the issues above and re-run: python3 scripts/setup-llmgateway.py")
         log.info("=" * 52)
         return 1
 

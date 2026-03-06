@@ -1,47 +1,46 @@
 # LLM Gateway
 
-A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM Proxy** does the routing, auth, and spend tracking; a small **management app** gives you a local dashboard, config editor, and control over local services (Ollama, llama.cpp, Whisper). Point Claude Code, Cursor, or any OpenAI-compatible client at one endpoint and route to OpenRouter (e.g. Claude) or local models.
+A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM Proxy** does the routing, auth, and spend tracking; a small **management interface** gives you a local dashboard with config editor and control over local services (Ollama, llama.cpp, Whisper). Point Claude Code, Cursor, Agents or any compatible client at one endpoint to route to local models or your subscriptions (e.g. Claude, OpenAI, Gemini, OpenRouter).
 
 ---
 
 ## Architecture (simple view)
 
 ```
+                    Tools / Agents
+         Claude Code · Cursor · OpenClaw · …
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  YOUR MACHINE (Mac Mini or Mac)                                              │
-│                                                                               │
-│  ┌─────────────────────────────────────────────────────────────────────┐    │
-│  │  Management app (Python) — port 8080                                  │    │
-│  │  • Web dashboard: config, service status, Ollama model pull           │    │
-│  │  • Starts/stops/monitors: Ollama, llama-server, whisper-server        │    │
-│  │  • Optional: run provisioning (Docker, Node, Claude Code, etc.)       │    │
-│  └─────────────────────────────────────────────────────────────────────┘    │
-│                                        │                                      │
-│  ┌────────────────────────────────────┼────────────────────────────────────┐ │
-│  │  Docker stack                       │                                    │ │
-│  │  • LiteLLM Proxy (port 4000) ◀──────┼─── THE API your clients call       │ │
-│  │  • PostgreSQL (keys, spend)         │                                    │ │
-│  │  • Grafana, Prometheus, Loki        │                                    │ │
-│  └────────────────────────────────────┴────────────────────────────────────┘ │
-│                                        │                                      │
-│  Local inference (optional):           │                                      │
-│  • Ollama (port 11434) — managed by dashboard, Metal GPU                      │
-│  • llama-server / whisper-server — configurable in config                     │
-└─────────────────────────────────────────────────────────────────────────────┘
-                                        │
-          ┌─────────────────────────────┼─────────────────────────────┐
-          │                             │                             │
-          ▼                             ▼                             ▼
-   Claude Code                   Cursor IDE              Any OpenAI SDK / curl
-          │                             │                             │
-          └─────────────────────────────┼─────────────────────────────┘
-                                        │
-                                        ▼
-   LiteLLM Proxy routes to:  OpenRouter (Claude, GPT, etc.)  or  Ollama (local)
+│  YOUR MACHINE                                                               │
+│                                                                             │
+│  ┌──────────────────────┐ ┌──────────────────────┐ ┌──────────────────────┐ │
+│  │  Management svc      │ │  LiteLLM Proxy       │ │  Observability       │ │
+│  │  port 8080           │ │  port 4000           │ │  Grafana · port 3000 │ │
+│  └──────────┬───────────┘ └──────────┬───────────┘ └──────────┬───────────┘ │
+│             │                        │                        │             │
+│             └────────────────────────┼────────────────────────┘             │
+│                                                                             │
+│                              Docker stack                                   │
+│         LiteLLM · PostgreSQL · Grafana · Prometheus · Loki · Alloy          │
+│                                       │                                     │
+│             LiteLLM Proxy ────────────┼────────────▶  Local inference      │
+│                 │                     │                · Ollama             │
+│                 │                     ▼                · llama-server       │
+│                 │                                      · whisper-server     │
+│                 │                                                           │
+└─────────────────┼───────────────────────────────────────────────────────────┘
+                  │
+                  ▼
+                  Cloud Services
+         Claude · OpenAI · OpenRouter · (etc)
+
+
 ```
 
-- **Clients** (Claude Code, Cursor, scripts) talk only to **LiteLLM Proxy** at `http://<this-mac>:4000`.
-- **You** use the **management dashboard** at `http://localhost:8080` to edit config, see service status, and pull Ollama models. The dashboard can start the Docker stack and manage local inference services.
+- **Tools/agents** (e.g. Claude Code, Cursor, OpenClaw) send requests to **LiteLLM Proxy** at `http://<this-mac>:4000`.
+- **Your machine** runs the **management app** (port 8080), **LiteLLM Proxy** (port 4000), and **observability** (Grafana), linked to the **Docker stack** (LiteLLM, PostgreSQL, Grafana, Prometheus, Loki, Alloy).
+- **LiteLLM** routes traffic **out** to **cloud services** (OpenRouter, Anthropic, etc.) and **down** to **local inference** (Ollama, llama-server, Whisper).
 
 ---
 
@@ -49,19 +48,19 @@ A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM P
 
 | Piece | Purpose |
 |-------|--------|
-| **LiteLLM Proxy** (Docker) | One API endpoint; routes requests to OpenRouter or Ollama; virtual keys, spend tracking, dashboard at `/ui`. |
-| **Management app** (Python) | Web UI + REST API; config editor; starts/monitors Ollama (and optional llama.cpp / Whisper). |
+| **LiteLLM Proxy** (Docker) | One API endpoint; routes requests to local models, Anthropic, OpenAI, OpenRouter, etc; virtual keys, spend tracking, dashboard at `/ui`. |
+| **Management app** (Python) | Web UI + REST API; config editor; starts/monitors local models (Ollama / llama.cpp / Whisper). |
 | **Provisioning** (`scripts/setup-llmgateway.py`) | Installs and checks: Git, Node, Claude Code CLI, Docker Desktop, Ollama, SSH, `.env`, and starts the Docker stack. |
-| **Bootstrap** (`bootstrap.sh`) | Ensures Python 3.11+ and deps, then runs the management app (or `--status` / `--install` for launchd). |
+| **Bootstrap** (`bootstrap-llmgateway.sh`) | Ensures Git and Python 3.11+ and deps, then runs the management app (or `--status` / `--install` for launchd). Can clone the repo into `~/src/LLMGateway` when run via curl. |
 
-No custom proxy code: routing, auth, and usage are handled by LiteLLM. This repo is config, Docker stack, and the management tooling.
+This repo is config, Docker stack, and the management tooling for running LiteLLM which handles routing, auth, and usage. 
 
 ---
 
 ## What you need
 
 - Mac with Apple Silicon (M1/M2/M3/M4)
-- [OpenRouter API key](https://openrouter.ai/keys) (covers Anthropic, OpenAI, and many others)
+- API Keys; Anthropic, OpenAI, [OpenRouter API key](https://openrouter.ai/keys), etc.
 - Docker Desktop (provisioning can install it)
 
 ---
@@ -70,13 +69,26 @@ No custom proxy code: routing, auth, and usage are handled by LiteLLM. This repo
 
 ### 1. Clone and bootstrap
 
+**Option A — clone then run (recommended):**
+
 ```bash
 git clone https://github.com/<owner>/LLMGateway.git ~/src/LLMGateway
 cd ~/src/LLMGateway
-./bootstrap.sh
+./bootstrap-llmgateway.sh
 ```
 
-This installs Python 3.11+, pip, and dependencies, then **starts the management app** (dashboard at http://localhost:8080). Leave it running in that terminal, or use `--install` to run it as a launchd agent (see below).
+**Option B — curl (script clones into `~/src/LLMGateway` for you):**
+
+Set your repo URL, then pipe the script into bash. The script installs Git if needed, clones the repo, and re-runs itself from the clone.
+
+```bash
+export LLMGATEWAY_REPO_URL=https://github.com/<owner>/LLMGateway.git
+curl -fsSL https://raw.githubusercontent.com/<owner>/LLMGateway/main/bootstrap-llmgateway.sh | bash
+```
+
+Replace `<owner>` with your GitHub org or username.
+
+Either way, the bootstrap installs Python 3.11+, pip, and dependencies, then **starts the management app** (dashboard at http://localhost:8080). Leave it running in that terminal, or use `--install` to run it as a launchd agent (see below).
 
 ### 2. Provision the rest (first time)
 
@@ -123,14 +135,14 @@ The management dashboard can also start and monitor Ollama if it’s enabled in 
 
 ## Management app commands
 
-Run from the repo with Python (or after `./bootstrap.sh` you can pass these through bootstrap):
+Run from the repo (or pass these when using the bootstrap script):
 
 | Command | Effect |
 |---------|--------|
-| `./bootstrap.sh` | Start the gateway (dashboard + service manager). Default. |
-| `./bootstrap.sh --status` | Print status (platform, memory, services, launchd). No server. |
-| `./bootstrap.sh --install` | Install launchd agent so the gateway starts on login. |
-| `./bootstrap.sh --uninstall` | Remove the launchd agent. |
+| `./bootstrap-llmgateway.sh` | Start the gateway (dashboard + service manager). Default. |
+| `./bootstrap-llmgateway.sh --status` | Print status (platform, memory, services, launchd). No server. |
+| `./bootstrap-llmgateway.sh --install` | Install launchd agent so the gateway starts on login. |
+| `./bootstrap-llmgateway.sh --uninstall` | Remove the launchd agent. |
 
 Provisioning (install Docker, Ollama, etc.) is separate: `python3 scripts/setup-llmgateway.py`.
 
@@ -206,7 +218,7 @@ Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) ch
 
 ```
 LLMGateway/
-├── bootstrap.sh                 # Install Python/deps, run management app (or --status / --install)
+├── bootstrap-llmgateway.sh      # Git + Python/deps, run management app; supports curl \| bash (clones to ~/src/LLMGateway)
 ├── requirements.txt             # Python deps for management app
 ├── .env.example                 # Template for API keys
 ├── litellm-config.yaml          # LiteLLM Proxy: routing, models, providers
