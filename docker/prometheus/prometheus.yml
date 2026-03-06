@@ -1,0 +1,13 @@
+# Prometheus configuration — scrapes LiteLLM /metrics
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # LiteLLM Proxy /metrics endpoint (built-in Prometheus callback)
+  - job_name: litellm
+    static_configs:
+      - targets: ["llm-gateway:4000"]
+    metrics_path: /metrics
+    scrape_interval: 10s

@@ -1,0 +1,73 @@
+// ============================================================
+// Grafana Alloy — LLM Gateway log collection
+// ============================================================
+// Discovers all Docker containers, reads their logs, parses
+// JSON-structured log lines for the level label, and ships
+// everything to Loki.
+//
+// When external agents are added:
+//   1. Expose port 4317 in docker-compose.yml for the alloy service
+//   2. Add an otelcol.receiver.otlp block here to accept OTLP
+//   3. Route traces/metrics/logs from the OTLP receiver to the
+//      appropriate loki.write or prometheus.remote_write exporters
+// ============================================================
+
+// ── Docker service discovery ──────────────────────────────
+discovery.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+}
+
+// ── Relabel container metadata into log labels ────────────
+discovery.relabel "docker_meta" {
+  targets = discovery.docker.containers.targets
+
+  // Strip leading slash from container name (e.g. /llm-gateway → llm-gateway)
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_compose_service"]
+    target_label  = "service"
+  }
+}
+
+// ── Read Docker container logs ────────────────────────────
+loki.source.docker "containers" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.relabel.docker_meta.output
+  forward_to       = [loki.process.parse_json.receiver]
+  refresh_interval = "5s"
+}
+
+// ── Parse JSON log lines and extract level label ──────────
+loki.process "parse_json" {
+  forward_to = [loki.write.default.receiver]
+
+  stage.json {
+    expressions = {
+      level = "level",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+}
+
+// ── Write to Loki ─────────────────────────────────────────
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

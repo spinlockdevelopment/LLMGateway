@@ -1,0 +1,265 @@
+# ============================================================
+# LLM Gateway — LiteLLM Proxy Configuration
+# ============================================================
+# Default stack: Anthropic Claude via OpenRouter + local Ollama
+# Clients: Claude Code, Cursor IDE, any OpenAI/Anthropic SDK
+#
+# This single file replaces all custom routing, auth, and
+# provider configuration. LiteLLM Proxy handles everything.
+# ============================================================
+
+# ── Model Deployments ─────────────────────────────────────────
+# model_name = pseudo-model (what clients request)
+# litellm_params.model = actual provider/model (what gets called)
+# Multiple entries with the same model_name are load-balanced
+# and used as fallbacks via the 'order' parameter.
+
+model_list:
+
+  # ── deep-reasoning ──────────────────────────────────────────
+  # Primary workhorse for Claude Code and Cursor.
+  # OpenRouter primary → direct Anthropic fallback.
+  - model_name: deep-reasoning
+    litellm_params:
+      model: openrouter/anthropic/claude-sonnet-4
+      api_key: os.environ/OPENROUTER_API_KEY
+      order: 1
+      rpm: 100
+      tpm: 200000
+  - model_name: deep-reasoning
+    litellm_params:
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
+      order: 2
+      rpm: 50
+      tpm: 100000
+
+  # ── coding ──────────────────────────────────────────────────
+  # Optimized for code generation, review, and refactoring.
+  - model_name: coding
+    litellm_params:
+      model: openrouter/anthropic/claude-sonnet-4
+      api_key: os.environ/OPENROUTER_API_KEY
+      order: 1
+      rpm: 100
+      tpm: 200000
+  - model_name: coding
+    litellm_params:
+      model: anthropic/claude-sonnet-4-20250514
+      api_key: os.environ/ANTHROPIC_API_KEY
+      order: 2
+      rpm: 50
+      tpm: 100000
+
+  # ── vision ──────────────────────────────────────────────────
+  # Image understanding — screenshots, diagrams, UI mockups.
+  - model_name: vision
+    litellm_params:
+      model: openrouter/anthropic/claude-sonnet-4
+      api_key: os.environ/OPENROUTER_API_KEY
+      order: 1
+      rpm: 60
+      tpm: 100000
+  - model_name: vision
+    litellm_params:
+      model: openrouter/openai/gpt-4o
+      api_key: os.environ/OPENROUTER_API_KEY
+      order: 2
+      rpm: 60
+      tpm: 100000
+
+  # ── cheap-research ──────────────────────────────────────────
+  # Affordable models for bulk research, summarization, triage.
+  # Round-robin across cheap providers via equal rpm weights.
+  - model_name: cheap-research
+    litellm_params:
+      model: openrouter/deepseek/deepseek-chat
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 120
+      tpm: 500000
+  - model_name: cheap-research
+    litellm_params:
+      model: openrouter/meta-llama/llama-3.1-70b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 120
+      tpm: 500000
+  - model_name: cheap-research
+    litellm_params:
+      model: openrouter/mistralai/mistral-small-latest
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 120
+      tpm: 500000
+
+  # ── budget ──────────────────────────────────────────────────
+  # Cheapest available for high-volume low-stakes tasks.
+  - model_name: budget
+    litellm_params:
+      model: openrouter/deepseek/deepseek-chat
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 200
+      tpm: 1000000
+  - model_name: budget
+    litellm_params:
+      model: openrouter/meta-llama/llama-3.1-8b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 200
+      tpm: 1000000
+
+  # ── heartbeat ───────────────────────────────────────────────
+  # Fast health-check / smoke-test model. Local Ollama preferred.
+  - model_name: heartbeat
+    litellm_params:
+      model: ollama_chat/llama3.2:1b
+      api_base: http://host.docker.internal:11434
+      order: 1
+      rpm: 300
+  - model_name: heartbeat
+    litellm_params:
+      model: openrouter/meta-llama/llama-3-8b-instruct
+      api_key: os.environ/OPENROUTER_API_KEY
+      order: 2
+      rpm: 60
+
+  # ── local-only ──────────────────────────────────────────────
+  # Never leaves the machine. Ollama on bare metal (Metal GPU).
+  - model_name: local-only
+    litellm_params:
+      model: ollama_chat/llama3.2:3b
+      api_base: http://host.docker.internal:11434
+      order: 1
+      rpm: 60
+  - model_name: local-only
+    litellm_params:
+      model: ollama_chat/llama3.1:8b
+      api_base: http://host.docker.internal:11434
+      order: 2
+      rpm: 30
+
+  # ── llama-local ─────────────────────────────────────────────
+  # Direct llama.cpp server (start separately on host).
+  # Uses OpenAI-compatible endpoint that llama-server exposes.
+  - model_name: llama-local
+    litellm_params:
+      model: openai/local-model
+      api_base: http://host.docker.internal:8081/v1
+      api_key: not-needed
+      rpm: 30
+
+  # ── Direct pass-through models ──────────────────────────────
+  # Clients can also request specific models directly using
+  # LiteLLM model format strings. These aliases provide
+  # convenient shortcuts for commonly used models.
+
+  - model_name: claude-sonnet
+    litellm_params:
+      model: openrouter/anthropic/claude-sonnet-4
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-haiku
+    litellm_params:
+      model: openrouter/anthropic/claude-3.5-haiku
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: claude-opus
+    litellm_params:
+      model: openrouter/anthropic/claude-opus-4
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: openrouter/openai/gpt-4o
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  - model_name: deepseek
+    litellm_params:
+      model: openrouter/deepseek/deepseek-chat
+      api_key: os.environ/OPENROUTER_API_KEY
+
+
+# ── LiteLLM SDK Settings ─────────────────────────────────────
+
+litellm_settings:
+  # Telemetry: Prometheus metrics (scraped by Grafana via /metrics)
+  callbacks: ["prometheus"]
+
+  # Drop unsupported params instead of erroring
+  drop_params: true
+
+  # Fallback chains: if primary pseudo-model fails entirely,
+  # try these alternatives
+  fallbacks:
+    - {"deep-reasoning": ["coding"]}
+    - {"coding": ["deep-reasoning"]}
+    - {"vision": ["deep-reasoning"]}
+
+  # Context window fallbacks: auto-switch to larger context model
+  context_window_fallbacks:
+    - {"deep-reasoning": ["cheap-research"]}
+
+  # Cache (optional — uncomment to enable Redis response caching)
+  # cache: true
+  # cache_params:
+  #   type: redis
+  #   host: redis
+  #   port: 6379
+
+  # Request logging (opt-in — stores prompts in spend logs table)
+  # store_prompts_in_spend_logs: true
+
+  # Retry settings
+  num_retries: 2
+  request_timeout: 120
+
+
+# ── Router Settings ───────────────────────────────────────────
+
+router_settings:
+  # Use priority ordering (order parameter) with fallback
+  enable_pre_call_checks: true
+
+  # Routing strategy for same-priority deployments
+  routing_strategy: simple-shuffle
+
+  # Cooldown: if a deployment fails 3 times, skip it for 60s
+  allowed_fails: 3
+  cooldown_time: 60
+
+  # Retry on specific errors
+  retry_after: 5
+  num_retries: 2
+
+  # Model aliases for backward compatibility
+  model_group_alias:
+    "reasoning": "deep-reasoning"
+    "code": "coding"
+    "local": "local-only"
+
+
+# ── Proxy Server Settings ────────────────────────────────────
+
+general_settings:
+  # Master key for admin operations (key/team/budget management)
+  master_key: os.environ/LITELLM_MASTER_KEY
+
+  # PostgreSQL for virtual keys, spend tracking, model management
+  database_url: os.environ/DATABASE_URL
+
+  # Background health checks — don't hammer providers on every /health
+  background_health_checks: true
+  health_check_interval: 300
+
+  # Store models in DB so UI changes persist across restarts
+  store_model_in_db: true
+
+  # Allow direct model pass-through for models not in model_list
+  # (clients can request any litellm-supported model string)
+  # enable_all_model_access: true
+
+
+# ── Environment Variables Reference ──────────────────────────
+# These are read from the container environment (.env file):
+#
+#   OPENROUTER_API_KEY    — primary remote provider (required)
+#   ANTHROPIC_API_KEY     — direct Anthropic fallback (optional)
+#   LITELLM_MASTER_KEY    — admin key for /key, /team, /budget APIs
+#   DATABASE_URL          — PostgreSQL connection string

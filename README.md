@@ -1,122 +1,214 @@
 # LLM Gateway
 
-A local LLM routing gateway designed for Apple Silicon Mac Mini. Provides a unified API endpoint that transparently routes requests to local models (via Ollama/MLX) or remote providers (OpenRouter, OpenAI, Anthropic, Google).
+A zero-custom-code LLM routing gateway for Apple Silicon. **LiteLLM Proxy** handles everything — routing, auth, spend tracking, dashboards. You just write config.
 
-Compatible with OpenAI and Anthropic SDKs — tools like Claude Code, Cursor, LangChain, and custom agents connect without modification.
-
-## Architecture
+Point **Claude Code** or **Cursor** at this Mac Mini and every request routes through **OpenRouter** to **Anthropic Claude**, with **Ollama** for local inference. No custom proxy code. No Python gateway. Just LiteLLM Proxy with a good config file.
 
 ```
-Clients / Agents (Claude Code, Cursor, LangChain, custom)
-        │
-        ▼
-   LLM Gateway (FastAPI + LiteLLM)
-   ├── Token Auth     — gateway API tokens per agent
-   ├── Routing Engine  — pseudo-model → actual model resolution
-   ├── Rate Limiter    — per-agent token bucket
-   └── Usage Tracker   — cost/token tracking in SQLite
-        │
- ┌──────┴───────────────┐
- ▼                      ▼
-Local Models         Remote APIs
-(Ollama on Metal)    (OpenRouter / OpenAI / Anthropic / Google)
-        │
-        ▼
- OpenTelemetry Collector
-        ▼
- Loki ← Promtail (logs)
- Prometheus (metrics)
-        ▼
-      Grafana (dashboards)
+┌──────────────────────────────────────────────────────────────┐
+│  YOUR TOOLS                                                  │
+│  Claude Code ──┐                                             │
+│  Cursor IDE  ──┤                                             │
+│  Any OpenAI  ──┼──▶  LiteLLM Proxy   ──┬──▶ OpenRouter      │
+│  SDK client  ──┤     (Docker)          │    → Anthropic Claude│
+│  LangChain   ──┘     port 4000         │    → (200+ models)  │
+│                                        │                      │
+│                                        └──▶ Ollama            │
+│                                             (bare metal,      │
+│                                              Metal GPU)       │
+│                                                               │
+│  Observability: Prometheus + Grafana + Loki                  │
+│  Data: PostgreSQL (keys, spend, models)                      │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-## Quick Start
+## Why This Exists
 
-### Prerequisites
+You have a Mac Mini running Ollama for local models. You have an OpenRouter key for Anthropic Claude. You have Claude Code and Cursor on your dev machine. You want all of them to hit one endpoint, with routing rules, usage tracking, and cost visibility — without handing out your provider API keys.
 
-- macOS with Apple Silicon (M1/M2/M3/M4)
-- Python 3.11+
-- Docker Desktop for Mac
-- [Ollama](https://ollama.ai) installed on the host (bare metal, for Metal GPU acceleration)
+LiteLLM Proxy does all of this out of the box. This repo is the config, Docker stack, and bootstrap tooling to get it running in minutes.
 
-### 1. Clone and configure
+**What's in this repo (and what's not):**
+
+| In this repo | Not in this repo |
+|---|---|
+| `litellm-config.yaml` — pseudo-model routing, fallbacks, provider config | Custom Python gateway code |
+| `docker-compose.yml` — LiteLLM + PostgreSQL + Grafana + Prometheus + Loki | Custom admin UI |
+| `bootstrap.sh` + `provision.py` — one-command Mac Mini setup | Custom routing engine |
+| Grafana dashboards, Prometheus scrape config, Grafana Alloy log collection | Custom auth/rate-limit/usage tracking |
+
+**Zero lines of custom proxy code.** LiteLLM Proxy handles routing, auth (virtual keys), rate limiting, spend tracking, the dashboard, health checks, OpenTelemetry, and both OpenAI + Anthropic API formats.
+
+---
+
+## Get Running in 5 Minutes
+
+### What you need
+
+- Mac Mini with Apple Silicon (M1/M2/M3/M4)
+- An [OpenRouter API key](https://openrouter.ai/keys) — this is the only provider key required
+- Docker Desktop (the bootstrap script can install this for you)
+
+### Option A: Automated bootstrap
+
+```bash
+# Clone the repo
+git clone https://github.com/<owner>/LLMGateway.git ~/src/LLMGateway
+cd ~/src/LLMGateway
+
+# Run the bootstrap (installs Python, Node, Docker, Ollama, Claude Code)
+bash bootstrap.sh
+
+# Edit your API keys
+cp .env.example .env
+# Set OPENROUTER_API_KEY and LITELLM_MASTER_KEY in .env
+
+# Launch everything
+bash bootstrap.sh --launch
+```
+
+The bootstrap script is idempotent — safe to run on every boot.
+
+### Option B: Manual setup
 
 ```bash
 cd ~/src/LLMGateway
 cp .env.example .env
 ```
 
-Edit `.env` with your API keys:
+Edit `.env`:
 
 ```bash
-OPENROUTER_API_KEY=sk-or-v1-...
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
+OPENROUTER_API_KEY=sk-or-v1-your-key-here
+LITELLM_MASTER_KEY=sk-gateway-master-change-me
 ```
 
-### 2. Install Ollama and pull a model (bare metal)
-
-Ollama runs directly on the host for Metal GPU acceleration — not in Docker.
+Start Ollama (bare metal for Metal GPU):
 
 ```bash
-# Install Ollama (if not already installed)
 brew install ollama
-
-# Start the Ollama server
 ollama serve &
-
-# Pull a small model for testing
 ollama pull llama3.2:1b
+ollama pull llama3.2:3b
 ```
 
-### 3. Option A — Run locally (development)
+Start the stack:
 
 ```bash
-# Create virtual environment
-python3 -m venv .venv
-source .venv/bin/activate
-
-# Install
-pip install -e .
-
-# Run
-uvicorn llm_gateway.main:app --host 0.0.0.0 --port 8000
-```
-
-### 3. Option B — Run with Docker (production)
-
-```bash
-# Start the full stack (gateway + observability)
 docker compose -f docker/docker-compose.yml up -d
-
-# View logs
-docker compose -f docker/docker-compose.yml logs -f gateway
 ```
 
-### 4. Verify
+Verify:
 
 ```bash
-# Health check
-curl http://localhost:8000/admin/health
-
-# List available models
-curl -H "Authorization: Bearer gw_test_token_999" \
-     http://localhost:8000/v1/models
+curl http://localhost:4000/health/liveliness
+# {"status": "healthy"}
 ```
+
+You now have:
+- **LiteLLM Proxy** at `http://localhost:4000` (API endpoint)
+- **LiteLLM Dashboard** at `http://localhost:4000/ui` (admin UI)
+- **Grafana** at `http://localhost:3000` (observability dashboards)
+- **Prometheus** at `http://localhost:9090` (metrics)
+- **Ollama** at `http://localhost:11434` (local inference)
+
+---
+
+## Set Up Claude Code
+
+Two environment variables:
+
+```bash
+export ANTHROPIC_BASE_URL=http://llmgateway.local:4000
+export ANTHROPIC_API_KEY=sk-gateway-master-change-me
+```
+
+Or generate a dedicated virtual key for Claude Code (recommended):
+
+```bash
+curl -X POST http://localhost:4000/key/generate \
+  -H "Authorization: Bearer sk-gateway-master-change-me" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key_alias": "claude-code",
+    "max_budget": 50.0,
+    "budget_duration": "monthly",
+    "models": ["deep-reasoning", "coding", "vision", "heartbeat"],
+    "tpm_limit": 200000,
+    "rpm_limit": 120
+  }'
+```
+
+Use the returned key:
+
+```bash
+export ANTHROPIC_BASE_URL=http://llmgateway.local:4000
+export ANTHROPIC_API_KEY=sk-<returned-key>
+```
+
+Now every Claude Code request goes through your gateway. The proxy logs it, tracks tokens and cost, and routes `deep-reasoning` and `coding` to Anthropic Claude via OpenRouter. Local tasks like `heartbeat` stay on Ollama.
+
+## Set Up Cursor IDE
+
+Open Cursor settings and set:
+
+| Setting | Value |
+|---------|-------|
+| **API Base URL** | `http://llmgateway.local:4000/v1` |
+| **API Key** | `sk-gateway-master-change-me` (or a generated virtual key) |
+
+Generate a separate virtual key for Cursor to get independent rate limits and spend tracking:
+
+```bash
+curl -X POST http://localhost:4000/key/generate \
+  -H "Authorization: Bearer sk-gateway-master-change-me" \
+  -d '{"key_alias": "cursor-ide", "max_budget": 50.0, "budget_duration": "monthly"}'
+```
+
+---
+
+## How Routing Works
+
+Clients request **pseudo-models** — logical names like `coding` or `deep-reasoning`. LiteLLM Proxy resolves them to real provider models based on `litellm-config.yaml`.
+
+Out of the box:
+
+| You request | Proxy sends it to | Fallback | Why |
+|---|---|---|---|
+| `deep-reasoning` | **Claude Sonnet 4** via OpenRouter | Direct Anthropic API | Best reasoning model |
+| `coding` | **Claude Sonnet 4** via OpenRouter | Direct Anthropic API | Best coding model |
+| `vision` | **Claude Sonnet 4** via OpenRouter | GPT-4o via OpenRouter | Multimodal understanding |
+| `heartbeat` | **Ollama llama3.2:1b** locally | Llama 3 via OpenRouter | Fast, free, on-device |
+| `local-only` | **Ollama llama3.2:3b** locally | Ollama llama3.1:8b | Never leaves the machine |
+| `cheap-research` | Round-robin: DeepSeek, Llama, Mistral via OpenRouter | — | Cost distribution |
+| `budget` | Cheapest OpenRouter models | — | Highest volume, lowest cost |
+
+Additional aliases: `claude-sonnet`, `claude-haiku`, `claude-opus`, `gpt-4o`, `deepseek`
+
+You can also request any model directly using LiteLLM format strings:
+
+```bash
+model: "openrouter/anthropic/claude-sonnet-4"     # OpenRouter
+model: "anthropic/claude-sonnet-4-20250514"        # Direct Anthropic
+model: "ollama_chat/llama3.2:3b"                   # Local Ollama
+model: "openai/local-model"                         # llama.cpp server
+```
+
+---
 
 ## Usage Examples
 
-### OpenAI SDK (Python)
+### Python — route to Anthropic Claude
 
 ```python
 from openai import OpenAI
 
 client = OpenAI(
-    base_url="http://localhost:8000/v1",
-    api_key="gw_test_token_999",  # gateway token, NOT an OpenAI key
+    base_url="http://llmgateway.local:4000/v1",
+    api_key="sk-your-virtual-key",
 )
 
-# Use a pseudo-model — the gateway routes it
+# "deep-reasoning" routes to Claude Sonnet 4
 response = client.chat.completions.create(
     model="deep-reasoning",
     messages=[{"role": "user", "content": "Explain quantum entanglement"}],
@@ -124,298 +216,295 @@ response = client.chat.completions.create(
 print(response.choices[0].message.content)
 ```
 
-### OpenAI SDK (streaming)
+### Python — Anthropic SDK (native format)
 
 ```python
-stream = client.chat.completions.create(
-    model="cheap-research",
-    messages=[{"role": "user", "content": "Summarize the history of TCP/IP"}],
-    stream=True,
+import anthropic
+
+client = anthropic.Anthropic(
+    base_url="http://llmgateway.local:4000",
+    api_key="sk-your-virtual-key",
 )
-for chunk in stream:
-    if chunk.choices[0].delta.content:
-        print(chunk.choices[0].delta.content, end="")
+
+response = client.messages.create(
+    model="coding",
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "Write a merge sort in Rust"}],
+)
+print(response.content[0].text)
 ```
 
-### curl — OpenAI-compatible endpoint
+### curl — quick test
 
 ```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Authorization: Bearer gw_agent_tod_003" \
+curl -X POST http://llmgateway.local:4000/v1/chat/completions \
+  -H "Authorization: Bearer sk-your-virtual-key" \
   -H "Content-Type: application/json" \
-  -H "x-agent-name: tod" \
-  -H "x-request-type: research" \
-  -H "x-transaction-id: txn-001" \
   -d '{
     "model": "deep-reasoning",
     "messages": [{"role": "user", "content": "What is the Riemann hypothesis?"}]
   }'
 ```
 
-### curl — Anthropic-compatible endpoint
+### curl — local Ollama (stays on device)
 
 ```bash
-curl -X POST http://localhost:8000/v1/messages \
-  -H "Authorization: Bearer gw_test_token_999" \
-  -H "Content-Type: application/json" \
+curl -X POST http://llmgateway.local:4000/v1/chat/completions \
+  -H "Authorization: Bearer sk-your-virtual-key" \
+  -d '{"model": "heartbeat", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
+---
+
+## LiteLLM Dashboard
+
+LiteLLM includes a full admin dashboard at `http://localhost:4000/ui`. Log in with your `LITELLM_MASTER_KEY`.
+
+What you can do from the dashboard:
+- **Create virtual keys** — issue keys with budgets, rate limits, and model restrictions
+- **Manage models** — add, edit, delete model deployments without restarting
+- **Track spend** — usage breakdown by key, team, model, and provider
+- **View logs** — request/response audit trail (opt-in)
+- **Health monitoring** — provider and model deployment status
+
+No custom admin UI needed.
+
+---
+
+## Virtual Keys (Agent Authentication)
+
+Instead of hard-coded gateway tokens, LiteLLM uses **virtual keys** stored in PostgreSQL. Each key can have:
+
+| Setting | Example |
+|---|---|
+| Budget | `$50/month` max spend |
+| Rate limits | `120 rpm`, `200k tpm` |
+| Model access | Only `deep-reasoning` and `coding` |
+| Team | Group keys for aggregate budgets |
+| Alias | Human-readable name like `claude-code` |
+
+```bash
+# Create a key for a new agent
+curl -X POST http://localhost:4000/key/generate \
+  -H "Authorization: Bearer sk-gateway-master-change-me" \
   -d '{
-    "model": "coding",
-    "max_tokens": 1024,
-    "system": "You are a helpful coding assistant.",
-    "messages": [{"role": "user", "content": "Write a Python function to merge two sorted lists"}]
+    "key_alias": "tod-agent",
+    "max_budget": 10.0,
+    "budget_duration": "monthly",
+    "models": ["deep-reasoning", "cheap-research", "coding"],
+    "rpm_limit": 60
   }'
+
+# List all keys
+curl http://localhost:4000/key/info \
+  -H "Authorization: Bearer sk-gateway-master-change-me"
+
+# Delete a key
+curl -X POST http://localhost:4000/key/delete \
+  -H "Authorization: Bearer sk-gateway-master-change-me" \
+  -d '{"keys": ["sk-key-to-delete"]}'
 ```
 
-### Direct model request (bypass routing)
+---
+
+## Local Models — Ollama and llama.cpp
+
+### Ollama (default, bare metal)
+
+Ollama runs directly on macOS for full Apple Metal GPU acceleration. **Do not run Ollama in Docker** — it loses GPU access.
 
 ```bash
-curl -X POST http://localhost:8000/v1/chat/completions \
-  -H "Authorization: Bearer gw_test_token_999" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "ollama_chat/llama3.2:1b",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
+brew install ollama
+ollama serve &
+
+# Pull models for the default routing config
+ollama pull llama3.2:1b    # used by "heartbeat"
+ollama pull llama3.2:3b    # used by "local-only"
+ollama pull llama3.1:8b    # available for on-demand use
 ```
 
-### Claude Code configuration
+LiteLLM reaches Ollama via `host.docker.internal:11434` from inside Docker.
 
-Point Claude Code to the gateway:
+### llama.cpp (alternative)
+
+For direct GGUF loading with fine-grained control:
 
 ```bash
-export OPENAI_BASE_URL=http://llmgateway.local:8000/v1
-export OPENAI_API_KEY=gw_claude_code_dev_001
+brew install llama.cpp
+
+llama-server \
+  -m /models/Meta-Llama-3-8B-Instruct-Q4_K_M.gguf \
+  --port 8081 -c 8192 -ngl 99 --host 127.0.0.1
 ```
 
-### Cursor IDE configuration
+The `llama-local` pseudo-model in `litellm-config.yaml` routes to `localhost:8081`. Start the server manually; LiteLLM connects to it as an OpenAI-compatible endpoint.
 
-In Cursor settings, set the API base URL to `http://llmgateway.local:8000/v1` and use a gateway token as the API key.
-
-## Admin API
-
-```bash
-# Gateway status (local models + provider health)
-curl http://localhost:8000/admin/status
-
-# Usage summary (all agents)
-curl -H "Authorization: Bearer gw_test_token_999" \
-     http://localhost:8000/admin/usage
-
-# Usage for a specific agent
-curl -H "Authorization: Bearer gw_test_token_999" \
-     "http://localhost:8000/admin/usage?agent=tod"
-
-# List all models (pseudo + local)
-curl http://localhost:8000/admin/models
-
-# Load a local model
-curl -X POST http://localhost:8000/admin/set-model \
-  -H "Content-Type: application/json" \
-  -d '{"model": "llama3.1-8b", "action": "load"}'
-
-# Unload a local model
-curl -X POST http://localhost:8000/admin/set-model \
-  -H "Content-Type: application/json" \
-  -d '{"model": "llama3.1-8b", "action": "unload"}'
-
-# Reload all config files
-curl -X POST http://localhost:8000/admin/reload-config
-```
-
-## Configuration
-
-All configuration is in `config/` as YAML files with hot-reload support.
-
-| File | Purpose |
-|------|---------|
-| `config/routing.yaml` | Pseudo-model definitions and routing strategies |
-| `config/providers.yaml` | Provider-specific settings and timeouts |
-| `config/agents.yaml` | Agent tokens, rate limits, and model access control |
-| `config/local_models.yaml` | Local model definitions (Ollama/MLX/llama.cpp) |
-
-### Routing strategies
-
-- **primary/fallback** — use primary model, fall back on failure
-- **local_first** — prefer local model, fall back to remote
-- **round_robin** — rotate through a list of models
-- **weighted** — probabilistic selection by configurable weights
-
-### Adding a new pseudo-model
-
-Edit `config/routing.yaml`:
-
-```yaml
-pseudo_models:
-  my-new-model:
-    primary: openrouter/anthropic/claude-sonnet-4
-    fallback:
-      - openrouter/openai/gpt-4o
-```
-
-The gateway picks up changes automatically (file watcher) or via `POST /admin/reload-config`.
-
-### Adding a new agent
-
-Edit `config/agents.yaml`:
-
-```yaml
-agents:
-  my-agent:
-    name: "My Agent"
-    token: "gw_my_agent_token"
-    rate_limit_rpm: 60
-    allowed_models: []  # empty = all models allowed
-```
+---
 
 ## Observability
 
-### Grafana dashboard
+### Grafana dashboards
 
-Open http://localhost:3000 (admin / llmgateway).
+Open `http://localhost:3000` (login: `admin` / `llmgateway`).
 
-Pre-configured panels:
-- Requests per model (rate)
+Pre-built panels:
+- Requests per model over time
 - Latency percentiles (p50/p95/p99)
-- Tokens in/out per model
-- Estimated cost per agent
-- Routing strategy distribution
-- Live gateway logs
+- Input/output tokens per model
+- Spend per API key
+- Deployment failure tracking
+- Latency heatmap
+- Live container logs
 
-### Log format
+### Prometheus metrics
 
-All gateway logs are structured JSON:
+LiteLLM exposes `/metrics` natively. Prometheus scrapes it directly. Key metrics:
 
-```json
-{
-  "timestamp": "2025-01-15T10:30:00.000Z",
-  "level": "INFO",
-  "name": "llm_gateway.api.chat",
-  "message": "completion",
-  "agent": "tod",
-  "pseudo_model": "deep-reasoning",
-  "selected_model": "claude-sonnet-4",
-  "provider": "openrouter",
-  "tokens_in": 1200,
-  "tokens_out": 340,
-  "estimated_cost": 0.021,
-  "latency_ms": 1850
-}
-```
+- `litellm_requests_metric_total` — total requests by model/provider
+- `litellm_spend_metric_total` — accumulated spend
+- `litellm_request_total_latency_metric` — request latency histogram
+- `litellm_deployment_failure_responses_total` — provider failures
+- `litellm_remaining_budget_metric` — budget remaining per key
 
-## Mac Mini Setup Guide
+### Logs
 
-### Recommended setup
+Container logs are collected by **Grafana Alloy**, which reads from the Docker socket, parses JSON log lines for the `level` label, and ships everything to Loki. View logs in Grafana under the Loki datasource.
 
-1. **Ollama** — runs bare metal for Metal GPU acceleration
-2. **Gateway + observability** — runs in Docker containers
-3. **Network** — set a static IP or hostname (`llmgateway.local`)
+When external agent machines are added, run Grafana Alloy on those machines too — each Alloy instance ships directly to this stack's Loki endpoint.
 
-### System preparation
+---
 
-```bash
-# Set hostname (optional, for mDNS discovery)
-sudo scutil --set HostName llmgateway
-sudo scutil --set LocalHostName llmgateway
+## Bootstrap & Provisioning
 
-# Install Homebrew (if needed)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+The `bootstrap.sh` script automates Mac Mini setup. It installs:
 
-# Install Docker Desktop
-brew install --cask docker
-
-# Install Ollama
-brew install ollama
-
-# Pull models
-ollama pull llama3.2:1b
-ollama pull llama3.2:3b
-
-# Start Ollama as a background service
-brew services start ollama
-```
-
-### Launch the stack
+| Component | Method |
+|---|---|
+| Xcode Command Line Tools | `xcode-select --install` |
+| Homebrew | Official installer |
+| Python 3.11+ | `brew install python` |
+| Node.js 18+ | `brew install node` |
+| Claude Code CLI | `npm install -g @anthropic-ai/claude-code` |
+| Docker Desktop | `brew install --cask docker` |
+| Ollama | `brew install ollama` |
+| SSH | Checks/guides macOS Remote Login setup |
 
 ```bash
-cd ~/src/LLMGateway
-cp .env.example .env
-# Edit .env with your API keys
+# First run — install everything
+bash bootstrap.sh
 
-docker compose -f docker/docker-compose.yml up -d
+# Subsequent runs — update everything + launch
+bash bootstrap.sh --launch
+
+# On each boot (add to Login Items or launchd)
+bash bootstrap.sh --launch
 ```
 
-### Verify everything is running
+The provisioning script (`provisioning/provision.py`) handles the detailed work. Both scripts are idempotent and log to `/tmp/llm-gateway-bootstrap.log` + macOS syslog.
+
+---
+
+## Configuration Reference
+
+All configuration lives in `litellm-config.yaml`. This single file replaces the previous four YAML files.
+
+### Adding a pseudo-model
+
+```yaml
+# In model_list:
+- model_name: my-task                              # what clients request
+  litellm_params:
+    model: openrouter/anthropic/claude-sonnet-4    # primary
+    api_key: os.environ/OPENROUTER_API_KEY
+    order: 1
+- model_name: my-task
+  litellm_params:
+    model: ollama_chat/llama3.1:8b                 # fallback
+    api_base: http://host.docker.internal:11434
+    order: 2
+```
+
+### Changing routing strategy
+
+```yaml
+router_settings:
+  routing_strategy: least-busy     # or: simple-shuffle, latency-based-routing
+```
+
+### Setting fallback chains
+
+```yaml
+litellm_settings:
+  fallbacks:
+    - {"my-task": ["cheap-research"]}   # if my-task fails entirely, try cheap-research
+```
+
+### Runtime changes (no restart)
+
+Use the LiteLLM dashboard at `/ui` or the API:
 
 ```bash
-# Check containers
-docker compose -f docker/docker-compose.yml ps
-
-# Check Ollama
-curl http://localhost:11434/api/tags
-
-# Check gateway
-curl http://localhost:8000/admin/health
-
-# Check Grafana
-open http://localhost:3000
+# Add a model deployment at runtime
+curl -X POST http://localhost:4000/model/new \
+  -H "Authorization: Bearer sk-gateway-master-change-me" \
+  -d '{
+    "model_name": "new-model",
+    "litellm_params": {
+      "model": "openrouter/openai/gpt-4o",
+      "api_key": "os.environ/OPENROUTER_API_KEY"
+    }
+  }'
 ```
+
+---
+
+## Other Supported Providers
+
+LiteLLM supports 100+ providers. These are **not** part of the default config — opt in by adding model deployments.
+
+| Provider | Model format |
+|---|---|
+| OpenAI direct | `openai/gpt-4o` |
+| Google Gemini | `gemini/gemini-2.0-flash` |
+| Azure OpenAI | `azure/<deployment-name>` |
+| AWS Bedrock | `bedrock/anthropic.claude-v2` |
+| Mistral | `mistral/mistral-large-latest` |
+| Groq | `groq/llama-3-70b` |
+| Together AI | `together_ai/meta-llama/Llama-3-70b` |
+| Any LiteLLM provider | [docs.litellm.ai/docs/providers](https://docs.litellm.ai/docs/providers) |
+
+---
 
 ## Project Structure
 
 ```
 LLMGateway/
-├── src/llm_gateway/
-│   ├── main.py              # FastAPI app entry point
-│   ├── config/
-│   │   ├── loader.py        # YAML config with hot-reload
-│   │   └── settings.py      # Pydantic environment settings
-│   ├── routing/
-│   │   ├── engine.py        # Pseudo-model routing engine
-│   │   └── strategies.py    # Routing strategies
-│   ├── providers/
-│   │   ├── base.py          # Provider adapter interface
-│   │   ├── litellm_adapter.py  # LiteLLM integration
-│   │   └── registry.py      # Provider registry + health
-│   ├── local/
-│   │   └── manager.py       # Local model management (Ollama/MLX)
-│   ├── auth/
-│   │   └── tokens.py        # Gateway token auth
-│   ├── tracking/
-│   │   └── usage.py         # Token/cost tracking (SQLite)
-│   ├── telemetry/
-│   │   └── otel.py          # OpenTelemetry setup
-│   ├── api/
-│   │   ├── chat.py          # POST /v1/chat/completions
-│   │   ├── messages.py      # POST /v1/messages
-│   │   ├── models.py        # GET  /v1/models
-│   │   └── admin.py         # Admin API endpoints
-│   └── middleware/
-│       ├── logging.py       # Structured request logging
-│       └── rate_limit.py    # Token-bucket rate limiter
-├── config/
-│   ├── routing.yaml         # Pseudo-model routing rules
-│   ├── providers.yaml       # Provider configuration
-│   ├── agents.yaml          # Agent tokens and permissions
-│   └── local_models.yaml    # Local model definitions
+├── litellm-config.yaml          # LiteLLM Proxy config (routing, models, auth, telemetry)
+├── .env.example                 # API keys template
+├── bootstrap.sh                 # One-command Mac Mini provisioning
+├── provisioning/
+│   └── provision.py             # Python provisioning (Node, Docker, Claude Code, SSH)
 ├── docker/
-│   ├── Dockerfile
-│   ├── docker-compose.yml   # Full stack
-│   ├── otel/                # OTel Collector config
-│   ├── promtail/            # Promtail config
-│   └── grafana/             # Grafana provisioning
-├── pyproject.toml
-├── .env.example
+│   ├── docker-compose.yml       # LiteLLM + PostgreSQL + Grafana + Prometheus + Loki + Alloy
+│   ├── prometheus/
+│   │   └── prometheus.yml       # Scrape LiteLLM /metrics
+│   ├── alloy/
+│   │   └── alloy-config.alloy   # Docker log collection → Loki
+│   └── grafana/
+│       └── provisioning/
+│           ├── datasources/
+│           │   └── datasource.yaml
+│           └── dashboards/
+│               ├── dashboard.yaml
+│               └── llm-gateway.json
 └── README.md
 ```
 
 ## Future Enhancements
 
-The architecture supports these future additions:
-
-- **Cost-optimization routing** — route to cheapest provider meeting quality threshold
-- **Semantic routing** — classify request intent and route accordingly
-- **Response caching** — cache identical requests (with TTL)
-- **Model benchmarking** — A/B test models on same prompts
-- **GPU/load-aware routing** — monitor Metal utilization, route accordingly
-- **Adaptive model selection** — learn which models work best for each agent
-- **Policy learning** — automatically tune routing weights based on outcomes
+- **OpenRouter telemetry ingestion** — pull usage/spend data from OpenRouter's management API
+- **Custom LiteLLM callbacks** — extend with project-specific logging or routing logic
+- **Redis response caching** — cache identical prompts (LiteLLM has built-in support)
+- **Semantic routing** — auto-classify request intent and pick the right model tier
+- **GPU-aware local routing** — check Metal utilization before routing to Ollama
+- **Sidecar service** — lightweight CLI for managing local model processes (Ollama, llama.cpp lifecycle)

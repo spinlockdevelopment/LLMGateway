@@ -7,14 +7,14 @@
   "links": [],
   "panels": [
     {
-      "title": "Requests per Model",
+      "title": "Requests per Model (rate/5m)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "datasource": { "type": "prometheus" },
       "targets": [
         {
-          "expr": "rate(llm_gateway_llm_gateway_requests_total[5m])",
-          "legendFormat": "{{pseudo_model}} → {{model}}"
+          "expr": "rate(litellm_requests_metric_total[5m])",
+          "legendFormat": "{{model}} ({{api_provider}})"
         }
       ]
     },
@@ -22,76 +22,111 @@
       "title": "Latency (p50 / p95 / p99)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
-      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "datasource": { "type": "prometheus" },
       "targets": [
         {
-          "expr": "histogram_quantile(0.5, rate(llm_gateway_llm_gateway_latency_bucket[5m]))",
+          "expr": "histogram_quantile(0.5, rate(litellm_request_total_latency_metric_bucket[5m]))",
           "legendFormat": "p50"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(llm_gateway_llm_gateway_latency_bucket[5m]))",
+          "expr": "histogram_quantile(0.95, rate(litellm_request_total_latency_metric_bucket[5m]))",
           "legendFormat": "p95"
         },
         {
-          "expr": "histogram_quantile(0.99, rate(llm_gateway_llm_gateway_latency_bucket[5m]))",
+          "expr": "histogram_quantile(0.99, rate(litellm_request_total_latency_metric_bucket[5m]))",
           "legendFormat": "p99"
         }
       ]
     },
     {
-      "title": "Tokens In / Out per Model",
+      "title": "Tokens (input + output) per Model",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "datasource": { "type": "prometheus" },
       "targets": [
         {
-          "expr": "rate(llm_gateway_llm_gateway_tokens_in_total[5m])",
+          "expr": "rate(litellm_input_tokens_metric_total[5m])",
           "legendFormat": "in: {{model}}"
         },
         {
-          "expr": "rate(llm_gateway_llm_gateway_tokens_out_total[5m])",
+          "expr": "rate(litellm_output_tokens_metric_total[5m])",
           "legendFormat": "out: {{model}}"
         }
       ]
     },
     {
-      "title": "Estimated Cost per Agent ($)",
+      "title": "Spend per API Key ($)",
       "type": "timeseries",
       "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
-      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "datasource": { "type": "prometheus" },
       "targets": [
         {
-          "expr": "increase(llm_gateway_llm_gateway_cost_total[1h])",
-          "legendFormat": "{{agent}}"
+          "expr": "increase(litellm_spend_metric_total[1h])",
+          "legendFormat": "key: {{hashed_api_key}}"
         }
       ]
     },
     {
-      "title": "Routing Decisions",
-      "type": "piechart",
+      "title": "Deployment Failures",
+      "type": "timeseries",
       "gridPos": { "h": 8, "w": 8, "x": 0, "y": 16 },
-      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "datasource": { "type": "prometheus" },
       "targets": [
         {
-          "expr": "increase(llm_gateway_llm_gateway_routing_decisions_total[1h])",
-          "legendFormat": "{{strategy}}: {{pseudo_model}}"
+          "expr": "increase(litellm_deployment_failure_responses_total[15m])",
+          "legendFormat": "{{requested_model}} ({{exception_class}})"
+        }
+      ]
+    },
+    {
+      "title": "Deployment Latency Heatmap",
+      "type": "heatmap",
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 16 },
+      "datasource": { "type": "prometheus" },
+      "targets": [
+        {
+          "expr": "rate(litellm_request_total_latency_metric_bucket[5m])",
+          "legendFormat": "{{le}}",
+          "format": "heatmap"
         }
       ]
     },
     {
       "title": "Gateway Logs",
       "type": "logs",
-      "gridPos": { "h": 10, "w": 16, "x": 8, "y": 16 },
+      "gridPos": { "h": 10, "w": 8, "x": 16, "y": 16 },
       "datasource": { "type": "loki" },
       "targets": [
         {
           "expr": "{container=\"llm-gateway\"} | json"
         }
       ]
+    },
+    {
+      "title": "Active Requests (in-flight)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus" },
+      "targets": [
+        {
+          "expr": "litellm_remaining_requests_metric"
+        }
+      ]
+    },
+    {
+      "title": "Remaining Budget ($)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 24 },
+      "datasource": { "type": "prometheus" },
+      "targets": [
+        {
+          "expr": "litellm_remaining_budget_metric"
+        }
+      ]
     }
   ],
   "schemaVersion": 39,
-  "tags": ["llm", "gateway"],
+  "tags": ["llm", "gateway", "litellm"],
   "templating": { "list": [] },
   "time": { "from": "now-1h", "to": "now" },
   "title": "LLM Gateway",
