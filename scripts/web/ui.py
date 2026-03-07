@@ -6,6 +6,9 @@ Routes:
     POST /ui/config/save — save config from editor
     POST /ui/config/validate — validate YAML without saving
     POST /ui/config/reset — reset to defaults
+    GET  /ui/secrets/example — keys and default values from .env.example
+    GET  /ui/secrets — current .env entries (or defaults)
+    POST /ui/secrets/save — save .env (backup if exists)
     POST /ui/services/{name}/start — start a service
     POST /ui/services/{name}/stop — stop a service
     POST /ui/services/{name}/restart — restart a service
@@ -15,12 +18,18 @@ Routes:
 from __future__ import annotations
 
 import logging
+import shutil
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 log = logging.getLogger("llm-gateway")
+
+_EXCLUDED_ENV_KEYS = frozenset({"DATABASE_URL"})
+_ENV_BACKUP_SUFFIX = ".bak"
+_ENV_MAX_BACKUPS = 5
 
 _DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
 
@@ -41,6 +50,120 @@ def create_ui_router() -> APIRouter:
                 content="<h1>Dashboard not found</h1><p>dashboard.html is missing.</p>",
                 status_code=500,
             )
+
+    # ── Secrets (.env) helpers ────────────────────────────────────────────────
+
+    def _env_paths(request: Request):
+        repo_dir = getattr(request.app.state, "repo_dir", None)
+        if repo_dir is None:
+            raise HTTPException(500, "Repository path not configured")
+        return repo_dir / ".env", repo_dir / ".env.example"
+
+    def _parse_env_file(path: Path) -> list[dict]:
+        """Parse a .env file into list of {key, value}. Skips comments and empty lines."""
+        if not path.exists():
+            return []
+        entries = []
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, rest = line.partition("=")
+            key = key.strip()
+            if key in _EXCLUDED_ENV_KEYS:
+                continue
+            value = rest.strip()
+            entries.append({"key": key, "value": value})
+        return entries
+
+    def _parse_env_example(path: Path) -> dict[str, str]:
+        """Parse .env.example into key -> default value. Excludes DATABASE_URL."""
+        if not path.exists():
+            return {}
+        defaults = {}
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, rest = line.partition("=")
+            key = key.strip()
+            if key in _EXCLUDED_ENV_KEYS:
+                continue
+            defaults[key] = rest.strip()
+        return defaults
+
+    def _create_env_backup(env_path: Path) -> None:
+        """Create a timestamped backup of .env and prune old backups."""
+        if not env_path.exists():
+            return
+        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+        backup = env_path.parent / f".env.{timestamp}{_ENV_BACKUP_SUFFIX}"
+        shutil.copy2(env_path, backup)
+        log.debug("Env backup created: %s", backup)
+        backups = sorted(env_path.parent.glob(f".env.*{_ENV_BACKUP_SUFFIX}"), reverse=True)
+        for old in backups[_ENV_MAX_BACKUPS:]:
+            old.unlink(missing_ok=True)
+
+    # ── Secrets routes ────────────────────────────────────────────────────────
+
+    @router.get("/ui/secrets/example")
+    async def get_secrets_example(request: Request):
+        """Return keys and default values from .env.example (excluding DATABASE_URL)."""
+        _env_path, example_path = _env_paths(request)
+        defaults = _parse_env_example(example_path)
+        return {"defaults": defaults, "availableKeys": sorted(defaults.keys())}
+
+    @router.get("/ui/secrets")
+    async def get_secrets(request: Request):
+        """Return current .env entries. If .env exists use it; else use defaults from .env.example."""
+        env_path, example_path = _env_paths(request)
+        defaults = _parse_env_example(example_path)
+        if env_path.exists():
+            entries = _parse_env_file(env_path)
+            for e in entries:
+                if e["key"] not in defaults:
+                    defaults[e["key"]] = ""
+            for key in defaults:
+                if not any(e["key"] == key for e in entries):
+                    entries.append({"key": key, "value": defaults[key]})
+            entries.sort(key=lambda x: x["key"])
+            return {"entries": entries, "defaults": defaults}
+        entries = [{"key": k, "value": v} for k, v in sorted(defaults.items())]
+        return {"entries": entries, "defaults": defaults}
+
+    @router.post("/ui/secrets/save")
+    async def save_secrets(request: Request):
+        """Save .env from key-value list. Backs up existing .env. Blank values are omitted. DATABASE_URL is never written."""
+        body = await request.json()
+        entries = body.get("entries", [])
+        if not isinstance(entries, list):
+            return JSONResponse(status_code=400, content={"error": "entries must be an array"})
+
+        env_path, _ = _env_paths(request)
+        _create_env_backup(env_path)
+
+        lines = []
+        for item in entries:
+            key = (item.get("key") or "").strip()
+            value = (item.get("value") or "").strip()
+            if not key or key in _EXCLUDED_ENV_KEYS:
+                continue
+            if "=" in key or "\n" in key:
+                continue
+            if not value:
+                continue
+            lines.append(f"{key}={value}")
+
+        try:
+            env_path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+        except OSError as e:
+            log.exception("Failed to write .env")
+            return JSONResponse(status_code=500, content={"error": str(e)})
+        return {"status": "saved"}
 
     # ── Config actions ────────────────────────────────────────────────────────
 

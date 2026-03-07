@@ -101,6 +101,13 @@ textarea { font-family: var(--mono); resize: vertical; }
 .model-list { margin-top: 12px; }
 .model-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--fg2); }
 
+/* Secrets key-value rows */
+.secret-row { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
+.secret-row .secret-key { min-width: 220px; flex-shrink: 0; }
+.secret-row .secret-value { flex: 1; }
+.secret-row .secret-value.placeholder { color: var(--fg3); }
+.secret-row .secret-remove { flex-shrink: 0; }
+
 /* Toast */
 .toast {
   position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
@@ -126,6 +133,7 @@ textarea { font-family: var(--mono); resize: vertical; }
   <div class="tab active" data-tab="dashboard">Dashboard</div>
   <div class="tab" data-tab="services">Services</div>
   <div class="tab" data-tab="config">Config</div>
+  <div class="tab" data-tab="secrets">Secrets</div>
   <div class="tab external" onclick="window.open('http://localhost:4000/ui','_blank')">LiteLLM</div>
   <div class="tab external" onclick="window.open('http://localhost:3000','_blank')">Grafana</div>
 </div>
@@ -169,6 +177,18 @@ textarea { font-family: var(--mono); resize: vertical; }
     <div class="model-list" id="ollama-models"></div>
   </div>
 
+  <!-- ══════════ Secrets ══════════ -->
+  <div class="panel" id="panel-secrets">
+    <h2 style="margin-bottom:16px">Secrets</h2>
+    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">This is your .env file. Edit values below; blank entries are not saved. Saving creates or overwrites .env and backs up the previous file if it exists.</p>
+    <div class="editor-toolbar" style="margin-bottom:12px">
+      <button class="primary" onclick="saveSecrets()">Save</button>
+      <button onclick="addSecretRow()">Add entry</button>
+      <span id="secrets-status" class="validation-msg" style="display:none"></span>
+    </div>
+    <div id="secrets-entries"></div>
+  </div>
+
   <!-- ══════════ Config ══════════ -->
   <div class="panel" id="panel-config">
     <h2 style="margin-bottom:16px">Configuration Editor</h2>
@@ -199,6 +219,7 @@ document.querySelectorAll('.tab[data-tab]').forEach(tab => {
     tab.classList.add('active');
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'config') loadConfigEditor();
+    if (tab.dataset.tab === 'secrets') loadSecrets();
     if (tab.dataset.tab === 'services') { refreshServices(); loadOllamaModels(); }
   });
 });
@@ -365,6 +386,105 @@ async function pullModel() {
     output.textContent = (r && r.output) || 'Pull failed';
     toast('Pull failed', 'error');
   }
+}
+
+// ── Secrets (.env) ──────────────────────────────────────────────────────────
+let secretsDefaults = {};
+let secretsRows = [];
+
+function getSecretsAvailableKeys() {
+  const used = new Set(secretsRows.map(r => r.key).filter(Boolean));
+  return (secretsDefaults.availableKeys || Object.keys(secretsDefaults.defaults || {})).filter(k => !used.has(k));
+}
+
+function renderSecretsEntries() {
+  const container = document.getElementById('secrets-entries');
+  const available = getSecretsAvailableKeys();
+  container.innerHTML = secretsRows.map((row, idx) => {
+    const defaultVal = (secretsDefaults.defaults || {})[row.key] || '';
+    const isPlaceholder = !row.value && defaultVal;
+    const keyCell = row.key != null
+      ? `<span class="secret-key" style="font-family:var(--mono);font-size:13px">${escapeHtml(row.key)}</span>`
+      : `<select class="secret-key" data-idx="${idx}" onchange="commitSecretKey(${idx}, this.value)"><option value="">Select key...</option>${available.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('')}</select>`;
+    return `<div class="secret-row" data-idx="${idx}">
+      ${keyCell}
+      <input type="text" class="secret-value ${isPlaceholder ? 'placeholder' : ''}" data-idx="${idx}" value="${escapeHtml(row.value)}" placeholder="${escapeHtml(defaultVal)}" oninput="updateSecretValue(${idx}, this)" />
+      <button type="button" class="secret-remove danger" onclick="removeSecretRow(${idx})">Remove</button>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  if (s == null) return '';
+  const div = document.createElement('div');
+  div.textContent = s;
+  return div.innerHTML;
+}
+
+function updateSecretValue(idx, input) {
+  if (secretsRows[idx]) {
+    secretsRows[idx].value = input.value;
+    const defaultVal = (secretsDefaults.defaults || {})[secretsRows[idx].key] || '';
+    input.classList.toggle('placeholder', !input.value && defaultVal);
+  }
+}
+
+function commitSecretKey(idx, key) {
+  if (!key) return;
+  secretsRows[idx].key = key;
+  renderSecretsEntries();
+}
+
+function removeSecretRow(idx) {
+  secretsRows.splice(idx, 1);
+  renderSecretsEntries();
+}
+
+function addSecretRow() {
+  secretsRows.push({ key: null, value: '' });
+  renderSecretsEntries();
+}
+
+async function loadSecrets() {
+  const [data, exampleData] = await Promise.all([
+    api('/ui/secrets'),
+    api('/ui/secrets/example'),
+  ]);
+  if (!data || !exampleData) return;
+  secretsDefaults = {
+    defaults: exampleData.defaults || {},
+    availableKeys: exampleData.availableKeys || [],
+  };
+  secretsRows = (data.entries || []).map(e => ({ key: e.key, value: e.value || '' }));
+  renderSecretsEntries();
+}
+
+function showSecretsStatus(msg, type) {
+  const el = document.getElementById('secrets-status');
+  el.style.display = 'inline-block';
+  el.textContent = msg;
+  el.className = 'validation-msg ' + type;
+}
+
+async function saveSecrets() {
+  const entries = secretsRows
+    .filter(r => r.key != null && r.key.trim() !== '')
+    .map(r => ({ key: r.key.trim(), value: (r.value || '').trim() }));
+  const r = await api('/ui/secrets/save', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entries }),
+  });
+  if (!r) {
+    showSecretsStatus('Save failed — network error', 'error');
+    return;
+  }
+  if (r.error) {
+    showSecretsStatus(r.error, 'error');
+    return;
+  }
+  showSecretsStatus('Saved', 'ok');
+  toast('.env saved', 'success');
 }
 
 // ── Config editor ──────────────────────────────────────────────────────────

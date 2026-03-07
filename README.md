@@ -202,6 +202,8 @@ Clients send requests to LiteLLM with a **model name**. LiteLLM maps that to rea
 
 Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) changes routing. You can also add models at runtime via the LiteLLM UI or API.
 
+**Web search (search API)** — LiteLLM supports web search via the same proxy. Use `/chat/completions` with `web_search_options` on search-capable models (e.g. OpenAI `gpt-4o-search-preview`, xAI `grok-3`, Anthropic Claude, Gemini), or `/responses` with the `web_search_preview` tool on regular models. You can set default `web_search_options` in `litellm-config.yaml`. See [LiteLLM Web Search](https://docs.litellm.ai/docs/completion/web_search) for endpoints, providers, and config.
+
 ---
 
 ## Configuration at a glance
