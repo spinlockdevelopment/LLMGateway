@@ -62,9 +62,9 @@ class EnvFile(ProvisioningStep):
 
         log.info(f"  Copying .env.example → .env")
         shutil.copy2(self._env_example, self._env_file)
-        log.warning("  .env created from example — you MUST edit it with real API keys:")
+        log.warning("  .env created from example — edit it with API keys you need:")
         log.warning(f"    {self._env_file}")
-        log.warning("  At minimum, set: OPENROUTER_API_KEY and LITELLM_MASTER_KEY")
+        log.warning("  Set LITELLM_MASTER_KEY for proxy admin and virtual keys; add provider keys (e.g. OPENROUTER_API_KEY) as needed.")
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -83,8 +83,8 @@ class EnvFile(ProvisioningStep):
         if self._has_placeholders():
             log.warning("  .env contains placeholder values!")
             log.warning(
-                "  Edit .env and set real values for: "
-                "OPENROUTER_API_KEY, LITELLM_MASTER_KEY"
+                "  Edit .env and set real values for any keys you use "
+                "(e.g. LITELLM_MASTER_KEY, OPENROUTER_API_KEY)"
             )
         else:
             log.info("  .env: configured (no placeholder values detected)")

@@ -257,9 +257,17 @@ general_settings:
 
 
 # ── Environment Variables Reference ──────────────────────────
-# These are read from the container environment (.env file):
+# These are read from the container environment (.env file).
+# See .env.example for the full template (and dashboard Secrets UI).
 #
+#   LITELLM_MASTER_KEY    — admin key for /key, /team, /ui (required)
+#   DATABASE_URL          — PostgreSQL connection string (set by stack)
 #   OPENROUTER_API_KEY    — primary remote provider (required)
 #   ANTHROPIC_API_KEY     — direct Anthropic fallback (optional)
-#   LITELLM_MASTER_KEY    — admin key for /key, /team, /budget APIs
-#   DATABASE_URL          — PostgreSQL connection string
+#   OPENAI_API_KEY        — direct OpenAI (optional)
+#   OPENAI_BASE_URL       — custom OpenAI base URL (optional; OPENAI_API_BASE also supported)
+#   GEMINI_API_KEY        — Google AI Studio (optional)
+#   XAI_API_KEY           — xAI / Grok (optional)
+#   AZURE_API_KEY, AZURE_API_BASE, AZURE_API_VERSION — Azure OpenAI (optional)
+#   PERPLEXITY_API_KEY    — Perplexity (optional)
+#   OAUTH_*               — OAuth 2.0 token validation (optional, enterprise)

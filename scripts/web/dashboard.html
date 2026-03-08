@@ -180,7 +180,7 @@ textarea { font-family: var(--mono); resize: vertical; }
   <!-- ══════════ Secrets ══════════ -->
   <div class="panel" id="panel-secrets">
     <h2 style="margin-bottom:16px">Secrets</h2>
-    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">This is your .env file. Edit values below; blank entries are not saved. Saving creates or overwrites .env and backs up the previous file if it exists.</p>
+    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">This is your .env file. Edit values below; blank entries are not saved. Base URL variables are only written when their associated API key is set. Saving creates or overwrites .env and backs up the previous file if it exists.</p>
     <div class="editor-toolbar" style="margin-bottom:12px">
       <button class="primary" onclick="saveSecrets()">Save</button>
       <button onclick="addSecretRow()">Add entry</button>

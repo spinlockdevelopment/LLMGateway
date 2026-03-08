@@ -151,7 +151,7 @@ class DockerStack(ProvisioningStep):
                 if any(m in content for m in ("your-key-here", "change-me", "changeme")):
                     raise RuntimeError(
                         ".env still contains placeholder API keys — "
-                        "configure OPENROUTER_API_KEY and LITELLM_MASTER_KEY first"
+                        "configure LITELLM_MASTER_KEY and any provider keys (e.g. OPENROUTER_API_KEY) as needed"
                     )
             except OSError as e:
                 log.warning(f"  Could not read .env for validation: {e}")

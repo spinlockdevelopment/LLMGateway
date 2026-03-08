@@ -109,10 +109,14 @@ python3 scripts/setup-llmgateway.py --status
 
 ### 3. Add your API keys
 
+Use the dashboard **Secrets** tab (http://localhost:8080) to edit `.env`, or copy and edit by hand:
+
 ```bash
 cp .env.example .env
-# Edit .env: set OPENROUTER_API_KEY and LITELLM_MASTER_KEY
+# Edit .env: set any API keys you need; LITELLM_MASTER_KEY is used for the proxy UI and virtual keys
 ```
+
+`.env.example` is the template: it lists API keys and base URLs (with defaults) for OpenRouter, Anthropic, OpenAI, Google, xAI, Azure, Perplexity, and others, plus optional LiteLLM OAuth 2.0 variables. Everything is optional. Base URL vars are only written to `.env` when their associated API key is set. Blank entries are not written when saving from the UI.
 
 ### 4. Start local models (optional)
 
@@ -153,6 +157,7 @@ Provisioning (install Docker, Ollama, etc.) is separate: `python3 scripts/setup-
 Open **http://localhost:8080**.
 
 - **Config** — Edit gateway settings (ports, which services are enabled, health check intervals). Stored in `config/llmgateway.yaml` (overrides `config/llmgateway.defaults.yaml`).
+- **Secrets** — Edit `.env`: API keys, provider base URLs (OpenRouter, OpenAI, Anthropic, etc.), optional OAuth 2.0 vars. Template is `.env.example`; blank entries are not saved.
 - **Services** — See status of Ollama, llama-server, Whisper; start/stop/restart.
 - **Ollama** — Pull models from the UI.
 - **REST API** — Read-only: `GET /api/status`, `GET /api/services`, `GET /api/config`, `GET /api/health`.
@@ -212,7 +217,7 @@ Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) ch
 |------|--------|
 | Gateway (dashboard port, services, health, Docker) | `config/llmgateway.defaults.yaml` (defaults) and `config/llmgateway.yaml` (your overrides). Edit in dashboard or on disk. |
 | LiteLLM (models, routing, fallbacks) | `litellm-config.yaml` at repo root. |
-| API keys | `.env` (from `.env.example`). |
+| API keys, provider base URLs, OAuth | `.env` (from `.env.example`). Edit in dashboard **Secrets** or on disk. |
 
 ---
 
@@ -222,7 +227,7 @@ Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) ch
 LLMGateway/
 ├── bootstrap-llmgateway.sh      # Git + Python/deps, run management app; supports curl \| bash (clones to ~/src/LLMGateway)
 ├── requirements.txt             # Python deps for management app
-├── .env.example                 # Template for API keys
+├── .env.example                 # Template for API keys, base URLs, OAuth (Secrets UI)
 ├── litellm-config.yaml          # LiteLLM Proxy: routing, models, providers
 ├── config/
 │   └── llmgateway.defaults.yaml # Gateway defaults (do not edit; override in llmgateway.yaml)

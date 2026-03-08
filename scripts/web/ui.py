@@ -31,6 +31,17 @@ _EXCLUDED_ENV_KEYS = frozenset({"DATABASE_URL"})
 _ENV_BACKUP_SUFFIX = ".bak"
 _ENV_MAX_BACKUPS = 5
 
+# Base URL (and Azure version) vars are only written when the associated API key is set.
+_BASE_URL_OR_VERSION_TO_API_KEY = {
+    "OPENROUTER_API_BASE": "OPENROUTER_API_KEY",
+    "ANTHROPIC_API_BASE": "ANTHROPIC_API_KEY",
+    "OPENAI_BASE_URL": "OPENAI_API_KEY",
+    "GEMINI_API_BASE": "GEMINI_API_KEY",
+    "XAI_API_BASE": "XAI_API_KEY",
+    "AZURE_API_BASE": "AZURE_API_KEY",
+    "AZURE_API_VERSION": "AZURE_API_KEY",
+}
+
 _DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
 
 
@@ -137,7 +148,7 @@ def create_ui_router() -> APIRouter:
 
     @router.post("/ui/secrets/save")
     async def save_secrets(request: Request):
-        """Save .env from key-value list. Backs up existing .env. Blank values are omitted. DATABASE_URL is never written."""
+        """Save .env from key-value list. Backs up existing .env. Blank values omitted. Base URL vars only written when their associated API key is set. DATABASE_URL is never written."""
         body = await request.json()
         entries = body.get("entries", [])
         if not isinstance(entries, list):
@@ -146,16 +157,26 @@ def create_ui_router() -> APIRouter:
         env_path, _ = _env_paths(request)
         _create_env_backup(env_path)
 
-        lines = []
+        keys_to_value = {}
+        order = []
         for item in entries:
-            key = (item.get("key") or "").strip()
-            value = (item.get("value") or "").strip()
-            if not key or key in _EXCLUDED_ENV_KEYS:
+            k = (item.get("key") or "").strip()
+            v = (item.get("value") or "").strip()
+            if not k or k in _EXCLUDED_ENV_KEYS or "=" in k or "\n" in k:
                 continue
-            if "=" in key or "\n" in key:
-                continue
+            keys_to_value[k] = v
+            if k not in order:
+                order.append(k)
+
+        lines = []
+        for key in order:
+            value = keys_to_value[key]
             if not value:
                 continue
+            if key in _BASE_URL_OR_VERSION_TO_API_KEY:
+                api_key_var = _BASE_URL_OR_VERSION_TO_API_KEY[key]
+                if not keys_to_value.get(api_key_var, "").strip():
+                    continue
             lines.append(f"{key}={value}")
 
         try:
