@@ -11,10 +11,8 @@
 #   ./bootstrap-llmgateway.sh --install     # register launchd agent
 #
 # Or run without cloning (script will clone into ~/src/LLMGateway):
-#   curl -fsSL https://raw.githubusercontent.com/<owner>/LLMGateway/main/bootstrap-llmgateway.sh | bash
-#   # Set LLMGATEWAY_REPO_URL if your repo URL differs, e.g.:
-#   export LLMGATEWAY_REPO_URL=https://github.com/yourorg/LLMGateway.git
-#   curl -fsSL … | bash
+#   curl -fsSL https://raw.githubusercontent.com/spinlockdevelopment/LLMGateway/main/bootstrap-llmgateway.sh | bash
+#
 # =============================================================================
 
 set -euo pipefail
@@ -22,6 +20,8 @@ set -euo pipefail
 # ── Helpers ───────────────────────────────────────────────────────────────────
 die()  { echo "ERROR: $*" >&2; exit 1; }
 info() { echo "[llmgateway-bootstrap] $*"; }
+
+LLMGATEWAY_REPO_URL=https://github.com/spinlockdevelopment/LLMGateway.git
 
 # ── Detect repo root ───────────────────────────────────────────────────────────
 # If we're running from a file inside the repo, use its directory as repo root.
@@ -70,7 +70,7 @@ if [[ -z "$REPO_DIR" ]]; then
   REPO_URL="${LLMGATEWAY_REPO_URL:-}"
 
   if [[ -z "$REPO_URL" ]]; then
-    die "LLMGATEWAY_REPO_URL is not set. Set it to your repo URL, e.g.: export LLMGATEWAY_REPO_URL=https://github.com/yourorg/LLMGateway.git"
+    die "LLMGATEWAY_REPO_URL is not set. Set it to your repo URL, e.g.: export LLMGATEWAY_REPO_URL=https://github.com/spinlockdevelopment/LLMGateway.git"
   fi
 
   if [[ -d "$CLONE_DIR/.git" ]]; then

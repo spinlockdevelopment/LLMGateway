@@ -8,7 +8,7 @@ A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM P
 
 ```
                     Tools / Agents
-         Claude Code · Cursor · OpenClaw · …
+         Claude Code · Cursor · OpenClaw · (etc)
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -24,11 +24,12 @@ A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM P
 │                              Docker stack                                   │
 │         LiteLLM · PostgreSQL · Grafana · Prometheus · Loki · Alloy          │
 │                                       │                                     │
-│             LiteLLM Proxy ────────────┼────────────▶  Local inference      │
-│                 │                     │                · Ollama             │
-│                 │                     ▼                · llama-server       │
-│                 │                                      · whisper-server     │
-│                 │                                                           │
+│                                       │               ┌──────────────────┐  │
+│             LiteLLM Proxy ────────────┼────────────▶ │ Local inference  │  │
+│                 │                     │               │ · Ollama         │  │
+│                 │                     ▼               │ · llama-server   │  │
+│                 │                                     │ · whisper-server │  │
+│                 │                                     └──────────────────┘  │
 └─────────────────┼───────────────────────────────────────────────────────────┘
                   │
                   ▼
@@ -60,7 +61,7 @@ This repo is config, Docker stack, and the management tooling for running LiteLL
 ## What you need
 
 - Mac with Apple Silicon (M1/M2/M3/M4)
-- API Keys; Anthropic, OpenAI, [OpenRouter API key](https://openrouter.ai/keys), etc.
+- API Keys; Anthropic, [OpenAI](https://platform.openai.com/settings/organization/api-keys), [OpenRouter](https://openrouter.ai/keys), etc.
 - Docker Desktop (provisioning can install it)
 
 ---
@@ -72,18 +73,17 @@ This repo is config, Docker stack, and the management tooling for running LiteLL
 **Option A — clone then run (recommended):**
 
 ```bash
-git clone https://github.com/<owner>/LLMGateway.git ~/src/LLMGateway
+git clone https://github.com/spinlockdevelopment/LLMGateway.git ~/src/LLMGateway
 cd ~/src/LLMGateway
 ./bootstrap-llmgateway.sh
 ```
 
 **Option B — curl (script clones into `~/src/LLMGateway` for you):**
 
-Set your repo URL, then pipe the script into bash. The script installs Git if needed, clones the repo, and re-runs itself from the clone.
+Open a Terminal window, then pipe following command into bash. The script installs Git if needed, clones the repo, and re-runs itself from the clone.
 
 ```bash
-export LLMGATEWAY_REPO_URL=https://github.com/<owner>/LLMGateway.git
-curl -fsSL https://raw.githubusercontent.com/<owner>/LLMGateway/main/bootstrap-llmgateway.sh | bash
+curl -fsSL https://raw.githubusercontent.com/spinlockdevelopment/LLMGateway/main/bootstrap-llmgateway.sh | bash
 ```
 
 Replace `<owner>` with your GitHub org or username.
