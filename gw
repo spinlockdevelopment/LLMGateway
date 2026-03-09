@@ -1,0 +1,412 @@
+#!/usr/bin/env bash
+# =============================================================================
+# gw — LLM Gateway helper
+# =============================================================================
+# Usage:
+#   ./gw                         Show status of all components
+#   ./gw start <component>       Start a component
+#   ./gw stop <component>        Stop a component
+#   ./gw restart <component>     Restart a component
+#   ./gw logs <component>        Tail logs for a component
+#
+# Components:
+#   management   Gateway management service (llmgateway.py / launchd)
+#   ollama       Ollama local inference (bare metal, Metal GPU)
+#   docker       Entire Docker Compose stack
+#   litellm      LiteLLM proxy container
+#   postgres     PostgreSQL container
+#   grafana      Grafana dashboards container
+#   prometheus   Prometheus metrics container
+#   loki         Loki log aggregation container
+#   alloy        Grafana Alloy collector container
+# =============================================================================
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+COMPOSE_FILE="$SCRIPT_DIR/docker/docker-compose.yml"
+COMPOSE="docker compose -f $COMPOSE_FILE"
+MANAGEMENT_LABEL="com.local.llm-gateway"
+MANAGEMENT_SCRIPT="$SCRIPT_DIR/scripts/llmgateway.py"
+MANAGEMENT_PLIST="$HOME/Library/LaunchAgents/${MANAGEMENT_LABEL}.plist"
+
+# ── Colors ────────────────────────────────────────────────────────────────────
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+DIM='\033[2m'
+NC='\033[0m'
+
+# ── Status helpers ────────────────────────────────────────────────────────────
+
+# Returns: running | unhealthy | stopped | absent
+docker_container_state() {
+    local container="$1"
+    local status
+    status=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null) || { echo "absent"; return; }
+    if [[ "$status" == "running" ]]; then
+        local health
+        health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container" 2>/dev/null)
+        if [[ "$health" == "unhealthy" ]]; then
+            echo "unhealthy"
+        else
+            echo "running"
+        fi
+    elif [[ "$status" == "exited" || "$status" == "dead" ]]; then
+        echo "stopped"
+    else
+        echo "$status"  # created, restarting, paused, etc.
+    fi
+}
+
+docker_available() {
+    docker info &>/dev/null
+}
+
+# Returns: running | stopped | absent
+management_state() {
+    # Check if launchd has it loaded
+    if launchctl list "$MANAGEMENT_LABEL" &>/dev/null 2>&1; then
+        local pid
+        pid=$(launchctl list "$MANAGEMENT_LABEL" 2>/dev/null | awk 'NR==1{print $1}')
+        if [[ "$pid" =~ ^[0-9]+$ ]]; then
+            echo "running"
+        else
+            echo "stopped"
+        fi
+    elif pgrep -qf "llmgateway.py" 2>/dev/null; then
+        echo "running"
+    else
+        echo "absent"
+    fi
+}
+
+# Returns: running | starting | stopped
+ollama_state() {
+    if curl -sf --max-time 2 "http://localhost:11434/api/tags" &>/dev/null; then
+        echo "running"
+    elif pgrep -qf "ollama" 2>/dev/null; then
+        echo "starting"
+    else
+        echo "stopped"
+    fi
+}
+
+# ── Display helpers ───────────────────────────────────────────────────────────
+
+status_color() {
+    local state="$1"
+    case "$state" in
+        running)   echo "$GREEN" ;;
+        starting)  echo "$YELLOW" ;;
+        stopped|unhealthy|absent) echo "$RED" ;;
+        *)         echo "$DIM" ;;
+    esac
+}
+
+status_icon() {
+    local state="$1"
+    case "$state" in
+        running)   echo "●" ;;
+        starting)  echo "◐" ;;
+        stopped|unhealthy|absent) echo "○" ;;
+        *)         echo "○" ;;
+    esac
+}
+
+status_label() {
+    local state="$1"
+    case "$state" in
+        absent)    echo "not found" ;;
+        *)         echo "$state" ;;
+    esac
+}
+
+# print_row <name> <state> <endpoint> <description>
+print_row() {
+    local name="$1" state="$2" endpoint="$3" desc="$4"
+    local color icon label
+    color=$(status_color "$state")
+    icon=$(status_icon "$state")
+    label=$(status_label "$state")
+
+    printf "  ${color}%s${NC} %-14s ${color}%-12s${NC}" "$icon" "$name" "$label"
+    if [[ -n "$endpoint" ]]; then
+        printf "  ${CYAN}%-36s${NC}" "$endpoint"
+    else
+        printf "  %-36s" ""
+    fi
+    if [[ -n "$desc" ]]; then
+        printf "  ${DIM}%s${NC}" "$desc"
+    fi
+    printf "\n"
+}
+
+# ── Commands ──────────────────────────────────────────────────────────────────
+
+cmd_status() {
+    echo ""
+    printf "  ${BOLD}LLM Gateway — Status${NC}  ${DIM}%s${NC}\n" "$(date '+%Y-%m-%d %H:%M:%S')"
+    echo ""
+    printf "  ${DIM}%-15s %-12s %-38s %s${NC}\n" "COMPONENT" "STATUS" "ENDPOINT" "DESCRIPTION"
+    printf "  %s\n" "$(printf '─%.0s' {1..88})"
+    echo ""
+
+    # Management service
+    print_row "management" "$(management_state)" \
+        "http://localhost:8080" \
+        "Gateway web UI + REST API"
+
+    # Ollama (bare metal)
+    print_row "ollama" "$(ollama_state)" \
+        "http://localhost:11434" \
+        "Local LLM runtime (Metal GPU)"
+
+    echo ""
+
+    # Docker containers
+    if ! docker_available; then
+        printf "  ${RED}○${NC} %-14s ${RED}%-12s${NC}  ${DIM}Docker daemon not running${NC}\n" "docker" "unavailable"
+        echo ""
+    else
+        # container-name : display-name : endpoint : description
+        local rows=(
+            "llm-gateway:litellm:http://localhost:4000:LiteLLM proxy (UI → /ui)"
+            "llm-postgres:postgres::PostgreSQL — spend tracking"
+            "grafana:grafana:http://localhost:3000:Grafana dashboards"
+            "prometheus:prometheus:http://localhost:9090:Prometheus metrics"
+            "loki:loki:http://localhost:3100:Loki log aggregation"
+            "alloy:alloy::Grafana Alloy collector"
+        )
+        for row in "${rows[@]}"; do
+            IFS=':' read -r container display endpoint desc <<< "$row"
+            print_row "$display" "$(docker_container_state "$container")" "$endpoint" "$desc"
+        done
+        echo ""
+    fi
+
+    printf "  ${DIM}Commands: ./gw start|stop|restart|logs <component>${NC}\n"
+    echo ""
+}
+
+resolve_compose_service() {
+    # Map user-facing names to docker compose service names
+    case "$1" in
+        litellm|gateway-container) echo "litellm" ;;
+        postgres|db)               echo "postgres" ;;
+        grafana)                   echo "grafana" ;;
+        prometheus)                echo "prometheus" ;;
+        loki)                      echo "loki" ;;
+        alloy)                     echo "alloy" ;;
+        *)                         echo "" ;;
+    esac
+}
+
+is_docker_component() {
+    [[ -n "$(resolve_compose_service "$1")" ]] || [[ "$1" == "docker" ]]
+}
+
+cmd_start() {
+    local name="$1"
+    case "$name" in
+        management|gateway)
+            printf "${CYAN}Starting management service...${NC}\n"
+            if [[ -f "$MANAGEMENT_PLIST" ]]; then
+                launchctl load -w "$MANAGEMENT_PLIST" 2>/dev/null || true
+                launchctl kickstart "gui/$(id -u)/$MANAGEMENT_LABEL" 2>/dev/null || true
+            else
+                printf "${YELLOW}Plist not installed — running directly (not persistent)${NC}\n"
+                python3 "$MANAGEMENT_SCRIPT" &
+                disown
+            fi
+            ;;
+        ollama)
+            printf "${CYAN}Starting Ollama...${NC}\n"
+            if brew services list 2>/dev/null | grep -q "^ollama"; then
+                brew services start ollama
+            else
+                ollama serve &>/dev/null &
+                disown
+            fi
+            ;;
+        docker)
+            printf "${CYAN}Starting Docker Compose stack...${NC}\n"
+            $COMPOSE up -d
+            ;;
+        *)
+            local svc
+            svc=$(resolve_compose_service "$name")
+            if [[ -z "$svc" ]]; then
+                printf "${RED}Unknown component: %s${NC}\n" "$name"; usage; return 1
+            fi
+            printf "${CYAN}Starting %s container...${NC}\n" "$name"
+            $COMPOSE up -d "$svc"
+            ;;
+    esac
+    printf "${GREEN}Done.${NC}\n"
+}
+
+cmd_stop() {
+    local name="$1"
+    case "$name" in
+        management|gateway)
+            printf "${CYAN}Stopping management service...${NC}\n"
+            launchctl stop "$MANAGEMENT_LABEL" 2>/dev/null || \
+                pkill -f "llmgateway.py" 2>/dev/null || true
+            ;;
+        ollama)
+            printf "${CYAN}Stopping Ollama...${NC}\n"
+            if brew services list 2>/dev/null | grep -q "^ollama"; then
+                brew services stop ollama
+            else
+                pkill -f "ollama" 2>/dev/null || true
+            fi
+            ;;
+        docker)
+            printf "${CYAN}Stopping Docker Compose stack...${NC}\n"
+            $COMPOSE down
+            ;;
+        *)
+            local svc
+            svc=$(resolve_compose_service "$name")
+            if [[ -z "$svc" ]]; then
+                printf "${RED}Unknown component: %s${NC}\n" "$name"; usage; return 1
+            fi
+            printf "${CYAN}Stopping %s container...${NC}\n" "$name"
+            $COMPOSE stop "$svc"
+            ;;
+    esac
+    printf "${GREEN}Done.${NC}\n"
+}
+
+cmd_restart() {
+    local name="$1"
+    case "$name" in
+        management|gateway)
+            printf "${CYAN}Restarting management service...${NC}\n"
+            if launchctl list "$MANAGEMENT_LABEL" &>/dev/null 2>&1; then
+                launchctl kickstart -k "gui/$(id -u)/$MANAGEMENT_LABEL"
+            else
+                pkill -f "llmgateway.py" 2>/dev/null || true
+                sleep 1
+                python3 "$MANAGEMENT_SCRIPT" &
+                disown
+            fi
+            ;;
+        ollama)
+            printf "${CYAN}Restarting Ollama...${NC}\n"
+            if brew services list 2>/dev/null | grep -q "^ollama"; then
+                brew services restart ollama
+            else
+                pkill -f "ollama" 2>/dev/null || true
+                sleep 1
+                ollama serve &>/dev/null &
+                disown
+            fi
+            ;;
+        docker)
+            printf "${CYAN}Restarting Docker Compose stack...${NC}\n"
+            $COMPOSE restart
+            ;;
+        *)
+            local svc
+            svc=$(resolve_compose_service "$name")
+            if [[ -z "$svc" ]]; then
+                printf "${RED}Unknown component: %s${NC}\n" "$name"; usage; return 1
+            fi
+            printf "${CYAN}Restarting %s container...${NC}\n" "$name"
+            $COMPOSE restart "$svc"
+            ;;
+    esac
+    printf "${GREEN}Done.${NC}\n"
+}
+
+cmd_logs() {
+    local name="$1"
+    case "$name" in
+        management|gateway)
+            local logdir="$HOME/Library/Logs/llm-gateway"
+            if [[ -f "$logdir/gateway-stdout.log" ]]; then
+                tail -f "$logdir/gateway-stdout.log"
+            else
+                printf "${YELLOW}No log file found at %s/gateway-stdout.log${NC}\n" "$logdir"
+                printf "${DIM}Hint: install as launchd agent first: python3 scripts/llmgateway.py --install${NC}\n"
+            fi
+            ;;
+        ollama)
+            printf "${DIM}Tailing system log for ollama (Ctrl-C to stop)...${NC}\n"
+            log stream --predicate 'process == "ollama"' --style syslog 2>/dev/null \
+                || journalctl -fu ollama 2>/dev/null \
+                || printf "${RED}Unable to stream ollama logs on this platform.${NC}\n"
+            ;;
+        docker)
+            $COMPOSE logs -f --tail=50
+            ;;
+        *)
+            local svc
+            svc=$(resolve_compose_service "$name")
+            if [[ -z "$svc" ]]; then
+                printf "${RED}Unknown component: %s${NC}\n" "$name"; usage; return 1
+            fi
+            $COMPOSE logs -f --tail=50 "$svc"
+            ;;
+    esac
+}
+
+usage() {
+    echo ""
+    printf "  ${BOLD}Usage:${NC}\n"
+    echo "    ./gw                         Show status of all components"
+    echo "    ./gw start <component>       Start a component"
+    echo "    ./gw stop <component>        Stop a component"
+    echo "    ./gw restart <component>     Restart a component"
+    echo "    ./gw logs <component>        Tail logs for a component"
+    echo ""
+    printf "  ${BOLD}Components:${NC}\n"
+    printf "    %-14s  %s\n" "management" "Gateway web UI + management service (launchd)"
+    printf "    %-14s  %s\n" "ollama"      "Ollama local inference (bare metal)"
+    printf "    %-14s  %s\n" "docker"      "Entire Docker Compose stack"
+    printf "    %-14s  %s\n" "litellm"     "LiteLLM proxy container  → http://localhost:4000"
+    printf "    %-14s  %s\n" "postgres"    "PostgreSQL container"
+    printf "    %-14s  %s\n" "grafana"     "Grafana dashboards        → http://localhost:3000"
+    printf "    %-14s  %s\n" "prometheus"  "Prometheus metrics        → http://localhost:9090"
+    printf "    %-14s  %s\n" "loki"        "Loki log aggregation      → http://localhost:3100"
+    printf "    %-14s  %s\n" "alloy"       "Grafana Alloy collector"
+    echo ""
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+CMD="${1:-status}"
+shift 2>/dev/null || true
+
+case "$CMD" in
+    ""|-s|status)
+        cmd_status
+        ;;
+    start)
+        [[ -z "${1:-}" ]] && { printf "${RED}Error: component name required${NC}\n"; usage; exit 1; }
+        cmd_start "$1"
+        ;;
+    stop)
+        [[ -z "${1:-}" ]] && { printf "${RED}Error: component name required${NC}\n"; usage; exit 1; }
+        cmd_stop "$1"
+        ;;
+    restart)
+        [[ -z "${1:-}" ]] && { printf "${RED}Error: component name required${NC}\n"; usage; exit 1; }
+        cmd_restart "$1"
+        ;;
+    logs)
+        [[ -z "${1:-}" ]] && { printf "${RED}Error: component name required${NC}\n"; usage; exit 1; }
+        cmd_logs "$1"
+        ;;
+    -h|--help|help)
+        usage
+        ;;
+    *)
+        printf "${RED}Unknown command: %s${NC}\n" "$CMD"
+        usage
+        exit 1
+        ;;
+esac
