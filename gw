@@ -3,11 +3,12 @@
 # gw — LLM Gateway helper
 # =============================================================================
 # Usage:
-#   ./gw                         Show status of all components
+#   ./gw                         Show status of all components + key paths
 #   ./gw start <component>       Start a component
 #   ./gw stop <component>        Stop a component
 #   ./gw restart <component>     Restart a component
 #   ./gw logs <component>        Tail logs for a component
+#   ./gw uninstall               Deregister all autostart, stop containers
 #
 # Components:
 #   management   Gateway management service (llmgateway.py / launchd)
@@ -27,6 +28,8 @@ COMPOSE="docker compose -f $COMPOSE_FILE"
 MANAGEMENT_LABEL="com.local.llm-gateway"
 MANAGEMENT_SCRIPT="$SCRIPT_DIR/scripts/llmgateway.py"
 MANAGEMENT_PLIST="$HOME/Library/LaunchAgents/${MANAGEMENT_LABEL}.plist"
+MANAGEMENT_LOG_DIR="$HOME/Library/Logs/llm-gateway"
+MANAGEMENT_PORT=8080
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 
@@ -40,46 +43,52 @@ NC='\033[0m'
 
 # ── Status helpers ────────────────────────────────────────────────────────────
 
-# Returns: running | unhealthy | stopped | absent
+# Returns: running | starting | stopped | unhealthy | absent
 docker_container_state() {
     local container="$1"
-    local status
+    local status health
     status=$(docker inspect --format='{{.State.Status}}' "$container" 2>/dev/null) || { echo "absent"; return; }
-    if [[ "$status" == "running" ]]; then
-        local health
-        health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container" 2>/dev/null)
-        if [[ "$health" == "unhealthy" ]]; then
-            echo "unhealthy"
-        else
-            echo "running"
-        fi
-    elif [[ "$status" == "exited" || "$status" == "dead" ]]; then
-        echo "stopped"
-    else
-        echo "$status"  # created, restarting, paused, etc.
-    fi
+    case "$status" in
+        running)
+            health=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$container" 2>/dev/null)
+            [[ "$health" == "unhealthy" ]] && echo "unhealthy" || echo "running"
+            ;;
+        exited|dead) echo "stopped" ;;
+        restarting)  echo "starting" ;;
+        *)           echo "$status" ;;
+    esac
 }
 
 docker_available() {
     docker info &>/dev/null
 }
 
-# Returns: running | stopped | absent
+# Returns: running | starting | stopped | absent
+# Management is NOT a docker container — check via HTTP then process.
+# With KeepAlive:true in the plist, launchd output format varies by macOS
+# version, so we rely on HTTP + pgrep rather than parsing launchctl.
 management_state() {
-    # Check if launchd has it loaded
-    if launchctl list "$MANAGEMENT_LABEL" &>/dev/null 2>&1; then
-        local pid
-        pid=$(launchctl list "$MANAGEMENT_LABEL" 2>/dev/null | awk 'NR==1{print $1}')
-        if [[ "$pid" =~ ^[0-9]+$ ]]; then
-            echo "running"
-        else
-            echo "stopped"
-        fi
-    elif pgrep -qf "llmgateway.py" 2>/dev/null; then
-        echo "running"
-    else
-        echo "absent"
+    # 1. HTTP health check — most reliable signal the service is up and ready
+    if curl -sf --max-time 2 "http://localhost:${MANAGEMENT_PORT}/" &>/dev/null; then
+        echo "running"; return
     fi
+    # 2. Process exists but not yet responding (starting up or crashed loop)
+    if pgrep -qf "llmgateway.py" 2>/dev/null; then
+        echo "starting"; return
+    fi
+    # 3. Nothing running — check if it's installed/registered
+    # Use 'launchctl list' (no label arg) which always gives tab-separated output
+    if launchctl list 2>/dev/null | grep -qF "$MANAGEMENT_LABEL"; then
+        echo "stopped"; return   # registered in launchd but process is gone
+    fi
+    if [[ -f "$MANAGEMENT_PLIST" ]]; then
+        echo "stopped"; return   # plist exists but not loaded into launchd
+    fi
+    echo "absent"
+}
+
+management_in_launchd() {
+    launchctl list 2>/dev/null | grep -qF "$MANAGEMENT_LABEL"
 }
 
 # Returns: running | starting | stopped
@@ -93,33 +102,34 @@ ollama_state() {
     fi
 }
 
+ollama_has_brew_service() {
+    command -v brew &>/dev/null && brew services list 2>/dev/null | grep -q "^ollama"
+}
+
 # ── Display helpers ───────────────────────────────────────────────────────────
 
 status_color() {
-    local state="$1"
-    case "$state" in
-        running)   echo "$GREEN" ;;
-        starting)  echo "$YELLOW" ;;
-        stopped|unhealthy|absent) echo "$RED" ;;
-        *)         echo "$DIM" ;;
+    case "$1" in
+        running)                     echo "$GREEN"  ;;
+        starting)                    echo "$YELLOW" ;;
+        stopped|unhealthy|absent)    echo "$RED"    ;;
+        *)                           echo "$DIM"    ;;
     esac
 }
 
 status_icon() {
-    local state="$1"
-    case "$state" in
-        running)   echo "●" ;;
-        starting)  echo "◐" ;;
-        stopped|unhealthy|absent) echo "○" ;;
-        *)         echo "○" ;;
+    case "$1" in
+        running)                     echo "●" ;;
+        starting)                    echo "◐" ;;
+        stopped|unhealthy|absent)    echo "○" ;;
+        *)                           echo "○" ;;
     esac
 }
 
 status_label() {
-    local state="$1"
-    case "$state" in
+    case "$1" in
         absent)    echo "not found" ;;
-        *)         echo "$state" ;;
+        *)         echo "$1"        ;;
     esac
 }
 
@@ -137,13 +147,40 @@ print_row() {
     else
         printf "  %-36s" ""
     fi
-    if [[ -n "$desc" ]]; then
-        printf "  ${DIM}%s${NC}" "$desc"
-    fi
+    [[ -n "$desc" ]] && printf "  ${DIM}%s${NC}" "$desc"
     printf "\n"
 }
 
-# ── Commands ──────────────────────────────────────────────────────────────────
+# print_path <label> <path> <description>
+# Expands ~ and shows ✓ (exists) or · (missing) prefix.
+print_path() {
+    local label="$1" path="$2" desc="$3"
+    local expanded="${path/\~/$HOME}"
+    # Relative paths are resolved from SCRIPT_DIR
+    [[ "$expanded" != /* ]] && expanded="$SCRIPT_DIR/$expanded"
+    local mark
+    if [[ -e "$expanded" ]]; then
+        mark="${GREEN}✓${NC}"
+    else
+        mark="${DIM}·${NC}"
+    fi
+    printf "  %b  ${DIM}%-12s${NC}  %-45s  ${DIM}%s${NC}\n" "$mark" "$label" "$path" "$desc"
+}
+
+# print_volume <docker-volume-name> <description>
+# Shows ✓ if the volume exists in Docker, · if not yet created.
+print_volume() {
+    local name="$1" desc="$2"
+    local mark
+    if docker volume inspect "$name" &>/dev/null 2>&1; then
+        mark="${GREEN}✓${NC}"
+    else
+        mark="${DIM}·${NC}"
+    fi
+    printf "  %b  ${DIM}%-12s${NC}  %-45s  ${DIM}%s${NC}\n" "$mark" "volume" "$name" "$desc"
+}
+
+# ── Status command ─────────────────────────────────────────────────────────────
 
 cmd_status() {
     echo ""
@@ -153,12 +190,12 @@ cmd_status() {
     printf "  %s\n" "$(printf '─%.0s' {1..88})"
     echo ""
 
-    # Management service
+    # Management service — bare-metal Python process, NOT a docker container
     print_row "management" "$(management_state)" \
-        "http://localhost:8080" \
+        "http://localhost:${MANAGEMENT_PORT}" \
         "Gateway web UI + REST API"
 
-    # Ollama (bare metal)
+    # Ollama — bare-metal, Metal GPU
     print_row "ollama" "$(ollama_state)" \
         "http://localhost:11434" \
         "Local LLM runtime (Metal GPU)"
@@ -167,7 +204,8 @@ cmd_status() {
 
     # Docker containers
     if ! docker_available; then
-        printf "  ${RED}○${NC} %-14s ${RED}%-12s${NC}  ${DIM}Docker daemon not running${NC}\n" "docker" "unavailable"
+        printf "  ${RED}○${NC} %-14s ${RED}%-12s${NC}  ${DIM}Docker daemon not running${NC}\n" \
+            "docker" "unavailable"
         echo ""
     else
         # container-name : display-name : endpoint : description
@@ -186,26 +224,91 @@ cmd_status() {
         echo ""
     fi
 
-    printf "  ${DIM}Commands: ./gw start|stop|restart|logs <component>${NC}\n"
+    # ── Key paths ─────────────────────────────────────────────────────────────
+    printf "  ${DIM}%-15s %-12s %-38s %s${NC}\n" "PATH" "TYPE" "" "DESCRIPTION"
+    printf "  %s\n" "$(printf '─%.0s' {1..88})"
+
+    # Detect Compose project name (used as volume name prefix).
+    # Docker Compose defaults to the basename of the compose file's directory.
+    local compose_project
+    compose_project=$(docker compose -f "$COMPOSE_FILE" config 2>/dev/null \
+                      | awk '/^name:/{print $2; exit}')
+    [[ -z "$compose_project" ]] && compose_project=$(basename "$(dirname "$COMPOSE_FILE")")
+
+    # ── Config files (host-accessible bind mounts) ─────────────────────────
+    printf "\n  ${DIM}Config files — host paths, bind-mounted read-only into containers${NC}\n\n"
+
+    print_path "config"  "config/llmgateway.defaults.yaml" \
+        "management: shipped defaults (read-only)"
+    print_path "config"  "config/llmgateway.yaml" \
+        "management: user overrides (created on first run)"
+    print_path "config"  "litellm-config.yaml" \
+        "litellm: model routing, virtual keys, rate limits"
+    print_path "config"  "docker/prometheus/prometheus.yml" \
+        "prometheus: scrape targets"
+    print_path "config"  "docker/alloy/alloy-config.alloy" \
+        "alloy: log collection + Loki forwarding rules"
+    print_path "config"  "docker/grafana/provisioning/datasources/datasource.yaml" \
+        "grafana: Prometheus + Loki datasource definitions"
+    print_path "config"  "docker/grafana/provisioning/dashboards/dashboard.yaml" \
+        "grafana: dashboard provider config"
+    print_path "config"  "docker/grafana/provisioning/dashboards/llm-gateway.json" \
+        "grafana: pre-built LLM Gateway dashboard"
+    print_path "secrets" ".env" \
+        "litellm: API keys, Grafana admin password, DB creds"
+
+    # ── Logs (host) ────────────────────────────────────────────────────────
+    printf "\n  ${DIM}Logs — written by launchd on the host${NC}\n\n"
+
+    print_path "log" "~/Library/Logs/llm-gateway/gateway-stdout.log" \
+        "management service stdout"
+    print_path "log" "~/Library/Logs/llm-gateway/gateway-stderr.log" \
+        "management service stderr"
+
+    # ── System (host) ──────────────────────────────────────────────────────
+    printf "\n  ${DIM}System${NC}\n\n"
+
+    print_path "launchd" "~/Library/LaunchAgents/${MANAGEMENT_LABEL}.plist" \
+        "management service autostart agent"
+    print_path "data"    "~/.ollama/models" \
+        "ollama: model weights (GGUF blobs + manifests)"
+    print_path "data"    "~/.ollama" \
+        "ollama: config, history, SSH keys"
+
+    # ── Docker named volumes (inside Docker Desktop VM) ────────────────────
+    printf "\n  ${DIM}Docker volumes — stored inside the Docker Desktop VM, not directly browsable${NC}\n"
+    printf "  ${DIM}Inspect: docker volume inspect <name>   Browse: docker run --rm -v <name>:/d alpine ls /d${NC}\n\n"
+
+    print_volume "${compose_project}_postgres-data" \
+        "postgres: LiteLLM DB — virtual keys, spend records, request logs"
+    print_volume "${compose_project}_prometheus-data" \
+        "prometheus: TSDB time-series data + WAL"
+    print_volume "${compose_project}_loki-data" \
+        "loki: log chunks, index files, WAL"
+    print_volume "${compose_project}_grafana-data" \
+        "grafana: SQLite DB (grafana.db), plugins, saved dashboards"
+
+    echo ""
+    printf "  ${DIM}Commands: ./gw start|stop|restart|logs <component>  •  ./gw uninstall${NC}\n"
     echo ""
 }
 
+# ── Component name helpers ────────────────────────────────────────────────────
+
+# Returns the docker compose service name for a user-facing name, or "".
 resolve_compose_service() {
-    # Map user-facing names to docker compose service names
     case "$1" in
-        litellm|gateway-container) echo "litellm" ;;
-        postgres|db)               echo "postgres" ;;
-        grafana)                   echo "grafana" ;;
-        prometheus)                echo "prometheus" ;;
-        loki)                      echo "loki" ;;
-        alloy)                     echo "alloy" ;;
-        *)                         echo "" ;;
+        litellm)              echo "litellm"    ;;
+        postgres|db)          echo "postgres"   ;;
+        grafana)              echo "grafana"    ;;
+        prometheus)           echo "prometheus" ;;
+        loki)                 echo "loki"       ;;
+        alloy)                echo "alloy"      ;;
+        *)                    echo ""           ;;
     esac
 }
 
-is_docker_component() {
-    [[ -n "$(resolve_compose_service "$1")" ]] || [[ "$1" == "docker" ]]
-}
+# ── Start / stop / restart ────────────────────────────────────────────────────
 
 cmd_start() {
     local name="$1"
@@ -213,17 +316,18 @@ cmd_start() {
         management|gateway)
             printf "${CYAN}Starting management service...${NC}\n"
             if [[ -f "$MANAGEMENT_PLIST" ]]; then
-                launchctl load -w "$MANAGEMENT_PLIST" 2>/dev/null || true
-                launchctl kickstart "gui/$(id -u)/$MANAGEMENT_LABEL" 2>/dev/null || true
+                # load registers and starts the agent (idempotent if already loaded)
+                launchctl load "$MANAGEMENT_PLIST" 2>/dev/null || true
             else
-                printf "${YELLOW}Plist not installed — running directly (not persistent)${NC}\n"
+                printf "${YELLOW}Launchd plist not installed — starting directly (not persistent across logins).${NC}\n"
+                printf "${DIM}Install with: python3 scripts/llmgateway.py --install${NC}\n"
                 python3 "$MANAGEMENT_SCRIPT" &
                 disown
             fi
             ;;
         ollama)
             printf "${CYAN}Starting Ollama...${NC}\n"
-            if brew services list 2>/dev/null | grep -q "^ollama"; then
+            if ollama_has_brew_service; then
                 brew services start ollama
             else
                 ollama serve &>/dev/null &
@@ -240,7 +344,7 @@ cmd_start() {
             if [[ -z "$svc" ]]; then
                 printf "${RED}Unknown component: %s${NC}\n" "$name"; usage; return 1
             fi
-            printf "${CYAN}Starting %s container...${NC}\n" "$name"
+            printf "${CYAN}Starting %s...${NC}\n" "$name"
             $COMPOSE up -d "$svc"
             ;;
     esac
@@ -252,12 +356,19 @@ cmd_stop() {
     case "$name" in
         management|gateway)
             printf "${CYAN}Stopping management service...${NC}\n"
-            launchctl stop "$MANAGEMENT_LABEL" 2>/dev/null || \
-                pkill -f "llmgateway.py" 2>/dev/null || true
+            # With KeepAlive:true, 'launchctl stop <label>' just signals the process
+            # and launchd immediately restarts it. 'unload' removes it from the
+            # launchd session so it won't restart until explicitly loaded again.
+            # The plist file is preserved in LaunchAgents, so it auto-loads on next login.
+            if [[ -f "$MANAGEMENT_PLIST" ]]; then
+                launchctl unload "$MANAGEMENT_PLIST" 2>/dev/null || true
+            fi
+            # Fallback for manually-launched instances
+            pkill -f "llmgateway.py" 2>/dev/null || true
             ;;
         ollama)
             printf "${CYAN}Stopping Ollama...${NC}\n"
-            if brew services list 2>/dev/null | grep -q "^ollama"; then
+            if ollama_has_brew_service; then
                 brew services stop ollama
             else
                 pkill -f "ollama" 2>/dev/null || true
@@ -273,7 +384,7 @@ cmd_stop() {
             if [[ -z "$svc" ]]; then
                 printf "${RED}Unknown component: %s${NC}\n" "$name"; usage; return 1
             fi
-            printf "${CYAN}Stopping %s container...${NC}\n" "$name"
+            printf "${CYAN}Stopping %s...${NC}\n" "$name"
             $COMPOSE stop "$svc"
             ;;
     esac
@@ -285,8 +396,11 @@ cmd_restart() {
     case "$name" in
         management|gateway)
             printf "${CYAN}Restarting management service...${NC}\n"
-            if launchctl list "$MANAGEMENT_LABEL" &>/dev/null 2>&1; then
-                launchctl kickstart -k "gui/$(id -u)/$MANAGEMENT_LABEL"
+            if [[ -f "$MANAGEMENT_PLIST" ]]; then
+                # Unload (kills process) then immediately reload (starts process)
+                launchctl unload "$MANAGEMENT_PLIST" 2>/dev/null || true
+                sleep 0.5
+                launchctl load "$MANAGEMENT_PLIST"
             else
                 pkill -f "llmgateway.py" 2>/dev/null || true
                 sleep 1
@@ -296,7 +410,7 @@ cmd_restart() {
             ;;
         ollama)
             printf "${CYAN}Restarting Ollama...${NC}\n"
-            if brew services list 2>/dev/null | grep -q "^ollama"; then
+            if ollama_has_brew_service; then
                 brew services restart ollama
             else
                 pkill -f "ollama" 2>/dev/null || true
@@ -315,30 +429,32 @@ cmd_restart() {
             if [[ -z "$svc" ]]; then
                 printf "${RED}Unknown component: %s${NC}\n" "$name"; usage; return 1
             fi
-            printf "${CYAN}Restarting %s container...${NC}\n" "$name"
+            printf "${CYAN}Restarting %s...${NC}\n" "$name"
             $COMPOSE restart "$svc"
             ;;
     esac
     printf "${GREEN}Done.${NC}\n"
 }
 
+# ── Logs ──────────────────────────────────────────────────────────────────────
+
 cmd_logs() {
     local name="$1"
     case "$name" in
         management|gateway)
-            local logdir="$HOME/Library/Logs/llm-gateway"
-            if [[ -f "$logdir/gateway-stdout.log" ]]; then
-                tail -f "$logdir/gateway-stdout.log"
+            local log="$MANAGEMENT_LOG_DIR/gateway-stdout.log"
+            if [[ -f "$log" ]]; then
+                printf "${DIM}Tailing %s (Ctrl-C to stop)...${NC}\n" "$log"
+                tail -f "$log"
             else
-                printf "${YELLOW}No log file found at %s/gateway-stdout.log${NC}\n" "$logdir"
-                printf "${DIM}Hint: install as launchd agent first: python3 scripts/llmgateway.py --install${NC}\n"
+                printf "${YELLOW}Log not found: %s${NC}\n" "$log"
+                printf "${DIM}The log is only created when the management service runs via launchd.${NC}\n"
+                printf "${DIM}Install with: python3 scripts/llmgateway.py --install${NC}\n"
             fi
             ;;
         ollama)
-            printf "${DIM}Tailing system log for ollama (Ctrl-C to stop)...${NC}\n"
-            log stream --predicate 'process == "ollama"' --style syslog 2>/dev/null \
-                || journalctl -fu ollama 2>/dev/null \
-                || printf "${RED}Unable to stream ollama logs on this platform.${NC}\n"
+            printf "${DIM}Streaming macOS system log for Ollama (Ctrl-C to stop)...${NC}\n"
+            log stream --predicate 'process == "ollama"' --style syslog
             ;;
         docker)
             $COMPOSE logs -f --tail=50
@@ -354,24 +470,82 @@ cmd_logs() {
     esac
 }
 
+# ── Uninstall ─────────────────────────────────────────────────────────────────
+
+cmd_uninstall() {
+    echo ""
+    printf "  ${BOLD}Uninstall${NC} — deregister autostart, stop services\n"
+    printf "  ${DIM}Docker images and data volumes are preserved.${NC}\n"
+    printf "  ${DIM}Config files and logs are preserved.${NC}\n"
+    echo ""
+
+    # 1. Management service — unload and remove plist (stops autostart on login)
+    if [[ -f "$MANAGEMENT_PLIST" ]]; then
+        printf "  Unregistering management launchd agent...  "
+        launchctl unload "$MANAGEMENT_PLIST" 2>/dev/null || true
+        rm -f "$MANAGEMENT_PLIST"
+        printf "${GREEN}done${NC}\n"
+    else
+        printf "  ${DIM}Management launchd agent: not installed — skipping${NC}\n"
+    fi
+    # Kill any manually-started instance too
+    if pgrep -qf "llmgateway.py" 2>/dev/null; then
+        printf "  Stopping management service process...  "
+        pkill -f "llmgateway.py" 2>/dev/null || true
+        printf "${GREEN}done${NC}\n"
+    fi
+
+    # 2. Ollama — remove from brew services autostart (stops autostart on login)
+    if ollama_has_brew_service; then
+        local ollama_running
+        ollama_running=$(brew services list 2>/dev/null | grep "^ollama" | awk '{print $2}')
+        if [[ "$ollama_running" == "started" ]]; then
+            printf "  Removing Ollama from brew services autostart...  "
+            brew services stop ollama
+            printf "${GREEN}done${NC}\n"
+        else
+            printf "  ${DIM}Ollama brew service: registered but not running — skipping${NC}\n"
+        fi
+    else
+        printf "  ${DIM}Ollama brew service: not registered — skipping${NC}\n"
+    fi
+
+    # 3. Docker Compose — stop containers, keep images and named volumes
+    if docker_available; then
+        printf "  Stopping Docker Compose stack (images + volumes preserved)...  "
+        $COMPOSE down 2>/dev/null || true
+        printf "${GREEN}done${NC}\n"
+    else
+        printf "  ${DIM}Docker not available — skipping${NC}\n"
+    fi
+
+    echo ""
+    printf "  ${YELLOW}Note:${NC} To restart the stack:  ${CYAN}./gw start docker${NC}\n"
+    printf "  ${YELLOW}Note:${NC} To reinstall autostart: ${CYAN}python3 scripts/llmgateway.py --install${NC}\n"
+    echo ""
+}
+
+# ── Usage ─────────────────────────────────────────────────────────────────────
+
 usage() {
     echo ""
     printf "  ${BOLD}Usage:${NC}\n"
-    echo "    ./gw                         Show status of all components"
+    echo "    ./gw                         Show status of all components and key paths"
     echo "    ./gw start <component>       Start a component"
     echo "    ./gw stop <component>        Stop a component"
     echo "    ./gw restart <component>     Restart a component"
     echo "    ./gw logs <component>        Tail logs for a component"
+    echo "    ./gw uninstall               Deregister autostart, stop all services"
     echo ""
     printf "  ${BOLD}Components:${NC}\n"
     printf "    %-14s  %s\n" "management" "Gateway web UI + management service (launchd)"
-    printf "    %-14s  %s\n" "ollama"      "Ollama local inference (bare metal)"
+    printf "    %-14s  %s\n" "ollama"      "Ollama local inference (bare metal, Metal GPU)"
     printf "    %-14s  %s\n" "docker"      "Entire Docker Compose stack"
-    printf "    %-14s  %s\n" "litellm"     "LiteLLM proxy container  → http://localhost:4000"
+    printf "    %-14s  %s\n" "litellm"     "LiteLLM proxy container   → http://localhost:4000"
     printf "    %-14s  %s\n" "postgres"    "PostgreSQL container"
-    printf "    %-14s  %s\n" "grafana"     "Grafana dashboards        → http://localhost:3000"
-    printf "    %-14s  %s\n" "prometheus"  "Prometheus metrics        → http://localhost:9090"
-    printf "    %-14s  %s\n" "loki"        "Loki log aggregation      → http://localhost:3100"
+    printf "    %-14s  %s\n" "grafana"     "Grafana dashboards         → http://localhost:3000"
+    printf "    %-14s  %s\n" "prometheus"  "Prometheus metrics         → http://localhost:9090"
+    printf "    %-14s  %s\n" "loki"        "Loki log aggregation       → http://localhost:3100"
     printf "    %-14s  %s\n" "alloy"       "Grafana Alloy collector"
     echo ""
 }
@@ -400,6 +574,9 @@ case "$CMD" in
     logs)
         [[ -z "${1:-}" ]] && { printf "${RED}Error: component name required${NC}\n"; usage; exit 1; }
         cmd_logs "$1"
+        ;;
+    uninstall)
+        cmd_uninstall
         ;;
     -h|--help|help)
         usage
