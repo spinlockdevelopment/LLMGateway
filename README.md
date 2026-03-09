@@ -51,8 +51,8 @@ A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM P
 |-------|--------|
 | **LiteLLM Proxy** (Docker) | One API endpoint; routes requests to local models, Anthropic, OpenAI, OpenRouter, etc; virtual keys, spend tracking, dashboard at `/ui`. |
 | **Management app** (Python) | Web UI + REST API; config editor; starts/monitors local models (Ollama / llama.cpp / Whisper). |
-| **Provisioning** (`scripts/setup-llmgateway.py`) | Installs and checks: Git, Node, Claude Code CLI, Docker Desktop, Ollama, SSH, `.env`, and starts the Docker stack. |
-| **Bootstrap** (`bootstrap-llmgateway.sh`) | Ensures Git and Python 3.11+ and deps, then runs the management app (or `--status` / `--install` for launchd). Can clone the repo into `~/src/LLMGateway` when run via curl. |
+| **Bootstrap** (`bootstrap-llmgateway.sh`) | Ensures OS-level prerequisites (Xcode CLT, Homebrew, Git, Python 3.11+, Docker Desktop) are installed, creates a Python venv, then hands off to the setup script. Only requests `sudo` when a missing dependency requires it. Can clone the repo into `~/src/LLMGateway` when run via curl. |
+| **Setup** (`scripts/setup-llmgateway.py`) | Application-level provisioning: Git repo, Node.js, Claude Code CLI, Docker stack, `.env`, optional components (Ollama, llama-server, whisper-server, SSH), and installs the management console as a launchd agent. Runs as a standard user — no admin required. |
 
 This repo is config, Docker stack, and the management tooling for running LiteLLM which handles routing, auth, and usage. 
 
@@ -61,50 +61,50 @@ This repo is config, Docker stack, and the management tooling for running LiteLL
 ## What you need
 
 - Mac with Apple Silicon (M1/M2/M3/M4)
-- API Keys; Anthropic, [OpenAI](https://platform.openai.com/settings/organization/api-keys), [OpenRouter](https://openrouter.ai/keys), etc.
-- Docker Desktop (provisioning can install it)
+- API keys for the providers you want to use: [OpenRouter](https://openrouter.ai/keys), [Anthropic](https://console.anthropic.com/), [OpenAI](https://platform.openai.com/settings/organization/api-keys), etc.
+- Docker Desktop (bootstrap installs it automatically if missing)
 
 ---
 
 ## Get running
 
-### 1. Clone and bootstrap
+### 1. Bootstrap (OS-level prerequisites)
+
+The bootstrap script checks for Homebrew, Git, Python 3.11+, and Docker Desktop. If everything is already installed, **no elevated privileges are needed**. If any dependency is missing, the script asks you before installing (use `--install` or `--launch` to skip the prompt). Installation requires `sudo` for the missing tools only (Xcode CLT, Homebrew, Docker Desktop, etc.), then the script drops back to your normal user account for the remaining steps. After prerequisites are in place, the bootstrap creates a Python virtual environment at `~/src/LLMGateway/.venv` and installs pip dependencies.
 
 **Option A — clone then run (recommended):**
 
 ```bash
 git clone https://github.com/spinlockdevelopment/LLMGateway.git ~/src/LLMGateway
 cd ~/src/LLMGateway
-./bootstrap-llmgateway.sh
+./bootstrap-llmgateway.sh            # interactive (asks before each step)
+./bootstrap-llmgateway.sh --install  # auto-install deps, ask before launching setup
+./bootstrap-llmgateway.sh --launch   # fully automatic (no prompts)
 ```
 
 **Option B — curl (script clones into `~/src/LLMGateway` for you):**
-
-Open a Terminal window, then pipe following command into bash. The script installs Git if needed, clones the repo, and re-runs itself from the clone.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/spinlockdevelopment/LLMGateway/main/bootstrap-llmgateway.sh | bash
 ```
 
-Replace `<owner>` with your GitHub org or username.
+### 2. Setup (application provisioning)
 
-Either way, the bootstrap installs Python 3.11+, pip, and dependencies, then **starts the management app** (dashboard at http://localhost:8080). Leave it running in that terminal, or use `--install` to run it as a launchd agent (see below).
+The setup script is launched automatically at the end of bootstrap. It provisions application-level components: Git repo sync, Node.js, Claude Code CLI, Docker stack, `.env` from template, and optional components (Ollama, llama-server, whisper-server, SSH). It also installs the management console as a launchd agent.
 
-### 2. Provision the rest (first time)
+> **The setup script should be run as a standard user account, not an administrator.** It does not require `sudo` or elevated privileges. If run as root, it will warn you and ask for confirmation before continuing. Running as root can cause file ownership issues with the venv and launchd agent.
 
-In another terminal, from the repo root:
+To re-run setup manually (safe to run repeatedly — all steps are idempotent):
 
 ```bash
 cd ~/src/LLMGateway
-python3 scripts/setup-llmgateway.py
+.venv/bin/python3 scripts/setup-llmgateway.py
 ```
-
-This installs/checks: Xcode CLT, Homebrew, Node, Claude Code CLI, Docker Desktop, Ollama, SSH, creates `.env` from `.env.example`, and brings up the Docker stack (LiteLLM, PostgreSQL, Grafana, Prometheus, Loki). Safe to run again.
 
 To only check status (no changes):
 
 ```bash
-python3 scripts/setup-llmgateway.py --status
+.venv/bin/python3 scripts/setup-llmgateway.py --status
 ```
 
 ### 3. Add your API keys
@@ -137,18 +137,25 @@ The management dashboard can also start and monitor Ollama if it’s enabled in 
 
 ---
 
-## Management app commands
+## Commands
 
-Run from the repo (or pass these when using the bootstrap script):
+**Bootstrap:**
 
 | Command | Effect |
 |---------|--------|
-| `./bootstrap-llmgateway.sh` | Start the gateway (dashboard + service manager). Default. |
-| `./bootstrap-llmgateway.sh --status` | Print status (platform, memory, services, launchd). No server. |
-| `./bootstrap-llmgateway.sh --install` | Install launchd agent so the gateway starts on login. |
-| `./bootstrap-llmgateway.sh --uninstall` | Remove the launchd agent. |
+| `./bootstrap-llmgateway.sh` | Interactive — asks before installing missing deps, asks before launching setup. |
+| `./bootstrap-llmgateway.sh --install` | Auto-installs missing deps (no prompt), but still asks before launching setup. |
+| `./bootstrap-llmgateway.sh --launch` | Fully automatic — installs deps and launches setup with no prompts. |
 
-Provisioning (install Docker, Ollama, etc.) is separate: `python3 scripts/setup-llmgateway.py`.
+**Setup (run directly or launched by bootstrap):**
+
+| Command | Effect |
+|---------|--------|
+| `.venv/bin/python3 scripts/setup-llmgateway.py` | Application provisioning: Docker stack, Node, Claude Code, optional components, management console. Safe to re-run. |
+| `.venv/bin/python3 scripts/setup-llmgateway.py --status` | Status check only (no changes made). |
+| `.venv/bin/python3 scripts/setup-llmgateway.py --verbose` | Setup with debug-level output. |
+
+You can also pass `--status` or `--verbose` through bootstrap: `./bootstrap-llmgateway.sh --launch --status`.
 
 ---
 
@@ -157,7 +164,7 @@ Provisioning (install Docker, Ollama, etc.) is separate: `python3 scripts/setup-
 Open **http://localhost:8080**.
 
 - **Config** — Edit gateway settings (ports, which services are enabled, health check intervals). Stored in `config/llmgateway.yaml` (overrides `config/llmgateway.defaults.yaml`).
-- **Secrets** — Edit `.env`: API keys, provider base URLs (OpenRouter, OpenAI, Anthropic, etc.), optional OAuth 2.0 vars. Template is `.env.example`; blank entries are not saved.
+- **Secrets** — Edit `.env`: API keys, provider base URLs (OpenRouter, OpenAI, Anthropic, etc.), optional OAuth 2.0 vars. Template is `.env.example`; blank entries are not saved. Saving automatically restarts the LiteLLM container if any relevant keys changed.
 - **Services** — See status of Ollama, llama-server, Whisper; start/stop/restart.
 - **Ollama** — Pull models from the UI.
 - **REST API** — Read-only: `GET /api/status`, `GET /api/services`, `GET /api/config`, `GET /api/health`.
@@ -225,7 +232,7 @@ Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) ch
 
 ```
 LLMGateway/
-├── bootstrap-llmgateway.sh      # Git + Python/deps, run management app; supports curl \| bash (clones to ~/src/LLMGateway)
+├── bootstrap-llmgateway.sh      # OS prerequisites (sudo only if needed), venv, then hands off to setup; supports curl | bash
 ├── requirements.txt             # Python deps for management app
 ├── .env.example                 # Template for API keys, base URLs, OAuth (Secrets UI)
 ├── litellm-config.yaml          # LiteLLM Proxy: routing, models, providers

@@ -8,7 +8,7 @@ Routes:
     POST /ui/config/reset — reset to defaults
     GET  /ui/secrets/example — keys and default values from .env.example
     GET  /ui/secrets — current .env entries (or defaults)
-    POST /ui/secrets/save — save .env (backup if exists)
+    POST /ui/secrets/save — save .env (backup if exists; restarts LiteLLM if relevant keys changed)
     POST /ui/services/{name}/start — start a service
     POST /ui/services/{name}/stop — stop a service
     POST /ui/services/{name}/restart — restart a service
@@ -17,6 +17,7 @@ Routes:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import shutil
 from datetime import datetime
@@ -42,7 +43,71 @@ _BASE_URL_OR_VERSION_TO_API_KEY = {
     "AZURE_API_VERSION": "AZURE_API_KEY",
 }
 
+# Keys in .env that affect LiteLLM — changes to any of these require a container restart.
+_LITELLM_ENV_KEYS = frozenset({
+    "LITELLM_MASTER_KEY",
+    "OPENROUTER_API_KEY", "OPENROUTER_API_BASE",
+    "ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE",
+    "OPENAI_API_KEY", "OPENAI_BASE_URL",
+    "GEMINI_API_KEY", "GEMINI_API_BASE",
+    "XAI_API_KEY", "XAI_API_BASE",
+    "AZURE_API_KEY", "AZURE_API_BASE", "AZURE_API_VERSION",
+    "PERPLEXITY_API_KEY",
+    "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
+    "LITELLM_SALT_KEY",
+})
+
+# Strong references to fire-and-forget background tasks to prevent GC collection.
+_background_tasks: set[asyncio.Task] = set()
+
 _DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
+
+
+async def _restart_litellm_container(repo_dir: Path) -> bool:
+    """
+    Restart the litellm Docker Compose service so it picks up .env changes.
+
+    Best-effort: logs warnings on failure but never raises.
+    Returns True if the restart command succeeded.
+    """
+    compose_file = repo_dir / "docker" / "docker-compose.yml"
+    if not compose_file.exists():
+        log.warning("  docker-compose.yml not found — skipping LiteLLM restart")
+        return False
+
+    try:
+        proc = await asyncio.create_subprocess_exec(
+            "docker", "compose", "-f", str(compose_file), "restart", "litellm",
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
+        if proc.returncode == 0:
+            log.info("  LiteLLM container restarted after .env change")
+            return True
+        else:
+            err = (stderr or stdout or b"").decode(errors="replace").strip()
+            log.warning("  LiteLLM restart failed (rc=%d): %s", proc.returncode, err)
+            return False
+    except asyncio.TimeoutError:
+        log.warning("  LiteLLM restart timed out (60s)")
+        return False
+    except FileNotFoundError:
+        log.warning("  docker command not found — cannot restart LiteLLM")
+        return False
+    except Exception:
+        log.warning("  LiteLLM restart failed unexpectedly", exc_info=True)
+        return False
+
+
+def _litellm_keys_changed(old_entries: list[dict], new_entries: list[dict]) -> bool:
+    """
+    Compare old and new .env entries to determine if any LiteLLM-relevant
+    keys have changed (added, removed, or modified).
+    """
+    old_map = {e["key"]: e["value"] for e in old_entries if e["key"] in _LITELLM_ENV_KEYS}
+    new_map = {e["key"]: e["value"] for e in new_entries if e["key"] in _LITELLM_ENV_KEYS}
+    return old_map != new_map
 
 
 def create_ui_router() -> APIRouter:
@@ -148,13 +213,17 @@ def create_ui_router() -> APIRouter:
 
     @router.post("/ui/secrets/save")
     async def save_secrets(request: Request):
-        """Save .env from key-value list. Backs up existing .env. Blank values omitted. Base URL vars only written when their associated API key is set. DATABASE_URL is never written."""
+        """Save .env from key-value list. Backs up existing .env. Blank values omitted. Base URL vars only written when their associated API key is set. DATABASE_URL is never written. Automatically restarts the LiteLLM container if any LiteLLM-relevant keys changed."""
         body = await request.json()
         entries = body.get("entries", [])
         if not isinstance(entries, list):
             return JSONResponse(status_code=400, content={"error": "entries must be an array"})
 
         env_path, _ = _env_paths(request)
+
+        # Snapshot current .env entries before overwriting (for change detection)
+        old_entries = _parse_env_file(env_path)
+
         _create_env_backup(env_path)
 
         keys_to_value = {}
@@ -184,7 +253,20 @@ def create_ui_router() -> APIRouter:
         except OSError as e:
             log.exception("Failed to write .env")
             return JSONResponse(status_code=500, content={"error": str(e)})
-        return {"status": "saved"}
+
+        # Detect if any LiteLLM-relevant env vars changed and restart if needed
+        new_entries = _parse_env_file(env_path)
+        litellm_restarting = False
+        if _litellm_keys_changed(old_entries, new_entries):
+            repo_dir = getattr(request.app.state, "repo_dir", None)
+            if repo_dir is not None:
+                log.info("  LiteLLM-relevant env vars changed — restarting container...")
+                task = asyncio.create_task(_restart_litellm_container(repo_dir))
+                _background_tasks.add(task)
+                task.add_done_callback(_background_tasks.discard)
+                litellm_restarting = True
+
+        return {"status": "saved", "litellm_restarting": litellm_restarting}
 
     # ── Config actions ────────────────────────────────────────────────────────
 

@@ -85,11 +85,10 @@ class DockerStack(ProvisioningStep):
         """
         log.info(self._section_header())
 
-        if not self._compose_file.exists():
-            log.error(f"  docker-compose.yml not found: {self._compose_file}")
-            return False
-
         try:
+            if not self._compose_file.exists():
+                log.error(f"  docker-compose.yml not found: {self._compose_file}")
+                return False
             if dry_run:
                 status = self.current_version()
                 log.info(f"  Status: {status or 'not running'}")
@@ -143,28 +142,35 @@ class DockerStack(ProvisioningStep):
                 "Docker daemon is not running — start Docker Desktop first"
             )
 
-        # Validate .env has been configured
+        # Warn (but don't block) if .env still has placeholder values
         env_file = self.repo_dir / ".env"
         if env_file.exists():
             try:
                 content = env_file.read_text(errors="replace")
                 if any(m in content for m in ("your-key-here", "change-me", "changeme")):
-                    raise RuntimeError(
-                        ".env still contains placeholder API keys — "
-                        "configure LITELLM_MASTER_KEY and any provider keys (e.g. OPENROUTER_API_KEY) as needed"
+                    log.warning(
+                        "  .env contains placeholder values (e.g. LITELLM_MASTER_KEY)."
+                    )
+                    log.warning(
+                        "  The stack will start with defaults. Update .env later via"
+                    )
+                    log.warning(
+                        "  the Secrets UI (http://localhost:8080) or LiteLLM UI (http://localhost:4000/ui)."
                     )
             except OSError as e:
                 log.warning(f"  Could not read .env for validation: {e}")
 
-        # Pull latest images
+        # Pull latest images (non-fatal — will use cached images on failure)
         log.info("  Pulling latest Docker images (this may take a while)...")
-        run(
+        pull_result = run(
             ["docker", "compose", "-f", str(self._compose_file), "pull"],
             check=False,
             timeout=600,
         )
+        if pull_result.returncode != 0:
+            log.warning("  docker compose pull reported errors — proceeding with cached images")
 
-        # Bring up the stack
+        # Bring up the stack (stream output so user sees progress)
         log.info("  Starting services (docker compose up -d)...")
         run(
             [
@@ -172,6 +178,7 @@ class DockerStack(ProvisioningStep):
                 "-f", str(self._compose_file),
                 "up", "-d", "--remove-orphans",
             ],
+            capture=False,
             timeout=300,
         )
 
