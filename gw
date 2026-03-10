@@ -11,15 +11,17 @@
 #   ./gw uninstall               Deregister all autostart, stop containers
 #
 # Components:
-#   management   Gateway management service (llmgateway.py / launchd)
-#   ollama       Ollama local inference (bare metal, Metal GPU)
-#   docker       Entire Docker Compose stack
-#   litellm      LiteLLM proxy container
-#   postgres     PostgreSQL container
-#   grafana      Grafana dashboards container
-#   prometheus   Prometheus metrics container
-#   loki         Loki log aggregation container
-#   alloy        Grafana Alloy collector container
+#   management     Gateway management service (llmgateway.py / launchd)
+#   ollama         Ollama local inference (bare metal, Metal GPU)
+#   llama-server   llama.cpp server (bare metal, default port 8081)
+#   whisper-server whisper.cpp server (bare metal, default port 8083)
+#   docker         Entire Docker Compose stack
+#   litellm        LiteLLM proxy container
+#   postgres       PostgreSQL container
+#   grafana        Grafana dashboards container
+#   prometheus     Prometheus metrics container
+#   loki           Loki log aggregation container
+#   alloy          Grafana Alloy collector container
 # =============================================================================
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -30,6 +32,8 @@ MANAGEMENT_SCRIPT="$SCRIPT_DIR/scripts/llmgateway.py"
 MANAGEMENT_PLIST="$HOME/Library/LaunchAgents/${MANAGEMENT_LABEL}.plist"
 MANAGEMENT_LOG_DIR="$HOME/Library/Logs/llm-gateway"
 MANAGEMENT_PORT=8080
+LLAMA_SERVER_DEFAULT_PORT=8081
+WHISPER_SERVER_DEFAULT_PORT=8083
 
 # ── Colors ────────────────────────────────────────────────────────────────────
 
@@ -104,6 +108,38 @@ ollama_state() {
 
 ollama_has_brew_service() {
     command -v brew &>/dev/null && brew services list 2>/dev/null | grep -q "^ollama"
+}
+
+# Returns: running | starting | stopped | absent
+# Checks default health ports 8081, 8082 (config may define multiple instances).
+llama_server_state() {
+    local port
+    for port in 8081 8082; do
+        if curl -sf --max-time 2 "http://localhost:${port}/health" &>/dev/null; then
+            echo "running"; return
+        fi
+    done
+    if pgrep -qf "llama-server" 2>/dev/null; then
+        echo "starting"
+    elif command -v llama-server &>/dev/null; then
+        echo "stopped"
+    else
+        echo "absent"
+    fi
+}
+
+# Returns: running | starting | stopped | absent
+whisper_server_state() {
+    if curl -sf --max-time 2 "http://localhost:${WHISPER_SERVER_DEFAULT_PORT}/health" &>/dev/null; then
+        echo "running"; return
+    fi
+    if pgrep -qf "whisper-server" 2>/dev/null; then
+        echo "starting"
+    elif command -v whisper-server &>/dev/null; then
+        echo "stopped"
+    else
+        echo "absent"
+    fi
 }
 
 # ── Display helpers ───────────────────────────────────────────────────────────
@@ -200,6 +236,16 @@ cmd_status() {
         "http://localhost:11434" \
         "Local LLM runtime (Metal GPU)"
 
+    # llama-server — bare-metal (llama.cpp)
+    print_row "llama-server" "$(llama_server_state)" \
+        "http://localhost:${LLAMA_SERVER_DEFAULT_PORT}" \
+        "llama.cpp GGUF server (bare metal)"
+
+    # whisper-server — bare-metal (whisper.cpp)
+    print_row "whisper-server" "$(whisper_server_state)" \
+        "http://localhost:${WHISPER_SERVER_DEFAULT_PORT}" \
+        "Speech-to-text (whisper.cpp)"
+
     echo ""
 
     # Docker containers
@@ -223,6 +269,19 @@ cmd_status() {
         done
         echo ""
     fi
+
+    # ── Service accounts ──────────────────────────────────────────────────────
+    printf "\n  ${DIM}Service accounts (this setup)${NC}\n\n"
+    printf "  %-18s ${BOLD}%s${NC}  ${DIM}%s${NC}\n" "Host (local):" "$(whoami)" "management, ollama, llama-server, whisper-server"
+    printf "  %-18s ${BOLD}%s${NC}  ${DIM}%s${NC}\n" "PostgreSQL:" "litellm" "LiteLLM DB (docker stack)"
+    local grafana_user="admin"
+    if [[ -f "$SCRIPT_DIR/.env" ]]; then
+        local gu
+        gu=$(grep -E '^GF_SECURITY_ADMIN_USER=' "$SCRIPT_DIR/.env" 2>/dev/null | cut -d= -f2- | tr -d '"'\''')
+        [[ -n "$gu" ]] && grafana_user="$gu"
+    fi
+    printf "  %-18s ${BOLD}%s${NC}  ${DIM}%s${NC}\n" "Grafana admin:" "$grafana_user" "docker stack (.env)"
+    echo ""
 
     # ── Key paths ─────────────────────────────────────────────────────────────
     printf "  ${DIM}%-15s %-12s %-38s %s${NC}\n" "PATH" "TYPE" "" "DESCRIPTION"
@@ -334,6 +393,24 @@ cmd_start() {
                 disown
             fi
             ;;
+        llama-server)
+            printf "${CYAN}Starting llama-server...${NC}\n"
+            if ! command -v llama-server &>/dev/null; then
+                printf "${RED}llama-server not found. Install: brew install llama.cpp${NC}\n"
+                return 1
+            fi
+            llama-server --host 0.0.0.0 --port "$LLAMA_SERVER_DEFAULT_PORT" &>/dev/null &
+            disown
+            ;;
+        whisper-server)
+            printf "${CYAN}Starting whisper-server...${NC}\n"
+            if ! command -v whisper-server &>/dev/null; then
+                printf "${RED}whisper-server not found. Install: brew install whisper-cpp${NC}\n"
+                return 1
+            fi
+            whisper-server --host 0.0.0.0 --port "$WHISPER_SERVER_DEFAULT_PORT" &>/dev/null &
+            disown
+            ;;
         docker)
             printf "${CYAN}Starting Docker Compose stack...${NC}\n"
             $COMPOSE up -d
@@ -373,6 +450,14 @@ cmd_stop() {
             else
                 pkill -f "ollama" 2>/dev/null || true
             fi
+            ;;
+        llama-server)
+            printf "${CYAN}Stopping llama-server...${NC}\n"
+            pkill -f "llama-server" 2>/dev/null || true
+            ;;
+        whisper-server)
+            printf "${CYAN}Stopping whisper-server...${NC}\n"
+            pkill -f "whisper-server" 2>/dev/null || true
             ;;
         docker)
             printf "${CYAN}Stopping Docker Compose stack...${NC}\n"
@@ -419,6 +504,24 @@ cmd_restart() {
                 disown
             fi
             ;;
+        llama-server)
+            printf "${CYAN}Restarting llama-server...${NC}\n"
+            pkill -f "llama-server" 2>/dev/null || true
+            sleep 1
+            if command -v llama-server &>/dev/null; then
+                llama-server --host 0.0.0.0 --port "$LLAMA_SERVER_DEFAULT_PORT" &>/dev/null &
+                disown
+            fi
+            ;;
+        whisper-server)
+            printf "${CYAN}Restarting whisper-server...${NC}\n"
+            pkill -f "whisper-server" 2>/dev/null || true
+            sleep 1
+            if command -v whisper-server &>/dev/null; then
+                whisper-server --host 0.0.0.0 --port "$WHISPER_SERVER_DEFAULT_PORT" &>/dev/null &
+                disown
+            fi
+            ;;
         docker)
             printf "${CYAN}Restarting Docker Compose stack...${NC}\n"
             $COMPOSE restart
@@ -455,6 +558,24 @@ cmd_logs() {
         ollama)
             printf "${DIM}Streaming macOS system log for Ollama (Ctrl-C to stop)...${NC}\n"
             log stream --predicate 'process == "ollama"' --style syslog
+            ;;
+        llama-server)
+            printf "${DIM}No dedicated log for llama-server when started by gw.${NC}\n"
+            printf "${DIM}Management service logs may include subprocess output:${NC}\n"
+            if [[ -f "$MANAGEMENT_LOG_DIR/gateway-stdout.log" ]]; then
+                tail -f "$MANAGEMENT_LOG_DIR/gateway-stdout.log"
+            else
+                printf "  %s\n" "$MANAGEMENT_LOG_DIR/gateway-stdout.log"
+            fi
+            ;;
+        whisper-server)
+            printf "${DIM}No dedicated log for whisper-server when started by gw.${NC}\n"
+            printf "${DIM}Management service logs may include subprocess output:${NC}\n"
+            if [[ -f "$MANAGEMENT_LOG_DIR/gateway-stdout.log" ]]; then
+                tail -f "$MANAGEMENT_LOG_DIR/gateway-stdout.log"
+            else
+                printf "  %s\n" "$MANAGEMENT_LOG_DIR/gateway-stdout.log"
+            fi
             ;;
         docker)
             $COMPOSE logs -f --tail=50
@@ -510,7 +631,19 @@ cmd_uninstall() {
         printf "  ${DIM}Ollama brew service: not registered — skipping${NC}\n"
     fi
 
-    # 3. Docker Compose — stop containers, keep images and named volumes
+    # 3. llama-server / whisper-server — stop if running (no autostart to remove)
+    if pgrep -qf "llama-server" 2>/dev/null; then
+        printf "  Stopping llama-server...  "
+        pkill -f "llama-server" 2>/dev/null || true
+        printf "${GREEN}done${NC}\n"
+    fi
+    if pgrep -qf "whisper-server" 2>/dev/null; then
+        printf "  Stopping whisper-server...  "
+        pkill -f "whisper-server" 2>/dev/null || true
+        printf "${GREEN}done${NC}\n"
+    fi
+
+    # 4. Docker Compose — stop containers, keep images and named volumes
     if docker_available; then
         printf "  Stopping Docker Compose stack (images + volumes preserved)...  "
         $COMPOSE down 2>/dev/null || true
@@ -538,15 +671,17 @@ usage() {
     echo "    ./gw uninstall               Deregister autostart, stop all services"
     echo ""
     printf "  ${BOLD}Components:${NC}\n"
-    printf "    %-14s  %s\n" "management" "Gateway web UI + management service (launchd)"
-    printf "    %-14s  %s\n" "ollama"      "Ollama local inference (bare metal, Metal GPU)"
-    printf "    %-14s  %s\n" "docker"      "Entire Docker Compose stack"
-    printf "    %-14s  %s\n" "litellm"     "LiteLLM proxy container   → http://localhost:4000"
-    printf "    %-14s  %s\n" "postgres"    "PostgreSQL container"
-    printf "    %-14s  %s\n" "grafana"     "Grafana dashboards         → http://localhost:3000"
-    printf "    %-14s  %s\n" "prometheus"  "Prometheus metrics         → http://localhost:9090"
-    printf "    %-14s  %s\n" "loki"        "Loki log aggregation       → http://localhost:3100"
-    printf "    %-14s  %s\n" "alloy"       "Grafana Alloy collector"
+    printf "    %-14s  %s\n" "management"     "Gateway web UI + management service (launchd)"
+    printf "    %-14s  %s\n" "ollama"         "Ollama local inference (bare metal, Metal GPU)"
+    printf "    %-14s  %s\n" "llama-server"  "llama.cpp server (bare metal)  → http://localhost:8081"
+    printf "    %-14s  %s\n" "whisper-server" "whisper.cpp speech-to-text      → http://localhost:8083"
+    printf "    %-14s  %s\n" "docker"         "Entire Docker Compose stack"
+    printf "    %-14s  %s\n" "litellm"        "LiteLLM proxy container   → http://localhost:4000"
+    printf "    %-14s  %s\n" "postgres"       "PostgreSQL container"
+    printf "    %-14s  %s\n" "grafana"        "Grafana dashboards         → http://localhost:3000"
+    printf "    %-14s  %s\n" "prometheus"     "Prometheus metrics        → http://localhost:9090"
+    printf "    %-14s  %s\n" "loki"           "Loki log aggregation      → http://localhost:3100"
+    printf "    %-14s  %s\n" "alloy"           "Grafana Alloy collector"
     echo ""
 }
 

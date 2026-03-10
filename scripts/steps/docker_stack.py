@@ -9,6 +9,7 @@ hit each service's health/readiness endpoint and log pass/fail per service.
 from __future__ import annotations
 
 import json
+import platform
 import time
 from pathlib import Path
 from typing import Optional
@@ -24,6 +25,8 @@ _HEALTH_CHECKS = [
 ]
 
 _STABILIZE_WAIT = 30  # seconds to wait after `docker compose up -d`
+_LITELLM_HEALTH_RETRIES = 6   # retries for LiteLLM endpoint (15s apart → up to ~90s extra)
+_LITELLM_HEALTH_INTERVAL = 15
 
 
 class DockerStack(ProvisioningStep):
@@ -161,6 +164,11 @@ class DockerStack(ProvisioningStep):
                 log.warning(f"  Could not read .env for validation: {e}")
 
         # Pull latest images (non-fatal — will use cached images on failure)
+        if platform.system() == "Darwin":
+            log.info(
+                "  On macOS you may see 'Terminal would like to access data from other apps' — "
+                "click Allow once (grant permanently in System Settings → Privacy & Security → Automation)."
+            )
         log.info("  Pulling latest Docker images (this may take a while)...")
         pull_result = run(
             ["docker", "compose", "-f", str(self._compose_file), "pull"],
@@ -185,6 +193,21 @@ class DockerStack(ProvisioningStep):
         log.info(f"  Waiting {_STABILIZE_WAIT}s for services to stabilize...")
         time.sleep(_STABILIZE_WAIT)
 
+        self._run_health_checks()
+
+        # LiteLLM often needs extra time (e.g. DB migrations). Retry until healthy or limit.
+        litellm_url = "http://localhost:4000/health/liveliness"
+        for attempt in range(1, _LITELLM_HEALTH_RETRIES + 1):
+            if self._check_http(litellm_url, expect_2xx=False):
+                log.info("  LiteLLM proxy is ready.")
+                break
+            log.info(
+                f"  LiteLLM not yet ready (attempt {attempt}/{_LITELLM_HEALTH_RETRIES}), "
+                f"waiting {_LITELLM_HEALTH_INTERVAL}s..."
+            )
+            time.sleep(_LITELLM_HEALTH_INTERVAL)
+        else:
+            log.warning("  LiteLLM proxy did not become ready; check logs: docker compose logs litellm")
         self._run_health_checks()
 
     def _check_http(self, url: str, expect_2xx: bool = False) -> bool:

@@ -94,6 +94,8 @@ The setup script is launched automatically at the end of bootstrap. It provision
 
 > **The setup script should be run as a standard user account, not an administrator.** It does not require `sudo` or elevated privileges. If run as root, it will warn you and ask for confirmation before continuing. Running as root can cause file ownership issues with the venv and launchd agent.
 
+**macOS:** When the setup script runs Docker (pull/up), you may see a system dialog: *"Terminal would like to access data from other apps."* Click **Allow**. To stop the prompt from reappearing, grant the permission permanently: **System Settings → Privacy & Security → Automation** and ensure your terminal app (Terminal, iTerm, etc.) is listed and allowed.
+
 To re-run setup manually (safe to run repeatedly — all steps are idempotent):
 
 ```bash

@@ -31,21 +31,27 @@ def generate_plist(
     config_dir: str,
     port: int = 8080,
     log_dir: Optional[str] = None,
+    venv_bin_dir: Optional[str] = None,
 ) -> dict:
     """
     Build the plist dict for the LLM Gateway launch agent.
 
     Args:
-        python_bin:  Absolute path to the Python interpreter.
+        python_bin:  Absolute path to the Python interpreter (prefer venv).
         script_path: Absolute path to scripts/llmgateway.py.
         config_dir:  Absolute path to the config/ directory.
         port:        Gateway web UI port.
         log_dir:     Directory for stdout/stderr logs (default: ~/Library/Logs).
+        venv_bin_dir: If set, prepended to PATH so subprocesses see venv tools.
     """
     if log_dir is None:
         log_dir = str(Path.home() / "Library" / "Logs" / "llm-gateway")
 
     Path(log_dir).mkdir(parents=True, exist_ok=True)
+
+    path_entries = ["/usr/local/bin", "/usr/bin", "/bin", "/opt/homebrew/bin"]
+    if venv_bin_dir:
+        path_entries.insert(0, venv_bin_dir)
 
     return {
         "Label": _LABEL,
@@ -61,9 +67,20 @@ def generate_plist(
         "StandardErrorPath": f"{log_dir}/gateway-stderr.log",
         "EnvironmentVariables": {
             "PYTHONUNBUFFERED": "1",
-            "PATH": "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin",
+            "PATH": ":".join(path_entries),
         },
     }
+
+
+def _venv_python_for_repo(repo_dir: Path) -> Optional[Path]:
+    """Return the repo's venv Python path if it exists and is usable."""
+    venv_python = repo_dir / ".venv" / "bin" / "python3"
+    if venv_python.exists():
+        return venv_python.resolve()
+    venv_python = repo_dir / ".venv" / "bin" / "python"
+    if venv_python.exists():
+        return venv_python.resolve()
+    return None
 
 
 def install(
@@ -72,9 +89,23 @@ def install(
 ) -> bool:
     """
     Generate the plist and install it to ~/Library/LaunchAgents.
+    Uses the repo's .venv Python when present so the agent has access to
+    project dependencies (e.g. PyYAML); otherwise uses sys.executable.
     Returns True on success.
     """
-    python_bin = sys.executable
+    repo_dir = Path(repo_dir).resolve()
+    venv_python = _venv_python_for_repo(repo_dir)
+    if venv_python is not None:
+        python_bin = str(venv_python)
+        venv_bin_dir = str(venv_python.parent)
+        log.info(f"  Using venv Python: {python_bin}")
+    else:
+        python_bin = sys.executable
+        venv_bin_dir = None
+        log.warning(
+            "  No .venv found — using current Python. Ensure PyYAML and other deps are installed."
+        )
+
     script_path = str(repo_dir / "scripts" / "llmgateway.py")
     config_dir = str(repo_dir / "config")
 
@@ -86,6 +117,7 @@ def install(
         script_path=script_path,
         config_dir=config_dir,
         port=port,
+        venv_bin_dir=venv_bin_dir,
     )
 
     plist_file = _plist_path()

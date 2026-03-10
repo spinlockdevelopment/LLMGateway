@@ -100,6 +100,61 @@ def _prompt_yes_no(question: str, default: bool = True) -> bool:
     return answer in ("y", "yes")
 
 
+def _is_interactive() -> bool:
+    """Return True if stdin is a TTY (user can make selections)."""
+    try:
+        return sys.stdin.isatty()
+    except Exception:
+        return False
+
+
+def _prompt_optional_local_components(log: logging.Logger) -> tuple[bool, bool, bool]:
+    """
+    Show a multi-option menu for optional installs (Ollama, llama.cpp, whisper-server).
+    Returns (install_ollama, install_llama_cpp, install_whisper).
+    If non-interactive, returns (False, False, False).
+    """
+    install_ollama = False
+    install_llama_cpp = False
+    install_whisper = False
+
+    if not _is_interactive():
+        log.info("  Non-interactive: skipping optional local components.")
+        return (install_ollama, install_llama_cpp, install_whisper)
+
+    while True:
+        def _mark(on: bool) -> str:
+            return "[x]" if on else "[ ]"
+
+        fourth = "Continue" if (install_ollama or install_llama_cpp or install_whisper) else "Skip"
+        log.info("  Optional local components — select numbers to toggle, then 4 to proceed:")
+        log.info(f"    1) Ollama (local LLM, Metal GPU)          {_mark(install_ollama)}")
+        log.info(f"    2) llama-server (llama.cpp, GGUF models)    {_mark(install_llama_cpp)}")
+        log.info(f"    3) whisper-server (speech-to-text)        {_mark(install_whisper)}")
+        log.info(f"    4) {fourth}")
+        try:
+            raw = input("  Choice (1-4): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            log.info("")
+            return (install_ollama, install_llama_cpp, install_whisper)
+        if not raw:
+            continue
+        choice = raw.split()[0]
+        if choice == "1":
+            install_ollama = not install_ollama
+        elif choice == "2":
+            install_llama_cpp = not install_llama_cpp
+        elif choice == "3":
+            install_whisper = not install_whisper
+        elif choice == "4":
+            break
+        else:
+            log.info("  Enter 1, 2, 3 to toggle, or 4 to proceed.")
+        log.info("")
+
+    return (install_ollama, install_llama_cpp, install_whisper)
+
+
 def _install_brew_formula(
     log: logging.Logger, formula: str, binary_name: str = ""
 ) -> bool:
@@ -134,6 +189,49 @@ def _install_brew_formula(
     return False
 
 
+def _start_ollama_if_installed(log: logging.Logger) -> None:
+    """
+    Start the Ollama server if it is installed (brew services or ollama serve).
+    No-op if Ollama is not on PATH or already responding.
+    """
+    if not shutil.which("ollama"):
+        return
+    try:
+        result = subprocess.run(
+            ["curl", "-sf", "http://localhost:11434/api/tags"],
+            capture_output=True, timeout=5,
+        )
+        if result.returncode == 0:
+            log.info("  Ollama server already running.")
+            return
+    except Exception:
+        pass
+    if shutil.which("brew"):
+        list_result = subprocess.run(
+            ["brew", "services", "list"],
+            capture_output=True, text=True, timeout=15,
+        )
+        if list_result.returncode == 0 and "ollama" in (list_result.stdout or ""):
+            log.info("  Starting Ollama via brew services...")
+            subprocess.run(
+                ["brew", "services", "start", "ollama"],
+                capture_output=True, timeout=30,
+            )
+            time.sleep(2)
+            return
+    log.info("  Starting Ollama server in background...")
+    try:
+        subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+        time.sleep(2)
+    except Exception as e:
+        log.debug(f"  Could not start ollama serve: {e}")
+
+
 def _install_management_console(log: logging.Logger) -> bool:
     """
     Register the management console as a launchd agent and start it.
@@ -156,23 +254,26 @@ def _install_management_console(log: logging.Logger) -> bool:
             log.error("  Failed to install launchd agent")
             return False
 
-        # Give the agent a moment to start, then verify
-        time.sleep(3)
-        if is_loaded():
-            log.info("  Management console: running")
-
-            # Quick health check on the port
+        # Wait for the agent to start and respond (retry a few times)
+        for attempt in range(1, 6):
+            time.sleep(2)
+            if not is_loaded():
+                continue
             try:
                 result = subprocess.run(
                     ["curl", "-sf", f"http://localhost:{port}/api/status"],
                     capture_output=True, text=True, timeout=10,
                 )
                 if result.returncode == 0:
+                    log.info("  Management console: running")
                     log.info(f"  Dashboard: http://localhost:{port}  ✓")
-                else:
-                    log.info(f"  Dashboard: http://localhost:{port}  (still starting...)")
+                    return True
             except Exception:
-                log.info(f"  Dashboard: http://localhost:{port}  (still starting...)")
+                pass
+            log.debug(f"  Management console not yet responding (attempt {attempt}/5)")
+        if is_loaded():
+            log.info("  Management console: loaded (may still be starting)")
+            log.info(f"  Dashboard: http://localhost:{port}")
         else:
             log.warning("  Launchd agent installed but not yet loaded")
             log.info("  Start manually: launchctl load ~/Library/LaunchAgents/com.local.llm-gateway.plist")
@@ -301,6 +402,21 @@ def main() -> int:
         log.info("  Mode:         status check (no changes will be made)")
     log.info("")
 
+    # ── Optional local components (early menu) ──────────────────────────────
+    # Ask once at the start; installs run later in the optional section.
+    install_ollama_flag = False
+    install_llama_cpp_flag = False
+    install_whisper_flag = False
+    if not dry_run:
+        log.info("=" * 52)
+        log.info("  Optional local components (install later in this run)")
+        log.info("=" * 52)
+        log.info("")
+        install_ollama_flag, install_llama_cpp_flag, install_whisper_flag = (
+            _prompt_optional_local_components(log)
+        )
+        log.info("")
+
     # ── Import provisioning steps ──────────────────────────────────────────
     try:
         from steps.git_repo import GitRepo
@@ -342,33 +458,35 @@ def main() -> int:
         log.info("=" * 52)
         log.info("  Optional Components")
         log.info("=" * 52)
-        log.info("  You can skip any of these and install them later.")
+        log.info("  Installing components you selected earlier.")
         log.info("")
 
         # --- Ollama (local LLM runtime) ---
-        if _prompt_yes_no("  Install/check Ollama (local LLM runtime)?"):
+        if install_ollama_flag:
             ok = Ollama().provision(dry_run=False)
             log.info("")
             if not ok:
                 failures.append("Ollama")
+            else:
+                _start_ollama_if_installed(log)
         else:
-            log.info("  Skipping Ollama.")
+            log.info("  Skipping Ollama (not selected).")
             log.info("  Install later: brew install ollama")
             log.info("")
 
         # --- llama-server (llama.cpp) ---
-        if _prompt_yes_no("  Install llama-server (llama.cpp for GGUF models)?"):
+        if install_llama_cpp_flag:
             log.info("  Checking llama-server...")
             if not _install_brew_formula(log, "llama.cpp", binary_name="llama-server"):
                 failures.append("llama-server")
             log.info("")
         else:
-            log.info("  Skipping llama-server.")
+            log.info("  Skipping llama-server (not selected).")
             log.info("  Install later: brew install llama.cpp")
             log.info("")
 
         # --- whisper-server (speech-to-text) ---
-        if _prompt_yes_no("  Install whisper-server (speech-to-text)?"):
+        if install_whisper_flag:
             log.info("  Checking whisper-server...")
             if not _install_brew_formula(
                 log, "whisper-cpp", binary_name="whisper-server"
@@ -376,7 +494,7 @@ def main() -> int:
                 failures.append("whisper-server")
             log.info("")
         else:
-            log.info("  Skipping whisper-server.")
+            log.info("  Skipping whisper-server (not selected).")
             log.info("  Install later: brew install whisper-cpp")
             log.info("")
 
