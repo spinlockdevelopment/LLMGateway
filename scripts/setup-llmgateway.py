@@ -202,13 +202,22 @@ def _ensure_venv() -> None:
     venv_dir = _REPO_DIR / ".venv"
     venv_python = venv_dir / "bin" / "python3"
 
-    # Check if the current interpreter lives inside the expected venv
+    # Same-file check first: venv/bin/python3 is often a symlink to system Python;
+    # resolve() would point outside .venv and wrongly trigger re-exec in a loop.
+    if venv_python.exists():
+        try:
+            if Path(sys.executable).samefile(venv_python):
+                return
+        except OSError:
+            pass
+
+    # Check if the current interpreter path lives inside the expected venv
     try:
         current_exe = Path(sys.executable).resolve()
         current_exe.relative_to(venv_dir.resolve())
-        return  # Already running in the correct venv — nothing to do
+        return
     except (ValueError, OSError):
-        pass  # Not in the venv
+        pass
 
     # Not in the venv — try to re-exec with the venv Python
     if venv_python.exists():
