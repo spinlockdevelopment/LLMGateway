@@ -135,6 +135,10 @@ The management dashboard can also start and monitor Ollama if it’s enabled in 
 - **LiteLLM UI:** http://localhost:4000/ui (login with `LITELLM_MASTER_KEY`)
 - **Management dashboard:** http://localhost:8080
 
+### Permissions after git pull
+
+Scripts are committed with the executable bit set, so a fresh clone on macOS, Linux, or WSL should have `gw` and `bootstrap-llmgateway.sh` executable. On Windows, Git may not apply the executable bit; if `./gw` or `./bootstrap-llmgateway.sh` fail with "Permission denied", run: `chmod +x gw bootstrap-llmgateway.sh scripts/setup-llmgateway.py scripts/llmgateway.py`. If `.venv/bin/python3` is not executable, run: `chmod +x .venv/bin/activate .venv/bin/python*`.
+
 ---
 
 ## Commands

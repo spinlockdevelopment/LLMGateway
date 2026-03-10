@@ -414,6 +414,11 @@ if [[ ! -d "$VENV_DIR" ]]; then
   "$PYTHON" -m venv "$VENV_DIR"
 fi
 
+# Ensure venv bin scripts are executable (fixes WSL/Windows where +x can be lost)
+if [[ -d "$VENV_DIR/bin" ]]; then
+  chmod +x "$VENV_DIR"/bin/activate "$VENV_DIR"/bin/python* 2>/dev/null || true
+fi
+
 # Use the venv's Python for all subsequent operations
 VENV_PYTHON="$VENV_DIR/bin/python3"
 info "Using venv Python: $VENV_PYTHON"

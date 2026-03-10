@@ -1,0 +1,9 @@
+# Force LF line endings for shell and Python scripts so they run correctly on
+# Unix and WSL. Executable bit is stored in the Git tree (commit with
+# git update-index --chmod=+x); fresh clones get +x on macOS/Linux/WSL.
+# On Windows, if scripts are not executable after pull, run:
+#   chmod +x gw bootstrap-llmgateway.sh scripts/setup-llmgateway.py scripts/llmgateway.py
+
+*           text=auto eol=lf
+*.sh        text eol=lf
+gw          text eol=lf
