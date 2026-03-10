@@ -23,7 +23,12 @@
       "Bash(py -3 -m py_compile scripts/web/api.py)",
       "Bash(py -3 -m py_compile scripts/web/ui.py)",
       "Bash(py -3 -m py_compile scripts/launchd/manager.py)",
-      "Bash(py -3 -m py_compile scripts/setup-llmgateway.py)"
+      "Bash(py -3 -m py_compile scripts/setup-llmgateway.py)",
+      "Bash(chmod +x C:/Users/User/src/LLMGateway/gw)",
+      "Bash(bash -n C:/Users/User/src/LLMGateway/gw)",
+      "Bash(docker volume ls --filter name=llmgateway)",
+      "Bash(docker volume inspect llmgateway_postgres-data llmgateway_prometheus-data llmgateway_loki-data llmgateway_grafana-data)",
+      "Bash(docker volume ls)"
     ]
   }
 }
