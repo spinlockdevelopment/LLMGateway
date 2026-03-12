@@ -362,7 +362,8 @@ def cmd_status() -> None:
     blank()
     info(f"  {bold('LLM Gateway — Status')}  {dim(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}")
     blank()
-    info(f"  {dim(f'{'COMPONENT':<15s} {'STATUS':<12s} {'ENDPOINT':<38s} DESCRIPTION')}")
+    header = f"{'COMPONENT':<15s} {'STATUS':<12s} {'ENDPOINT':<38s} DESCRIPTION"
+    info(f"  {dim(header)}")
     separator()
     blank()
 
@@ -387,7 +388,11 @@ def cmd_status() -> None:
 
     # Docker containers
     if not docker_available():
-        info(f"  {red('○')} {'docker':<14s} {red('unavailable':<12s)}  {dim('Docker daemon not running')}")
+        icon = red("○")
+        name = "docker".ljust(14)
+        status = red("unavailable".ljust(12))
+        message = dim("Docker daemon not running")
+        info(f"  {icon} {name} {status}  {message}")
         blank()
     else:
         docker_rows = [
@@ -426,7 +431,8 @@ def cmd_status() -> None:
     blank()
 
     # Key paths
-    info(f"  {dim(f'{'PATH':<15s} {'TYPE':<12s} {'':38s} DESCRIPTION')}")
+    header = f"{'PATH':<15s} {'TYPE':<12s} {'':38s} DESCRIPTION"
+    info(f"  {dim(header)}")
     separator()
 
     info(f"\n  {dim('Config files')}")
