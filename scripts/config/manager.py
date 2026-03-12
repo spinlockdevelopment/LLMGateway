@@ -54,10 +54,23 @@ class ConfigManager:
     - Provides reset-to-defaults.
     """
 
-    def __init__(self, config_dir: Path) -> None:
+    def __init__(
+        self,
+        config_dir: Path,
+        user_config_dir: Path | None = None,
+    ) -> None:
+        """
+        Args:
+            config_dir:      Directory containing llmgateway.defaults.yaml (ships with repo).
+            user_config_dir: Directory for llmgateway.yaml user overrides and backups.
+                             Defaults to config_dir for backward compatibility.
+                             Typically set to <data_dir>/config/ so user config
+                             survives repo deletion.
+        """
         self._config_dir = config_dir
+        self._user_config_dir = user_config_dir or config_dir
         self._defaults_path = config_dir / _DEFAULTS_FILENAME
-        self._user_path = config_dir / _USER_FILENAME
+        self._user_path = self._user_config_dir / _USER_FILENAME
         self._defaults: dict = {}
         self._config: dict = {}
 
@@ -195,6 +208,7 @@ class ConfigManager:
     def _save_initial_config(self) -> None:
         """Create the initial user config file from the defaults template."""
         if self._defaults_path.exists():
+            self._user_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(self._defaults_path, self._user_path)
             self._secure_file(self._user_path)
             log.info(f"  Created initial config: {self._user_path}")
@@ -212,7 +226,7 @@ class ConfigManager:
     def _prune_backups(self) -> None:
         """Keep only the most recent N backups."""
         pattern = f"{_USER_FILENAME}.*{_BACKUP_SUFFIX}"
-        backups = sorted(self._config_dir.glob(pattern), reverse=True)
+        backups = sorted(self._user_config_dir.glob(pattern), reverse=True)
         for old in backups[_MAX_BACKUPS:]:
             old.unlink(missing_ok=True)
 

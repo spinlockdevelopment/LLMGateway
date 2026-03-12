@@ -91,14 +91,17 @@ def _create_service(name: str, svc_config: dict):
 def cmd_install(log: logging.Logger) -> int:
     """Register the gateway as a macOS launchd agent."""
     from config.manager import ConfigManager
+    from data_dir import get_data_dir
     from launchd.manager import install
 
+    data_dir = get_data_dir()
     config_dir = _REPO_DIR / "config"
-    cm = ConfigManager(config_dir)
+    user_config_dir = data_dir / "config"
+    cm = ConfigManager(config_dir, user_config_dir=user_config_dir)
     cm.load()
 
     port = cm.config.get("gateway", {}).get("port", 8080)
-    ok = install(repo_dir=_REPO_DIR, port=port)
+    ok = install(repo_dir=_REPO_DIR, port=port, data_dir=data_dir)
     if ok:
         log.info("Launch agent installed. The gateway will start on next login.")
         log.info("To start now: launchctl load ~/Library/LaunchAgents/com.local.llm-gateway.plist")
@@ -116,11 +119,14 @@ def cmd_status(log: logging.Logger) -> int:
     """Print status to stdout without starting the server."""
     import psutil
     from config.manager import ConfigManager
+    from data_dir import get_data_dir
     from services import ServiceRegistry
     from launchd.manager import status as launchd_status
 
+    data_dir = get_data_dir()
     config_dir = _REPO_DIR / "config"
-    cm = ConfigManager(config_dir)
+    user_config_dir = data_dir / "config"
+    cm = ConfigManager(config_dir, user_config_dir=user_config_dir)
     cm.load()
 
     log.info("=" * 52)
@@ -157,12 +163,15 @@ def cmd_status(log: logging.Logger) -> int:
 async def cmd_serve(log: logging.Logger) -> int:
     """Start the web UI, REST API, and service manager."""
     from config.manager import ConfigManager
+    from data_dir import get_data_dir
     from services import ServiceRegistry
     from web import create_app
 
-    # Load config
+    # Load config — defaults from repo, user overrides from data_dir
+    data_dir = get_data_dir()
     config_dir = _REPO_DIR / "config"
-    cm = ConfigManager(config_dir)
+    user_config_dir = data_dir / "config"
+    cm = ConfigManager(config_dir, user_config_dir=user_config_dir)
     warnings = cm.load()
 
     gateway_cfg = cm.config.get("gateway", {})
@@ -186,7 +195,7 @@ async def cmd_serve(log: logging.Logger) -> int:
             registry.register(svc)
 
     # Create FastAPI app
-    app = create_app(cm, registry, _REPO_DIR)
+    app = create_app(cm, registry, _REPO_DIR, data_dir=data_dir)
 
     # Banner
     log.info("=" * 52)
@@ -195,6 +204,7 @@ async def cmd_serve(log: logging.Logger) -> int:
     log.info(f"  Dashboard:    http://{host}:{port}")
     log.info(f"  REST API:     http://{host}:{port}/api/status")
     log.info(f"  Config dir:   {config_dir}")
+    log.info(f"  Data dir:     {data_dir}")
     svc_count = sum(1 for s in registry.services.values() if s.enabled)
     log.info(f"  Services:     {svc_count} enabled / {len(registry.services)} configured")
     log.info("=" * 52)

@@ -41,9 +41,19 @@ class DockerStack(ProvisioningStep):
 
     name = "Docker Compose Stack"
 
-    def __init__(self, repo_dir: Path) -> None:
+    def __init__(self, repo_dir: Path, data_dir: Path | None = None) -> None:
         self.repo_dir = repo_dir
+        self._data_dir = data_dir or repo_dir
         self._compose_file = repo_dir / "docker" / "docker-compose.yml"
+
+    def _compose_cmd(self, *args: str) -> list[str]:
+        """Build docker compose command with --env-file from data_dir."""
+        cmd = ["docker", "compose", "-f", str(self._compose_file)]
+        env_file = self._data_dir / ".env"
+        if env_file.exists():
+            cmd.extend(["--env-file", str(env_file)])
+        cmd.extend(args)
+        return cmd
 
     # ── Interface ─────────────────────────────────────────────────────────────
 
@@ -54,7 +64,7 @@ class DockerStack(ProvisioningStep):
     def current_version(self) -> Optional[str]:
         """Return a human-readable count of running containers."""
         result = run(
-            ["docker", "compose", "-f", str(self._compose_file), "ps", "--format", "json"],
+            self._compose_cmd("ps", "--format", "json"),
             check=False,
             timeout=30,
         )
@@ -117,7 +127,7 @@ class DockerStack(ProvisioningStep):
     def _is_running(self) -> bool:
         """Return True if at least one container is in the 'running' state."""
         result = run(
-            ["docker", "compose", "-f", str(self._compose_file), "ps", "--format", "json"],
+            self._compose_cmd("ps", "--format", "json"),
             check=False,
             timeout=30,
         )
@@ -146,7 +156,7 @@ class DockerStack(ProvisioningStep):
             )
 
         # Warn (but don't block) if .env still has placeholder values
-        env_file = self.repo_dir / ".env"
+        env_file = self._data_dir / ".env"
         if env_file.exists():
             try:
                 content = env_file.read_text(errors="replace")
@@ -171,7 +181,7 @@ class DockerStack(ProvisioningStep):
             )
         log.info("  Pulling latest Docker images (this may take a while)...")
         pull_result = run(
-            ["docker", "compose", "-f", str(self._compose_file), "pull"],
+            self._compose_cmd("pull"),
             check=False,
             timeout=600,
         )
@@ -181,11 +191,7 @@ class DockerStack(ProvisioningStep):
         # Bring up the stack (stream output so user sees progress)
         log.info("  Starting services (docker compose up -d)...")
         run(
-            [
-                "docker", "compose",
-                "-f", str(self._compose_file),
-                "up", "-d", "--remove-orphans",
-            ],
+            self._compose_cmd("up", "-d", "--remove-orphans"),
             capture=False,
             timeout=300,
         )
@@ -233,7 +239,7 @@ class DockerStack(ProvisioningStep):
 
         # Container-level status from docker compose ps
         result = run(
-            ["docker", "compose", "-f", str(self._compose_file), "ps", "--format", "json"],
+            self._compose_cmd("ps", "--format", "json"),
             check=False,
             timeout=30,
         )

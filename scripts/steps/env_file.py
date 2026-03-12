@@ -38,9 +38,10 @@ class EnvFile(ProvisioningStep):
 
     name = "Environment File (.env)"
 
-    def __init__(self, repo_dir: Path) -> None:
+    def __init__(self, repo_dir: Path, data_dir: Path | None = None) -> None:
         self.repo_dir = repo_dir
-        self._env_file = repo_dir / ".env"
+        self._data_dir = data_dir or repo_dir
+        self._env_file = self._data_dir / ".env"
         self._env_example = repo_dir / ".env.example"
 
     # ── Interface ─────────────────────────────────────────────────────────────

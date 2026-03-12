@@ -11,14 +11,16 @@ from .api import create_api_router
 from .ui import create_ui_router
 
 
-def create_app(config_manager, service_registry, repo_dir) -> FastAPI:
+def create_app(config_manager, service_registry, repo_dir, data_dir=None) -> FastAPI:
     """
     Build and return the FastAPI application.
 
     Args:
         config_manager:   scripts.config.manager.ConfigManager instance
         service_registry: scripts.services.ServiceRegistry instance
-        repo_dir:         Path to the repository root
+        repo_dir:         Path to the repository root (code, .env.example)
+        data_dir:         Path to the data directory (.env, user config, logs).
+                          Defaults to repo_dir for backward compatibility.
     """
     app = FastAPI(
         title="LLM Gateway",
@@ -32,6 +34,7 @@ def create_app(config_manager, service_registry, repo_dir) -> FastAPI:
     app.state.config_manager = config_manager
     app.state.service_registry = service_registry
     app.state.repo_dir = repo_dir
+    app.state.data_dir = data_dir or repo_dir
 
     # Read-only REST API
     app.include_router(

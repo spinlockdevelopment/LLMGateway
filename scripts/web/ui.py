@@ -63,7 +63,7 @@ _background_tasks: set[asyncio.Task] = set()
 _DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
 
 
-async def _restart_litellm_container(repo_dir: Path) -> bool:
+async def _restart_litellm_container(repo_dir: Path, data_dir: Path | None = None) -> bool:
     """
     Restart the litellm Docker Compose service so it picks up .env changes.
 
@@ -75,9 +75,16 @@ async def _restart_litellm_container(repo_dir: Path) -> bool:
         log.warning("  docker-compose.yml not found — skipping LiteLLM restart")
         return False
 
+    # Build command with --env-file pointing to data_dir/.env
+    cmd = ["docker", "compose", "-f", str(compose_file)]
+    env_file = (data_dir or repo_dir) / ".env"
+    if env_file.exists():
+        cmd.extend(["--env-file", str(env_file)])
+    cmd.extend(["restart", "litellm"])
+
     try:
         proc = await asyncio.create_subprocess_exec(
-            "docker", "compose", "-f", str(compose_file), "restart", "litellm",
+            *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -131,9 +138,11 @@ def create_ui_router() -> APIRouter:
 
     def _env_paths(request: Request):
         repo_dir = getattr(request.app.state, "repo_dir", None)
+        data_dir = getattr(request.app.state, "data_dir", None) or repo_dir
         if repo_dir is None:
             raise HTTPException(500, "Repository path not configured")
-        return repo_dir / ".env", repo_dir / ".env.example"
+        # .env lives in data_dir; .env.example stays in repo
+        return data_dir / ".env", repo_dir / ".env.example"
 
     def _parse_env_file(path: Path) -> list[dict]:
         """Parse a .env file into list of {key, value}. Skips comments and empty lines."""
@@ -259,9 +268,10 @@ def create_ui_router() -> APIRouter:
         litellm_restarting = False
         if _litellm_keys_changed(old_entries, new_entries):
             repo_dir = getattr(request.app.state, "repo_dir", None)
+            data_dir = getattr(request.app.state, "data_dir", None)
             if repo_dir is not None:
                 log.info("  LiteLLM-relevant env vars changed — restarting container...")
-                task = asyncio.create_task(_restart_litellm_container(repo_dir))
+                task = asyncio.create_task(_restart_litellm_container(repo_dir, data_dir))
                 _background_tasks.add(task)
                 task.add_done_callback(_background_tasks.discard)
                 litellm_restarting = True

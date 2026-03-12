@@ -32,6 +32,7 @@ def generate_plist(
     port: int = 8080,
     log_dir: Optional[str] = None,
     venv_bin_dir: Optional[str] = None,
+    data_dir: Optional[str] = None,
 ) -> dict:
     """
     Build the plist dict for the LLM Gateway launch agent.
@@ -39,13 +40,19 @@ def generate_plist(
     Args:
         python_bin:  Absolute path to the Python interpreter (prefer venv).
         script_path: Absolute path to scripts/llmgateway.py.
-        config_dir:  Absolute path to the config/ directory.
+        config_dir:  Absolute path to the config/ directory (defaults).
         port:        Gateway web UI port.
-        log_dir:     Directory for stdout/stderr logs (default: ~/Library/Logs).
+        log_dir:     Directory for stdout/stderr logs (default: data_dir/logs).
         venv_bin_dir: If set, prepended to PATH so subprocesses see venv tools.
+        data_dir:    LLM_GATEWAY_DATA_DIR — where .env, user config, logs live.
     """
+    # Resolve data_dir for log location default
+    if data_dir is None:
+        from data_dir import get_data_dir
+        data_dir = str(get_data_dir())
+
     if log_dir is None:
-        log_dir = str(Path.home() / "Library" / "Logs" / "llm-gateway")
+        log_dir = str(Path(data_dir) / "logs")
 
     Path(log_dir).mkdir(parents=True, exist_ok=True)
 
@@ -68,6 +75,7 @@ def generate_plist(
         "EnvironmentVariables": {
             "PYTHONUNBUFFERED": "1",
             "PATH": ":".join(path_entries),
+            "LLM_GATEWAY_DATA_DIR": data_dir,
         },
     }
 
@@ -86,6 +94,7 @@ def _venv_python_for_repo(repo_dir: Path) -> Optional[Path]:
 def install(
     repo_dir: Path,
     port: int = 8080,
+    data_dir: Optional[Path] = None,
 ) -> bool:
     """
     Generate the plist and install it to ~/Library/LaunchAgents.
@@ -109,6 +118,11 @@ def install(
     script_path = str(repo_dir / "scripts" / "llmgateway.py")
     config_dir = str(repo_dir / "config")
 
+    # Resolve data_dir
+    data_dir_str: Optional[str] = None
+    if data_dir is not None:
+        data_dir_str = str(Path(data_dir).resolve())
+
     # Unload existing if present (idempotent)
     uninstall(quiet=True)
 
@@ -118,6 +132,7 @@ def install(
         config_dir=config_dir,
         port=port,
         venv_bin_dir=venv_bin_dir,
+        data_dir=data_dir_str,
     )
 
     plist_file = _plist_path()
