@@ -324,35 +324,12 @@ def _collect_ssh() -> tuple[bool, str]:
 
 
 def _collect_secrets(existing: SetupConfig) -> SetupConfig:
-    """Collect essential API keys and credentials."""
+    """Skip interactive secret collection; secrets are managed via the admin UI."""
     blank()
-    info("  Configure essential secrets. Press Enter to keep existing/skip.")
-    info(f"  {dim('You can add more providers later via http://localhost:8080')}")
+    info("  Skipping API key and secret prompts.")
+    info(f"  {dim('Manage secrets later in the admin UI (gateway configuration).')}")
     blank()
-
-    cfg = existing
-
-    cfg.litellm_master_key = prompt_secret(
-        "LiteLLM master key (admin API + /ui login)",
-        default=cfg.litellm_master_key or "sk-gateway-master-change-me",
-    )
-
-    cfg.openrouter_api_key = prompt_secret(
-        "OpenRouter API key (https://openrouter.ai/keys)",
-        default=cfg.openrouter_api_key,
-    )
-
-    cfg.anthropic_api_key = prompt_secret(
-        "Anthropic API key (optional fallback)",
-        default=cfg.anthropic_api_key,
-    )
-
-    cfg.grafana_admin_password = prompt_secret(
-        "Grafana admin password",
-        default=cfg.grafana_admin_password or "llmgateway",
-    )
-
-    return cfg
+    return existing
 
 
 def _collect_configuration() -> SetupConfig:
@@ -389,7 +366,7 @@ def _collect_configuration() -> SetupConfig:
     heading("SSH Remote Access")
     cfg.ssh_enable_remote_login, cfg.ssh_authorized_key = _collect_ssh()
 
-    # 2d. Secrets
+    # 2d. Secrets (managed via admin UI)
     heading("API Keys & Secrets")
     cfg = _collect_secrets(cfg)
 

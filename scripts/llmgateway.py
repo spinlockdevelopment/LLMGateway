@@ -42,6 +42,32 @@ _LOG_FORMAT = "%(asctime)s [%(levelname)-8s] %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
+def _ensure_venv() -> None:
+    """
+    If a project virtual environment exists, re-exec this script inside it.
+    Ensures dependencies like PyYAML are available when run outside launchd.
+    """
+    venv_dir = _REPO_DIR / ".venv"
+    candidates = [
+        venv_dir / "bin" / "python3",
+        venv_dir / "bin" / "python",
+    ]
+    for python_path in candidates:
+        if python_path.exists():
+            resolved = str(python_path.resolve())
+            try:
+                if Path(sys.executable).resolve().samefile(python_path.resolve()):
+                    return
+            except OSError:
+                pass
+            try:
+                import os
+                os.execv(resolved, [resolved] + sys.argv)
+            except OSError:
+                pass
+            break
+
+
 def _setup_logging(level: str = "INFO") -> logging.Logger:
     logger = logging.getLogger("llm-gateway")
     logger.setLevel(logging.DEBUG)
@@ -262,6 +288,7 @@ async def cmd_serve(log: logging.Logger) -> int:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> int:
+    _ensure_venv()
     parser = argparse.ArgumentParser(
         description="LLM Gateway — management service (web UI + service manager)",
         formatter_class=argparse.RawDescriptionHelpFormatter,

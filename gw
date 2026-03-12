@@ -340,6 +340,18 @@ def _compose_cmd(*args: str) -> list[str]:
     return cmd
 
 
+def _venv_python_for_repo(repo_dir: Path) -> str | None:
+    """Return the repo's venv Python executable path if it exists."""
+    candidates = [
+        repo_dir / ".venv" / "bin" / "python3",
+        repo_dir / ".venv" / "bin" / "python",
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return str(candidate.resolve())
+    return None
+
+
 def _resolve_compose_service(name: str) -> str:
     """Map user-facing name to docker compose service name."""
     return {
@@ -445,14 +457,20 @@ def cmd_status() -> None:
 
     info(f"\n  {dim('Logs')}")
     blank()
-    print_path("log", str(data_dir / "logs" / "gateway-stdout.log"), "management service stdout")
-    print_path("log", str(data_dir / "logs" / "gateway-stderr.log"), "management service stderr")
+    print_path("log", str(data_dir / "logs" / "gateway.log"), "management service (stdout + stderr)")
     print_path("log", str(data_dir / "logs" / "gw.log"), "gw script log (this run)")
 
     info(f"\n  {dim('System')}")
     blank()
     print_path("launchd", f"~/Library/LaunchAgents/{MANAGEMENT_LABEL}.plist", "autostart agent")
     print_path("data",    "~/.ollama/models", "ollama: model weights")
+
+    info(f"\n  {dim('Docker stack')}")
+    blank()
+    print_path("docker",  "docker/docker-compose.yml", "docker compose stack definition")
+    print_path("docker",  "docker/prometheus/prometheus.yml", "Prometheus scrape config")
+    print_path("docker",  "docker/grafana/provisioning", "Grafana dashboards + data sources")
+    print_path("docker",  "docker/alloy/alloy-config.alloy", "Grafana Alloy collector config")
 
     # Docker volumes
     if docker_available():
@@ -478,6 +496,11 @@ def cmd_status() -> None:
         print_volume(f"{compose_project}_loki-data", "Loki log chunks")
         print_volume(f"{compose_project}_grafana-data", "Grafana DB + dashboards")
 
+        info(f"\n  {dim('Docker runtime (host)')}")
+        blank()
+        print_path("docker", "~/.docker", "Docker CLI config, credentials")
+        print_path("docker", "~/Library/Containers/com.docker.docker", "Docker Desktop data (images, containers, logs)")
+
     blank()
     info(f"  {dim(f'Data dir: {data_dir}')}")
     info(f"  {dim('Commands: ./gw start|stop|restart|logs <component>  •  ./gw uninstall')}")
@@ -494,8 +517,9 @@ def cmd_start(name: str) -> None:
         else:
             warn("Launchd plist not installed — starting directly.")
             info(f"  {dim('Install with: python3 scripts/llmgateway.py --install')}")
+            python_bin = _venv_python_for_repo(REPO_DIR) or sys.executable
             subprocess.Popen(
-                [sys.executable, str(MANAGEMENT_SCRIPT)],
+                [python_bin, str(MANAGEMENT_SCRIPT)],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )

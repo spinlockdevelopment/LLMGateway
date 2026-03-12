@@ -95,6 +95,41 @@ def ensure_ssh_directory() -> Path:
     return ssh_dir
 
 
+def ensure_local_ssh_key() -> Path | None:
+    """
+    Ensure a local SSH keypair exists (~/.ssh/id_ed25519).
+    Returns the public key path on success, or None on failure.
+    """
+    ssh_dir = ensure_ssh_directory()
+    private_key = ssh_dir / "id_ed25519"
+    public_key = ssh_dir / "id_ed25519.pub"
+
+    if public_key.exists() and private_key.exists():
+        return public_key
+
+    try:
+        result = subprocess.run(
+            [
+                "ssh-keygen",
+                "-t",
+                "ed25519",
+                "-N",
+                "",
+                "-f",
+                str(private_key),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        if result.returncode != 0:
+            return None
+    except Exception:
+        return None
+
+    return public_key if public_key.exists() else None
+
+
 def append_authorized_key(public_key: str) -> bool:
     """
     Append a public key to ~/.ssh/authorized_keys.
@@ -183,6 +218,11 @@ class SSHSetup(ProvisioningStep):
             log.info("  Enabling Remote Login (SSH)...")
             if enable_remote_login():
                 log.info("  Remote Login: enabled")
+                key_path = ensure_local_ssh_key()
+                if key_path is not None:
+                    log.info(f"  Local SSH keypair ensured at: {key_path}")
+                else:
+                    log.warning("  Could not create local SSH keypair (id_ed25519)")
             else:
                 log.error("  Failed to enable Remote Login")
                 log.error("  Try manually: sudo systemsetup -setremotelogin on")

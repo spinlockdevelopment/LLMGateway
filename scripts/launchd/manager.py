@@ -60,6 +60,8 @@ def generate_plist(
     if venv_bin_dir:
         path_entries.insert(0, venv_bin_dir)
 
+    log_file = f"{log_dir}/gateway.log"
+
     return {
         "Label": _LABEL,
         "ProgramArguments": [
@@ -70,8 +72,8 @@ def generate_plist(
         "RunAtLoad": True,
         "KeepAlive": True,
         "ThrottleInterval": 10,
-        "StandardOutPath": f"{log_dir}/gateway-stdout.log",
-        "StandardErrorPath": f"{log_dir}/gateway-stderr.log",
+        "StandardOutPath": log_file,
+        "StandardErrorPath": log_file,
         "EnvironmentVariables": {
             "PYTHONUNBUFFERED": "1",
             "PATH": ":".join(path_entries),
