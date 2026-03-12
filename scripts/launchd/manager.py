@@ -111,11 +111,10 @@ def install(
         venv_bin_dir = str(venv_python.parent)
         log.info(f"  Using venv Python: {python_bin}")
     else:
-        python_bin = sys.executable
-        venv_bin_dir = None
-        log.warning(
-            "  No .venv found — using current Python. Ensure PyYAML and other deps are installed."
-        )
+        log.error("  Project virtual environment not found.")
+        log.error("  Expected: .venv with a Python interpreter inside the repo.")
+        log.error("  Run ./bootstrap-llmgateway.sh (or create the venv) and retry.")
+        return False
 
     script_path = str(repo_dir / "scripts" / "llmgateway.py")
     config_dir = str(repo_dir / "config")
