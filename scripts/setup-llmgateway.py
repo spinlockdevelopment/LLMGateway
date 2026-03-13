@@ -211,29 +211,36 @@ def _ensure_venv() -> None:
     """
     Verify that this script is running inside the project virtual environment.
 
+    Uses sys.prefix vs sys.base_prefix (the standard Python venv detection
+    mechanism) rather than resolving sys.executable, because resolve() follows
+    symlinks and venv interpreters on macOS are symlink chains back to the
+    system/Homebrew Python binary.
+
     Always prints the current Python executable path. If the interpreter is not
-    located inside the repo's .venv directory, show a critical error message,
-    wait for a keypress in interactive shells, and abort.
+    running inside the repo's .venv, show a critical error message, wait for a
+    keypress in interactive shells, and abort.
     """
     venv_dir = _REPO_DIR / ".venv"
-    current_exe = Path(sys.executable).resolve()
 
-    info(f"  Python executable: {current_exe}")
+    info(f"  Python executable: {sys.executable}")
 
-    in_venv = False
-    try:
-        current_exe.relative_to(venv_dir.resolve())
-        in_venv = True
-    except (ValueError, OSError):
-        in_venv = False
+    is_any_venv = sys.prefix != sys.base_prefix
+    is_project_venv = (
+        is_any_venv
+        and Path(sys.prefix).resolve() == venv_dir.resolve()
+    )
 
-    if in_venv:
+    if is_project_venv:
         info(f"  Virtual env:     {venv_dir} (OK)")
         return
 
     error("Project virtual environment check failed.")
     info(f"  Expected venv at: {venv_dir}")
-    info("  This script must be run using the project virtual environment.")
+    if is_any_venv:
+        info(f"  Active venv:     {sys.prefix}")
+        info("  A virtual environment is active, but it is not the project venv.")
+    else:
+        info("  No virtual environment is active.")
     info("  Run ./bootstrap-llmgateway.sh, then activate .venv before retrying.")
 
     if is_interactive():

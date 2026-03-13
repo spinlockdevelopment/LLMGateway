@@ -47,32 +47,42 @@ def _ensure_venv() -> None:
     """
     Verify that the gateway is running inside the project virtual environment.
 
+    Uses sys.prefix vs sys.base_prefix (the standard Python venv detection
+    mechanism) rather than resolving sys.executable, because resolve() follows
+    symlinks and venv interpreters on macOS are symlink chains back to the
+    system/Homebrew Python binary.
+
     Always prints the current Python executable path. If the interpreter is not
-    located inside the repo's .venv directory, log a critical error, wait for a
-    keypress in interactive shells, and abort.
+    running inside the repo's .venv, log a critical error, wait for a keypress
+    in interactive shells, and abort.
     """
     venv_dir = _REPO_DIR / ".venv"
-    current_exe = Path(sys.executable).resolve()
 
-    print(f"[llm-gateway] Python executable: {current_exe}")
+    print(f"[llm-gateway] Python executable: {sys.executable}")
 
-    in_venv = False
-    try:
-        current_exe.relative_to(venv_dir.resolve())
-        in_venv = True
-    except (ValueError, OSError):
-        in_venv = False
+    is_any_venv = sys.prefix != sys.base_prefix
+    is_project_venv = (
+        is_any_venv
+        and Path(sys.prefix).resolve() == venv_dir.resolve()
+    )
 
-    if in_venv:
+    if is_project_venv:
         print(f"[llm-gateway] Virtual env:     {venv_dir} (OK)")
         return
 
     message_lines = [
         "[llm-gateway] CRITICAL: service is not running inside the project virtual environment.",
         f"[llm-gateway] Expected venv at: {venv_dir}",
+    ]
+    if is_any_venv:
+        message_lines.append(f"[llm-gateway] Active venv:     {sys.prefix}")
+        message_lines.append("[llm-gateway] A virtual environment is active, but it is not the project venv.")
+    else:
+        message_lines.append("[llm-gateway] No virtual environment is active.")
+    message_lines.extend([
         "[llm-gateway] Run ./bootstrap-llmgateway.sh to create the venv,",
         "[llm-gateway] then use the venv Python interpreter to run this script.",
-    ]
+    ])
     for line in message_lines:
         print(line, file=sys.stderr)
 
