@@ -163,8 +163,12 @@ textarea { font-family: var(--mono); resize: vertical; }
 
   <!-- ══════════ Services ══════════ -->
   <div class="panel" id="panel-services">
-    <h2 style="margin-bottom:16px">Managed Services</h2>
-    <div id="service-list">
+    <h2 style="margin-bottom:8px">Docker Services</h2>
+    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">
+      These are Docker containers detected on this host. Entries that are part of the LLM Gateway stack are enriched
+      with config and data paths from <code>docker/docker-compose.yml</code>.
+    </p>
+    <div id="docker-service-list">
       <div class="svc-row"><span class="svc-info">Loading...</span></div>
     </div>
 
@@ -183,10 +187,18 @@ textarea { font-family: var(--mono); resize: vertical; }
     <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">This is your .env file. Edit values below; blank entries are not saved. Base URL variables are only written when their associated API key is set. Saving creates or overwrites .env and backs up the previous file if it exists.</p>
     <div class="editor-toolbar" style="margin-bottom:12px">
       <button class="primary" onclick="saveSecrets()">Save</button>
-      <button onclick="addSecretRow()">Add entry</button>
       <span id="secrets-status" class="validation-msg" style="display:none"></span>
     </div>
     <div id="secrets-entries"></div>
+    <div style="margin-top:16px">
+      <div style="font-size:13px;color:var(--fg2);margin-bottom:4px">Add or update a secret</div>
+      <div class="secret-row">
+        <input type="text" id="new-secret-key" class="secret-key" placeholder="ENV_VAR_NAME" list="secret-key-options" />
+        <input type="text" id="new-secret-value" class="secret-value" placeholder="Value" />
+        <button type="button" onclick="commitNewSecret()">Add</button>
+      </div>
+      <datalist id="secret-key-options"></datalist>
+    </div>
   </div>
 
   <!-- ══════════ Config ══════════ -->
@@ -220,7 +232,7 @@ document.querySelectorAll('.tab[data-tab]').forEach(tab => {
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'config') loadConfigEditor();
     if (tab.dataset.tab === 'secrets') loadSecrets();
-    if (tab.dataset.tab === 'services') { refreshServices(); loadOllamaModels(); }
+    if (tab.dataset.tab === 'services') { refreshDockerServices(); loadOllamaModels(); }
   });
 });
 
@@ -297,40 +309,61 @@ async function refreshDashboard() {
         ${s.port ? ' · Port ' + s.port : ''}
         ${s.uptime_sec ? ' · Up ' + fmtUptime(s.uptime_sec) : ''}
       </div>
+      <div class="card-actions">
+        ${(() => {
+          const canStart = ['stopped', 'failed'].includes(s.state);
+          const canStop = ['running', 'unhealthy', 'starting'].includes(s.state);
+          const disabled = s.state === 'disabled';
+          if (disabled) {
+            return '<span style="color:var(--fg3);font-size:12px">disabled in config</span>';
+          }
+          let buttons = '';
+          if (canStart) buttons += '<button type="button" onclick="svcAction(\\'' + s.name + '\\', \\'start\\')">Start</button>';
+          if (canStop) {
+            buttons += '<button type="button" onclick="svcAction(\\'' + s.name + '\\', \\'stop\\')">Stop</button>';
+            buttons += '<button type="button" onclick="svcAction(\\'' + s.name + '\\', \\'restart\\')">Restart</button>';
+          }
+          return buttons || '<span style="color:var(--fg3);font-size:12px">no actions</span>';
+        })()}
+      </div>
     </div>
   `).join('');
 }
 
-// ── Services panel ─────────────────────────────────────────────────────────
-async function refreshServices() {
-  const data = await api('/api/services');
+// ── Services panel (Docker containers) ─────────────────────────────────────
+async function refreshDockerServices() {
+  const data = await api('/api/docker/containers');
   if (!data) return;
-  const container = document.getElementById('service-list');
+  const container = document.getElementById('docker-service-list');
 
-  if (!data.services || data.services.length === 0) {
-    container.innerHTML = '<div class="svc-row"><span class="svc-info">No services configured</span></div>';
+  if (!data.containers || data.containers.length === 0) {
+    container.innerHTML = '<div class="svc-row"><span class="svc-info">No Docker containers found</span></div>';
     return;
   }
 
-  container.innerHTML = data.services.map(s => {
-    const canStart = ['stopped', 'failed'].includes(s.state);
-    const canStop = ['running', 'unhealthy', 'starting'].includes(s.state);
-    const disabled = s.state === 'disabled';
+  container.innerHTML = data.containers.map(c => {
+    const isRunning = (c.state || '').toLowerCase() === 'running';
+    const state = c.state || (c.status || '').split(' ')[0] || 'unknown';
+    const statusText = c.status || state;
+    const ports = c.ports || '';
+    const serviceName = c.compose_service || c.service || '';
+    const configPaths = (c.config_paths || []).join(', ');
+    const dataMounts = (c.data_mounts || []).join(', ');
 
     return `<div class="svc-row">
       <div class="svc-info">
-        <div class="svc-name">${s.name}</div>
-        <div class="svc-desc">${s.description || ''}${s.pid ? ' (pid ' + s.pid + ')' : ''}${s.restart_count ? ' · restarts: ' + s.restart_count : ''}</div>
-        ${s.last_error ? '<div class="svc-desc" style="color:var(--red)">Error: ' + s.last_error + '</div>' : ''}
+        <div class="svc-name">${c.name || c.id}</div>
+        <div class="svc-desc">
+          Image: ${c.image || 'unknown'}
+          ${serviceName ? ' · Compose service: ' + serviceName : ''}
+        </div>
+        ${ports ? '<div class="svc-desc">Ports: ' + ports + '</div>' : ''}
+        ${c.created ? '<div class="svc-desc">Created: ' + c.created + '</div>' : ''}
+        ${configPaths ? '<div class="svc-desc">Config: ' + configPaths + '</div>' : ''}
+        ${dataMounts ? '<div class="svc-desc">Data: ' + dataMounts + '</div>' : ''}
       </div>
       <div class="svc-state">
-        <span class="dot ${stateColor(s.state)}"></span> ${s.state}
-      </div>
-      <div class="svc-actions">
-        ${disabled ? '<span style="color:var(--fg3);font-size:12px">disabled in config</span>' :
-          (canStart ? `<button onclick="svcAction('${s.name}','start')">Start</button>` : '') +
-          (canStop ? `<button onclick="svcAction('${s.name}','stop')">Stop</button>` : '') +
-          (canStop ? `<button onclick="svcAction('${s.name}','restart')">Restart</button>` : '')}
+        <span class="dot ${stateColor(isRunning ? 'running' : state)}"></span> ${statusText}
       </div>
     </div>`;
   }).join('');
@@ -393,25 +426,23 @@ let secretsDefaults = {};
 let secretsRows = [];
 
 function getSecretsAvailableKeys() {
-  const used = new Set(secretsRows.map(r => r.key).filter(Boolean));
-  return (secretsDefaults.availableKeys || Object.keys(secretsDefaults.defaults || {})).filter(k => !used.has(k));
+  return secretsDefaults.availableKeys || Object.keys(secretsDefaults.defaults || {});
 }
 
 function renderSecretsEntries() {
   const container = document.getElementById('secrets-entries');
-  const available = getSecretsAvailableKeys();
   container.innerHTML = secretsRows.map((row, idx) => {
     const defaultVal = (secretsDefaults.defaults || {})[row.key] || '';
     const isPlaceholder = !row.value && defaultVal;
-    const keyCell = row.key != null
-      ? `<span class="secret-key" style="font-family:var(--mono);font-size:13px">${escapeHtml(row.key)}</span>`
-      : `<select class="secret-key" data-idx="${idx}" onchange="commitSecretKey(${idx}, this.value)"><option value="">Select key...</option>${available.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('')}</select>`;
+    const keyCell = `<span class="secret-key" style="font-family:var(--mono);font-size:13px">${escapeHtml(row.key)}</span>`;
     return `<div class="secret-row" data-idx="${idx}">
       ${keyCell}
       <input type="text" class="secret-value ${isPlaceholder ? 'placeholder' : ''}" data-idx="${idx}" value="${escapeHtml(row.value)}" placeholder="${escapeHtml(defaultVal)}" oninput="updateSecretValue(${idx}, this)" />
       <button type="button" class="secret-remove danger" onclick="removeSecretRow(${idx})">Remove</button>
     </div>`;
   }).join('');
+
+  renderSecretKeyOptions();
 }
 
 function escapeHtml(s) {
@@ -440,8 +471,42 @@ function removeSecretRow(idx) {
   renderSecretsEntries();
 }
 
-function addSecretRow() {
-  secretsRows.push({ key: null, value: '' });
+function renderSecretKeyOptions() {
+  const datalist = document.getElementById('secret-key-options');
+  if (!datalist) return;
+  const knownKeys = Array.from(
+    new Set([
+      ...getSecretsAvailableKeys(),
+      ...secretsRows.map(r => r.key).filter(Boolean),
+    ]),
+  ).sort();
+  datalist.innerHTML = knownKeys
+    .map(k => `<option value="${escapeHtml(k)}"></option>`)
+    .join('');
+}
+
+function commitNewSecret() {
+  const keyInput = document.getElementById('new-secret-key');
+  const valueInput = document.getElementById('new-secret-value');
+  if (!keyInput || !valueInput) return;
+
+  const key = (keyInput.value || '').trim();
+  const value = (valueInput.value || '').trim();
+
+  if (!key) {
+    toast('Enter an environment variable name', 'error');
+    return;
+  }
+
+  const existing = secretsRows.find(r => r.key === key);
+  if (existing) {
+    existing.value = value;
+  } else {
+    secretsRows.push({ key, value });
+  }
+
+  keyInput.value = '';
+  valueInput.value = '';
   renderSecretsEntries();
 }
 
@@ -455,7 +520,9 @@ async function loadSecrets() {
     defaults: exampleData.defaults || {},
     availableKeys: exampleData.availableKeys || [],
   };
-  secretsRows = (data.entries || []).map(e => ({ key: e.key, value: e.value || '' }));
+  secretsRows = (data.entries || [])
+    .filter(e => (e.value || '').trim() !== '')
+    .map(e => ({ key: e.key, value: e.value || '' }));
   renderSecretsEntries();
 }
 

@@ -15,11 +15,16 @@ Endpoints:
 
 from __future__ import annotations
 
+import asyncio
+import json
 import platform
 import sys
 import time
+from pathlib import Path
+from typing import Any
 
 import psutil
+import yaml as pyyaml
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
@@ -116,5 +121,134 @@ def create_api_router() -> APIRouter:
             },
             "services": services_mem,
         }
+
+    @router.get("/docker/containers")
+    async def list_docker_containers(request: Request):
+        """
+        List all Docker containers with optional metadata from the gateway's
+        docker-compose stack (config paths, data mounts, and exposed ports).
+        """
+
+        async def _docker_ps() -> list[dict[str, Any]]:
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "docker",
+                    "ps",
+                    "-a",
+                    "--format",
+                    "{{json .}}",
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except FileNotFoundError:
+                raise HTTPException(
+                    status_code=503,
+                    detail="docker CLI not found — install Docker Desktop first",
+                )
+
+            stdout, stderr = await proc.communicate()
+            if proc.returncode != 0:
+                msg = stderr.decode(errors="replace").strip() or "docker ps failed"
+                raise HTTPException(status_code=503, detail=msg)
+
+            containers: list[dict[str, Any]] = []
+            for raw in stdout.splitlines():
+                raw = raw.strip()
+                if not raw:
+                    continue
+                try:
+                    info = json.loads(raw.decode("utf-8"))
+                except Exception:
+                    continue
+                containers.append(
+                    {
+                        "id": info.get("ID"),
+                        "name": info.get("Names"),
+                        "image": info.get("Image"),
+                        "status": info.get("Status"),
+                        "state": info.get("State"),
+                        "ports": info.get("Ports"),
+                        "created": info.get("RunningFor"),
+                    }
+                )
+            return containers
+
+        def _load_compose_metadata() -> dict[str, dict[str, Any]]:
+            repo_dir = Path(__file__).resolve().parents[2]
+            compose_path = repo_dir / "docker" / "docker-compose.yml"
+            if not compose_path.exists():
+                return {}
+
+            try:
+                doc = pyyaml.safe_load(compose_path.read_text(encoding="utf-8"))
+            except Exception:
+                return {}
+
+            services = doc.get("services") or {}
+            meta_by_container: dict[str, dict[str, Any]] = {}
+
+            for svc_name, svc_cfg in services.items():
+                container_name = svc_cfg.get("container_name") or svc_name
+                ports_cfg = svc_cfg.get("ports") or []
+                volumes_cfg = svc_cfg.get("volumes") or []
+
+                config_paths: list[str] = []
+                data_mounts: list[str] = []
+
+                def _classify_volume(host: str, container_path: str) -> None:
+                    # Normalize relative host paths against repo/docker dir.
+                    if host.startswith("."):
+                        host_path = compose_path.parent / host
+                        host_str = str(host_path.resolve())
+                    else:
+                        host_str = host
+
+                    entry = f"{host_str}:{container_path}"
+
+                    lowered = host_str.lower()
+                    if any(
+                        token in lowered
+                        for token in (
+                            "config",
+                            ".yaml",
+                            ".yml",
+                            ".alloy",
+                            ".conf",
+                        )
+                    ):
+                        config_paths.append(entry)
+                    elif "/var/run/docker.sock" not in host_str:
+                        data_mounts.append(entry)
+
+                for vol in volumes_cfg:
+                    if isinstance(vol, str):
+                        if ":" in vol:
+                            host, container_path = vol.split(":", 1)
+                            _classify_volume(host, container_path)
+                    elif isinstance(vol, dict):
+                        host = str(vol.get("source") or vol.get("src") or "")
+                        container_path = str(vol.get("target") or vol.get("dst") or "")
+                        if host and container_path:
+                            _classify_volume(host, container_path)
+
+                meta_by_container[container_name] = {
+                    "service": svc_name,
+                    "compose_service": svc_name,
+                    "config_paths": config_paths,
+                    "data_mounts": data_mounts,
+                    "declared_ports": ports_cfg,
+                }
+
+            return meta_by_container
+
+        containers = await _docker_ps()
+        compose_meta = _load_compose_metadata()
+
+        for c in containers:
+            meta = compose_meta.get(c.get("name") or "")
+            if meta:
+                c.update(meta)
+
+        return {"containers": containers}
 
     return router
