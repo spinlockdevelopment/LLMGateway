@@ -28,6 +28,7 @@ import argparse
 import asyncio
 import contextlib
 import logging
+import os
 import platform
 import signal
 import sys
@@ -44,28 +45,44 @@ _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 def _ensure_venv() -> None:
     """
-    If a project virtual environment exists, re-exec this script inside it.
-    Ensures dependencies like PyYAML are available when run outside launchd.
+    Verify that the gateway is running inside the project virtual environment.
+
+    Always prints the current Python executable path. If the interpreter is not
+    located inside the repo's .venv directory, log a critical error, wait for a
+    keypress in interactive shells, and abort.
     """
     venv_dir = _REPO_DIR / ".venv"
-    candidates = [
-        venv_dir / "bin" / "python3",
-        venv_dir / "bin" / "python",
+    current_exe = Path(sys.executable).resolve()
+
+    print(f"[llm-gateway] Python executable: {current_exe}")
+
+    in_venv = False
+    try:
+        current_exe.relative_to(venv_dir.resolve())
+        in_venv = True
+    except (ValueError, OSError):
+        in_venv = False
+
+    if in_venv:
+        print(f"[llm-gateway] Virtual env:     {venv_dir} (OK)")
+        return
+
+    message_lines = [
+        "[llm-gateway] CRITICAL: service is not running inside the project virtual environment.",
+        f"[llm-gateway] Expected venv at: {venv_dir}",
+        "[llm-gateway] Run ./bootstrap-llmgateway.sh to create the venv,",
+        "[llm-gateway] then use the venv Python interpreter to run this script.",
     ]
-    for python_path in candidates:
-        if python_path.exists():
-            resolved = str(python_path.resolve())
-            try:
-                if Path(sys.executable).resolve().samefile(python_path.resolve()):
-                    return
-            except OSError:
-                pass
-            try:
-                import os
-                os.execv(resolved, [resolved] + sys.argv)
-            except OSError:
-                pass
-            break
+    for line in message_lines:
+        print(line, file=sys.stderr)
+
+    if sys.stdin is not None and sys.stdin.isatty():
+        try:
+            input("[llm-gateway] Press Enter to abort...")
+        except (EOFError, KeyboardInterrupt):
+            pass
+
+    sys.exit(1)
 
 
 def _setup_logging(level: str = "INFO") -> logging.Logger:
@@ -148,6 +165,7 @@ def cmd_status(log: logging.Logger) -> int:
     from data_dir import get_data_dir
     from services import ServiceRegistry
     from launchd.manager import status as launchd_status
+    from steps.ssh_setup import check_remote_login_status
 
     data_dir = get_data_dir()
     config_dir = _REPO_DIR / "config"
@@ -162,6 +180,15 @@ def cmd_status(log: logging.Logger) -> int:
     log.info(f"  Platform:     {platform.platform()}")
     log.info(f"  Architecture: {platform.machine()}")
     log.info(f"  Repo:         {_REPO_DIR}")
+
+    ssh_status = check_remote_login_status()
+    if ssh_status == "on":
+        ssh_display = "enabled"
+    elif ssh_status == "off":
+        ssh_display = "disabled"
+    else:
+        ssh_display = "unknown"
+    log.info(f"  Remote SSH:   {ssh_display}")
 
     # Memory
     mem = psutil.virtual_memory()

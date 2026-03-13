@@ -208,36 +208,40 @@ def _install_management_console(data_dir: Path) -> bool:
 # ── Virtual environment check ─────────────────────────────────────────────────
 
 def _ensure_venv() -> None:
-    """Re-exec inside the project venv if we're not already there."""
-    venv_dir = _REPO_DIR / ".venv"
-    venv_python = venv_dir / "bin" / "python3"
+    """
+    Verify that this script is running inside the project virtual environment.
 
-    if venv_python.exists():
+    Always prints the current Python executable path. If the interpreter is not
+    located inside the repo's .venv directory, show a critical error message,
+    wait for a keypress in interactive shells, and abort.
+    """
+    venv_dir = _REPO_DIR / ".venv"
+    current_exe = Path(sys.executable).resolve()
+
+    info(f"  Python executable: {current_exe}")
+
+    in_venv = False
+    try:
+        current_exe.relative_to(venv_dir.resolve())
+        in_venv = True
+    except (ValueError, OSError):
+        in_venv = False
+
+    if in_venv:
+        info(f"  Virtual env:     {venv_dir} (OK)")
+        return
+
+    error("Project virtual environment check failed.")
+    info(f"  Expected venv at: {venv_dir}")
+    info("  This script must be run using the project virtual environment.")
+    info("  Run ./bootstrap-llmgateway.sh, then activate .venv before retrying.")
+
+    if is_interactive():
         try:
-            if Path(sys.executable).samefile(venv_python):
-                return
-        except OSError:
+            input("Press Enter to abort...")
+        except (EOFError, KeyboardInterrupt):
             pass
 
-    try:
-        current_exe = Path(sys.executable).resolve()
-        current_exe.relative_to(venv_dir.resolve())
-        return
-    except (ValueError, OSError):
-        pass
-
-    if venv_python.exists():
-        resolved = str(venv_python.resolve())
-        info(f"  Re-launching with venv Python: {resolved}")
-        try:
-            os.execv(resolved, [resolved] + sys.argv)
-        except OSError as e:
-            error(f"Cannot exec venv Python ({resolved}): {e}")
-            sys.exit(1)
-
-    error("Project virtual environment not found.")
-    info(f"  Expected: {venv_dir}")
-    info(f"  Run: ./bootstrap-llmgateway.sh")
     sys.exit(1)
 
 
@@ -289,38 +293,29 @@ def _collect_components(existing: SetupConfig) -> tuple[bool, bool, bool]:
     return (ollama, llama, whisper)
 
 
-def _collect_ssh() -> tuple[bool, str]:
-    """Collect SSH remote access preferences."""
-    from steps.ssh_setup import check_remote_login_status, validate_ssh_public_key
+def _report_ssh_status() -> None:
+    """
+    Report current SSH Remote Login status without making configuration changes.
+
+    Full SSH setup (enabling Remote Login, managing authorized keys) is handled
+    by the dedicated ssh-remote-setup script.
+    """
+    from steps.ssh_setup import check_remote_login_status
 
     blank()
+    heading("SSH Remote Access")
+
     status = check_remote_login_status()
     if status == "on":
-        info(f"  Remote Login (SSH): {green('already enabled')}")
-        enable = False
+        info(f"  Remote Login (SSH): {green('enabled')}")
     elif status == "off":
         info(f"  Remote Login (SSH): {yellow('disabled')}")
-        enable = prompt_yes_no("  Enable Remote Login (SSH)? (requires sudo)", default=False)
     else:
         info(f"  Remote Login (SSH): {dim('status unknown')}")
-        enable = prompt_yes_no("  Try to enable Remote Login? (requires sudo)", default=False)
 
-    blank()
-    info("  To allow SSH access from another machine, paste its public key.")
-    info(f"  {dim('(On the remote machine: cat ~/.ssh/id_ed25519.pub)')}")
-    key = ""
-    try:
-        raw = input("  Public key (or Enter to skip): ").strip()
-    except (EOFError, KeyboardInterrupt):
-        raw = ""
-    if raw:
-        if validate_ssh_public_key(raw):
-            key = raw
-            success("Valid SSH public key")
-        else:
-            warn("That doesn't look like a valid SSH public key — skipping")
-
-    return enable, key
+    info(
+        f"  {dim('Manage SSH access separately with: python3 scripts/ssh-remote-setup.py')}"
+    )
 
 
 def _collect_secrets(existing: SetupConfig) -> SetupConfig:
@@ -362,9 +357,8 @@ def _collect_configuration() -> SetupConfig:
     else:
         info(f"  {dim('No optional components selected')}")
 
-    # 2c. SSH
-    heading("SSH Remote Access")
-    cfg.ssh_enable_remote_login, cfg.ssh_authorized_key = _collect_ssh()
+    # 2c. SSH (report-only)
+    _report_ssh_status()
 
     # 2d. Secrets (managed via admin UI)
     heading("API Keys & Secrets")
@@ -473,7 +467,6 @@ def main() -> int:
         from steps.docker import DockerDesktop
         from steps.docker_stack import DockerStack
         from steps.ollama import Ollama
-        from steps.ssh_setup import SSHSetup
         from steps.env_file import EnvFile
     except ImportError as e:
         error(f"Failed to import provisioning steps: {e}")
@@ -527,20 +520,6 @@ def main() -> int:
             blank()
         else:
             info(f"  {dim('whisper-server: not selected  (install later: brew install whisper-cpp)')}")
-            blank()
-
-        # SSH
-        if setup_cfg.ssh_enable_remote_login or setup_cfg.ssh_authorized_key:
-            ssh_step = SSHSetup(
-                enable_login=setup_cfg.ssh_enable_remote_login,
-                authorized_key=setup_cfg.ssh_authorized_key,
-            )
-            ok = ssh_step.provision(dry_run=False)
-            blank()
-            if not ok:
-                failures.append("SSH")
-        else:
-            info(f"  {dim('SSH: not configured')}")
             blank()
 
     else:
