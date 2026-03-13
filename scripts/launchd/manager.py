@@ -86,10 +86,15 @@ def _venv_python_for_repo(repo_dir: Path) -> Optional[Path]:
     """Return the repo's venv Python path if it exists and is usable."""
     venv_python = repo_dir / ".venv" / "bin" / "python3"
     if venv_python.exists():
-        return venv_python.resolve()
+        # Return the venv entrypoint itself (usually a small launcher script or
+        # symlink) instead of resolving symlinks to the underlying Homebrew/System
+        # Python binary. Using the venv entrypoint ensures Python starts with the
+        # correct sys.prefix/sys.base_prefix so virtual environment detection and
+        # dependency resolution behave as expected.
+        return venv_python
     venv_python = repo_dir / ".venv" / "bin" / "python"
     if venv_python.exists():
-        return venv_python.resolve()
+        return venv_python
     return None
 
 

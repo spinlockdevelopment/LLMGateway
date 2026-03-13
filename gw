@@ -371,6 +371,16 @@ def cmd_status() -> None:
     enabled = _enabled_components()
     data_dir = get_data_dir()
 
+    def _prefer_tilde(p: Path) -> str:
+        """Return a user-friendly path, preferring ~/ for items under the home directory."""
+        try:
+            home = Path.home().resolve()
+            resolved = p.expanduser().resolve()
+            rel = resolved.relative_to(home)
+            return f"~/{rel}"
+        except Exception:
+            return str(p)
+
     blank()
     info(f"  {bold('LLM Gateway — Status')}  {dim(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}")
     blank()
@@ -449,28 +459,36 @@ def cmd_status() -> None:
 
     info(f"\n  {dim('Config files')}")
     blank()
-    print_path("config",  "config/llmgateway.defaults.yaml", "shipped defaults (read-only)")
-    print_path("config",  str(data_dir / "config" / "llmgateway.yaml"), "user overrides")
-    print_path("config",  "litellm-config.yaml", "litellm: model routing")
-    print_path("secrets", str(data_dir / ".env"), "API keys, passwords")
-    print_path("setup",   str(data_dir / "setup-config.yaml"), "initial setup choices")
+    setup_path = data_dir / "setup-config.yaml"
+    secrets_path = data_dir / ".env"
+    defaults_path = REPO_DIR / "config" / "llmgateway.defaults.yaml"
+    user_cfg_path = data_dir / "config" / "llmgateway.yaml"
+    litellm_cfg_path = REPO_DIR / "config" / "litellm-config.yaml"
+
+    # Order: setup, secrets, then config files.
+    print_path("setup", _prefer_tilde(setup_path), "initial setup choices")
+    print_path("secrets", _prefer_tilde(secrets_path), "API keys, passwords")
+    print_path("config", _prefer_tilde(defaults_path), "gateway defaults (read-only)")
+    print_path("config", _prefer_tilde(user_cfg_path), "gateway overrides")
+    print_path("config", _prefer_tilde(litellm_cfg_path), "LiteLLM model routing")
 
     info(f"\n  {dim('Logs')}")
     blank()
-    print_path("log", str(data_dir / "logs" / "gateway.log"), "management service (stdout + stderr)")
-    print_path("log", str(data_dir / "logs" / "gw.log"), "gw script log (this run)")
+    print_path("log", _prefer_tilde(data_dir / "logs" / "gateway.log"), "management service")
+    print_path("log", _prefer_tilde(data_dir / "logs" / "gw.log"), "gw script (this run)")
 
     info(f"\n  {dim('System')}")
     blank()
     print_path("launchd", f"~/Library/LaunchAgents/{MANAGEMENT_LABEL}.plist", "autostart agent")
-    print_path("data",    "~/.ollama/models", "ollama: model weights")
+    if "ollama" in enabled:
+        print_path("data", "~/.ollama/models", "ollama: model weights")
 
     info(f"\n  {dim('Docker stack')}")
     blank()
-    print_path("docker",  "docker/docker-compose.yml", "docker compose stack definition")
-    print_path("docker",  "docker/prometheus/prometheus.yml", "Prometheus scrape config")
-    print_path("docker",  "docker/grafana/provisioning", "Grafana dashboards + data sources")
-    print_path("docker",  "docker/alloy/alloy-config.alloy", "Grafana Alloy collector config")
+    print_path("docker", "docker/docker-compose.yml", "docker compose stack definition")
+    print_path("docker", "docker/prometheus/prometheus.yml", "Prometheus scrape config")
+    print_path("docker", "docker/grafana/provisioning", "Grafana dashboards + data sources")
+    print_path("docker", "docker/alloy/alloy-config.alloy", "Grafana Alloy collector config")
 
     # Docker volumes
     if docker_available():
@@ -496,13 +514,8 @@ def cmd_status() -> None:
         print_volume(f"{compose_project}_loki-data", "Loki log chunks")
         print_volume(f"{compose_project}_grafana-data", "Grafana DB + dashboards")
 
-        info(f"\n  {dim('Docker runtime (host)')}")
-        blank()
-        print_path("docker", "~/.docker", "Docker CLI config, credentials")
-        print_path("docker", "~/Library/Containers/com.docker.docker", "Docker Desktop data (images, containers, logs)")
-
     blank()
-    info(f"  {dim(f'Data dir: {data_dir}')}")
+    info(f"  {dim(f'Data dir: {_prefer_tilde(data_dir)}')}")
     info(f"  {dim('Commands: ./gw start|stop|restart|logs <component>  •  ./gw uninstall')}")
     blank()
 
@@ -525,13 +538,27 @@ def cmd_start(name: str) -> None:
             )
     elif name == "ollama":
         info(f"  Starting Ollama...")
+        import shutil
+        if not shutil.which("ollama"):
+            error("Ollama binary not found. Install from https://ollama.com/download or via Homebrew: brew install ollama")
+            return
         try:
             result = subprocess.run(
                 ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
             )
-            if result.returncode == 0 and "ollama" in result.stdout:
-                subprocess.run(["brew", "services", "start", "ollama"])
-            else:
+            started_via_brew = False
+            if result.returncode == 0 and "ollama" in (result.stdout or ""):
+                start_result = subprocess.run(
+                    ["brew", "services", "start", "ollama"],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                )
+                if start_result.returncode == 0:
+                    started_via_brew = True
+                else:
+                    warn("brew services could not start Ollama; falling back to direct ollama serve")
+            if not started_via_brew:
                 subprocess.Popen(
                     ["ollama", "serve"],
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
@@ -701,7 +728,7 @@ def cmd_logs(name: str) -> None:
     data_dir = get_data_dir()
 
     if name in ("management", "gateway"):
-        log_file = data_dir / "logs" / "gateway-stdout.log"
+        log_file = data_dir / "logs" / "gateway.log"
         if log_file.exists():
             info(f"  {dim(f'Tailing {log_file} (Ctrl-C to stop)...')}")
             try:
@@ -743,7 +770,7 @@ def cmd_uninstall() -> None:
     """Deregister all autostart, stop services. Preserve data."""
     blank()
     info(f"  {bold('Uninstall')} — deregister autostart, stop services")
-    info(f"  {dim('Docker images, data volumes, and config are preserved.')}")
+    info(f"  {dim('Docker images and data volumes are preserved.')}")
     blank()
 
     # 1. Management service
@@ -779,7 +806,20 @@ def cmd_uninstall() -> None:
             subprocess.run(["pkill", "-f", proc], capture_output=True)
             success("done")
 
-    # 4. Docker
+    # 4. Setup configuration (safe to remove; does not contain secrets)
+    try:
+        from data_dir import setup_config_path as _scp
+        setup_cfg = _scp()
+        if setup_cfg.exists():
+            info(f"  Removing setup config: {setup_cfg}")
+            setup_cfg.unlink(missing_ok=True)
+            success("done")
+        else:
+            info(f"  {dim('Setup config: not found — skipping')}")
+    except Exception:
+        info(f"  {dim('Setup config: could not be removed (non-fatal)')}")
+
+    # 5. Docker
     if docker_available():
         info(f"  Stopping Docker Compose stack (images + volumes preserved)...")
         subprocess.run(_compose_cmd("down"), capture_output=True)

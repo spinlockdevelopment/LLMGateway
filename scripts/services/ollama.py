@@ -1,9 +1,10 @@
 """
 Ollama service manager.
 
-Ollama on macOS is best managed via `brew services` which registers it
-with launchd for auto-start and crash recovery. This manager uses
-brew services when available, falling back to direct process launch.
+Uses the `ollama serve` process directly (no Homebrew services integration)
+and monitors it via the HTTP API. If an Ollama server is already running
+on the configured port when the gateway starts, this manager will detect it
+and attach to it without starting a new process.
 """
 
 from __future__ import annotations

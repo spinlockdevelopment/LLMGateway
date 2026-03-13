@@ -15,14 +15,38 @@ from pathlib import Path
 from typing import Optional
 
 from . import ProvisioningStep, log, run
+from data_dir import setup_config_path
+from setup_config import SetupConfig
 
-# Services checked after stack launch. Tuple: (label, url, expect_http_2xx)
-_HEALTH_CHECKS = [
-    ("LiteLLM Proxy",  "http://localhost:4000/health/liveliness",       False),
-    ("Grafana",        "http://localhost:3000/api/health",               True),
-    ("Prometheus",     "http://localhost:9090/-/healthy",                False),
-    ("Ollama (host)",  "http://localhost:11434/api/tags",                False),  # optional
-]
+
+def _ollama_selected() -> bool:
+    """
+    Return True if Ollama was selected during setup.
+
+    When there is no setup-config.yaml (older installs), default to True
+    to preserve existing behavior.
+    """
+    try:
+        cfg = SetupConfig.load(setup_config_path())
+        return bool(getattr(cfg, "install_ollama", False))
+    except Exception:
+        return True
+
+
+def _health_checks() -> list[tuple[str, str, bool]]:
+    """
+    Build the list of HTTP health checks based on setup configuration.
+
+    Returns a list of (label, url, expect_http_2xx) tuples.
+    """
+    checks: list[tuple[str, str, bool]] = [
+        ("LiteLLM Proxy", "http://localhost:4000/health/liveliness", False),
+        ("Grafana", "http://localhost:3000/api/health", True),
+        ("Prometheus", "http://localhost:9090/-/healthy", False),
+    ]
+    if _ollama_selected():
+        checks.append(("Ollama (host)", "http://localhost:11434/api/tags", False))
+    return checks
 
 _STABILIZE_WAIT = 30  # seconds to wait after `docker compose up -d`
 _LITELLM_HEALTH_RETRIES = 6   # retries for LiteLLM endpoint (15s apart → up to ~90s extra)
@@ -155,24 +179,6 @@ class DockerStack(ProvisioningStep):
                 "Docker daemon is not running — start Docker Desktop first"
             )
 
-        # Warn (but don't block) if .env still has placeholder values
-        env_file = self._data_dir / ".env"
-        if env_file.exists():
-            try:
-                content = env_file.read_text(errors="replace")
-                if any(m in content for m in ("your-key-here", "change-me", "changeme")):
-                    log.warning(
-                        "  .env contains placeholder values (e.g. LITELLM_MASTER_KEY)."
-                    )
-                    log.warning(
-                        "  The stack will start with defaults. Update .env later via"
-                    )
-                    log.warning(
-                        "  the Secrets UI (http://localhost:8080) or LiteLLM UI (http://localhost:4000/ui)."
-                    )
-            except OSError as e:
-                log.warning(f"  Could not read .env for validation: {e}")
-
         # Pull latest images (non-fatal — will use cached images on failure)
         if platform.system() == "Darwin":
             log.info(
@@ -262,7 +268,7 @@ class DockerStack(ProvisioningStep):
                 log.warning(f"    Could not parse container status: {e}")
 
         # HTTP endpoint checks
-        for svc_name, url, expect_2xx in _HEALTH_CHECKS:
+        for svc_name, url, expect_2xx in _health_checks():
             ok = self._check_http(url, expect_2xx)
             is_optional = "Ollama" in svc_name
             if ok:

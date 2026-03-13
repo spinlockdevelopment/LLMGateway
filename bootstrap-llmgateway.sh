@@ -108,6 +108,30 @@ has_docker() {
   command -v docker &>/dev/null
 }
 
+_ensure_docker_license_for_user() {
+  # Ensure Docker Desktop has had its license accepted for this user.
+  # Safe to call multiple times; the installer is idempotent once accepted.
+  local install_binary="/Applications/Docker.app/Contents/MacOS/install"
+
+  # If docker info already works, assume daemon + license are fine.
+  if command -v docker &>/dev/null && docker info &>/dev/null; then
+    return 0
+  fi
+
+  # Only attempt if the Docker Desktop installer is present.
+  if [[ ! -x "$install_binary" ]]; then
+    return 0
+  fi
+
+  info "Ensuring Docker Desktop license is accepted for user $USER..."
+
+  if [[ $EUID -eq 0 ]]; then
+    "$install_binary" --accept-license --user="${SUDO_USER:-$USER}" 2>/dev/null || true
+  else
+    sudo "$install_binary" --accept-license --user="$USER" 2>/dev/null || true
+  fi
+}
+
 # find_python: locate a Python >= 3.$REQUIRED_PYTHON_MINOR.
 # Prints the command name on success; returns 1 if none qualifies.
 find_python() {
@@ -154,6 +178,10 @@ has_docker || MISSING+=(docker)
 
 if [[ ${#MISSING[@]} -eq 0 ]]; then
   info "All prerequisites found (brew, git, python, docker) — no sudo needed."
+  # Docker CLI is present, but on a new user account Docker Desktop may still
+  # require license acceptance before the daemon is usable. Try to ensure this
+  # non-interactively; if it fails, the user can still open Docker manually.
+  _ensure_docker_license_for_user
 fi
 
 # =============================================================================

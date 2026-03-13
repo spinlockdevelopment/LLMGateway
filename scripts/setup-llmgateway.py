@@ -565,6 +565,21 @@ def main() -> int:
 
     success("Setup complete! All components are ready.")
     blank()
+
+    # Warn (but don't block) if .env still has placeholder values.
+    # Shown once at the very end, before management console instructions.
+    env_file = env_path()
+    if env_file.exists():
+        try:
+            content = env_file.read_text(errors="replace")
+            if any(m in content for m in ("your-key-here", "change-me", "changeme")):
+                warn(".env contains placeholder values (e.g. LITELLM_MASTER_KEY).")
+                warn("The stack will start with defaults. Update .env later via")
+                warn("the Secrets UI (http://localhost:8080) or LiteLLM UI (http://localhost:4000/ui).")
+                blank()
+        except OSError as e:
+            warn(f"Could not read .env for validation: {e}")
+            blank()
     info(f"  {bold('Endpoints')}")
     separator(50)
     info(f"    Management Console: {cyan('http://localhost:8080')}")
