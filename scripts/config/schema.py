@@ -30,18 +30,44 @@ def validate_config(config: dict) -> tuple[list[str], list[str]]:
     if not isinstance(config, dict):
         return ["Config must be a YAML mapping (dict)"], []
 
+    # Unified port registry: maps port number → label of first claimant.
+    seen_ports: dict[int, str] = {}
+
     # ── gateway section ───────────────────────────────────────────────────────
     gateway = config.get("gateway")
     if gateway is not None:
         if not isinstance(gateway, dict):
             errors.append("'gateway' must be a mapping")
         else:
-            _check_port(gateway.get("port"), "gateway.port", errors)
+            gw_port = gateway.get("port")
+            _check_port(gw_port, "gateway.port", errors)
+            if isinstance(gw_port, int) and 1 <= gw_port <= 65535:
+                seen_ports[gw_port] = "gateway"
             log_level = gateway.get("log_level")
             if log_level and log_level not in ("DEBUG", "INFO", "WARNING", "ERROR"):
                 warnings.append(
                     f"gateway.log_level '{log_level}' is not a standard level"
                 )
+
+    # ── docker_model_runner section ───────────────────────────────────────────
+    dmr = config.get("docker_model_runner")
+    if dmr is not None:
+        if not isinstance(dmr, dict):
+            errors.append("'docker_model_runner' must be a mapping")
+        else:
+            dmr_port = dmr.get("port")
+            _check_port(dmr_port, "docker_model_runner.port", errors)
+            if isinstance(dmr_port, int) and 1 <= dmr_port <= 65535:
+                if dmr_port in seen_ports:
+                    errors.append(
+                        f"Port conflict: docker_model_runner.port ({dmr_port}) "
+                        f"is already used by {seen_ports[dmr_port]}"
+                    )
+                else:
+                    seen_ports[dmr_port] = "docker_model_runner"
+            api_base = dmr.get("api_base")
+            if api_base and isinstance(api_base, str):
+                _check_url(api_base, "docker_model_runner.api_base", errors)
 
     # ── services section ──────────────────────────────────────────────────────
     services = config.get("services")
@@ -49,7 +75,6 @@ def validate_config(config: dict) -> tuple[list[str], list[str]]:
         if not isinstance(services, dict):
             errors.append("'services' must be a mapping")
         else:
-            seen_ports: dict[int, str] = {}
             for svc_name, svc in services.items():
                 if not isinstance(svc, dict):
                     errors.append(f"services.{svc_name} must be a mapping")
@@ -63,11 +88,12 @@ def validate_config(config: dict) -> tuple[list[str], list[str]]:
                         if port in seen_ports:
                             errors.append(
                                 f"Port conflict: services.{svc_name}.port ({port}) "
-                                f"is already used by services.{seen_ports[port]}"
+                                f"is already used by {seen_ports[port]}"
                             )
-                        seen_ports[port] = svc_name
+                        else:
+                            seen_ports[port] = f"services.{svc_name}"
 
-                # Port in args dict (llama-server style)
+                # Port in args dict (whisper-server style)
                 args = svc.get("args")
                 if isinstance(args, dict):
                     arg_port = args.get("--port")
@@ -83,9 +109,10 @@ def validate_config(config: dict) -> tuple[list[str], list[str]]:
                                 errors.append(
                                     f"Port conflict: services.{svc_name}.args.--port "
                                     f"({arg_port_int}) is already used by "
-                                    f"services.{seen_ports[arg_port_int]}"
+                                    f"{seen_ports[arg_port_int]}"
                                 )
-                            seen_ports[arg_port_int] = svc_name
+                            else:
+                                seen_ports[arg_port_int] = f"services.{svc_name}"
                         except (ValueError, TypeError):
                             errors.append(
                                 f"services.{svc_name}.args.--port must be a number"
@@ -102,44 +129,15 @@ def validate_config(config: dict) -> tuple[list[str], list[str]]:
                         f"services.{svc_name} is enabled but has no 'binary' set"
                     )
 
-            # Check gateway port doesn't conflict with services
-            gw_port = (config.get("gateway") or {}).get("port")
-            if isinstance(gw_port, int) and gw_port in seen_ports:
-                errors.append(
-                    f"Port conflict: gateway.port ({gw_port}) "
-                    f"is already used by services.{seen_ports[gw_port]}"
-                )
+    # ── llmfit section ────────────────────────────────────────────────────────
+    llmfit = config.get("llmfit")
+    if llmfit is not None and not isinstance(llmfit, dict):
+        errors.append("'llmfit' must be a mapping")
 
     # ── docker section ────────────────────────────────────────────────────────
     docker = config.get("docker")
     if docker is not None and not isinstance(docker, dict):
         errors.append("'docker' must be a mapping")
-
-    # ── health_check section ──────────────────────────────────────────────────
-    hc = config.get("health_check")
-    if hc is not None:
-        if not isinstance(hc, dict):
-            errors.append("'health_check' must be a mapping")
-        else:
-            interval = hc.get("interval_sec")
-            if interval is not None and (not isinstance(interval, (int, float)) or interval <= 0):
-                errors.append("health_check.interval_sec must be a positive number")
-            max_restarts = hc.get("max_restart_attempts")
-            if max_restarts is not None and (not isinstance(max_restarts, int) or max_restarts < 0):
-                errors.append("health_check.max_restart_attempts must be a non-negative integer")
-
-    # ── memory section ────────────────────────────────────────────────────────
-    mem = config.get("memory")
-    if mem is not None:
-        if not isinstance(mem, dict):
-            errors.append("'memory' must be a mapping")
-        else:
-            threshold = mem.get("pressure_threshold")
-            if threshold is not None:
-                if not isinstance(threshold, (int, float)) or not (0 < threshold <= 1.0):
-                    errors.append(
-                        "memory.pressure_threshold must be between 0.0 and 1.0"
-                    )
 
     return errors, warnings
 
