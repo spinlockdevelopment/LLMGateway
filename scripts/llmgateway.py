@@ -5,10 +5,9 @@ LLM Gateway — Management Service
 Central management daemon for the LLM Gateway stack on macOS.
 
 Responsibilities:
-  - Web UI dashboard (config editor, service status, Ollama model management)
+  - Web UI dashboard (config editor, service status, model management)
   - Read-only REST API for programmatic status queries
-  - Lifecycle management for local inference services (Ollama, llama-server,
-    whisper-server) with health monitoring and automatic restart
+  - Lifecycle management for Docker Model Runner and whisper-server
   - launchd self-registration for auto-start at login
 
 Usage:
@@ -89,29 +88,6 @@ def _setup_logging(level: str = "INFO") -> logging.Logger:
     return logger
 
 
-# ── Service factory ───────────────────────────────────────────────────────────
-
-def _create_service(name: str, svc_config: dict):
-    """Instantiate the correct service manager based on config type."""
-    from services.ollama import OllamaService
-    from services.llamacpp import LlamaCppService
-    from services.whisper import WhisperService
-
-    svc_type = svc_config.get("type", "").lower()
-
-    if svc_type == "ollama":
-        return OllamaService(name, svc_config)
-    elif svc_type == "llamacpp":
-        return LlamaCppService(name, svc_config)
-    elif svc_type == "whisper":
-        return WhisperService(name, svc_config)
-    else:
-        logging.getLogger("llm-gateway").warning(
-            f"  Unknown service type '{svc_type}' for '{name}' — skipping"
-        )
-        return None
-
-
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 def cmd_install(log: logging.Logger) -> int:
@@ -143,10 +119,13 @@ def cmd_uninstall(log: logging.Logger) -> int:
 
 def cmd_status(log: logging.Logger) -> int:
     """Print status to stdout without starting the server."""
-    import psutil
+    try:
+        import psutil
+        has_psutil = True
+    except ImportError:
+        has_psutil = False
     from config.manager import ConfigManager
     from data_dir import get_data_dir
-    from services import ServiceRegistry
     from launchd.manager import status as launchd_status
 
     data_dir = get_data_dir()
@@ -164,23 +143,26 @@ def cmd_status(log: logging.Logger) -> int:
     log.info(f"  Repo:         {_REPO_DIR}")
 
     # Memory
-    mem = psutil.virtual_memory()
-    log.info(f"  Memory:       {mem.used / (1024**3):.1f} / {mem.total / (1024**3):.1f} GB ({mem.percent}%)")
+    if has_psutil:
+        mem = psutil.virtual_memory()
+        log.info(f"  Memory:       {mem.used / (1024**3):.1f} / {mem.total / (1024**3):.1f} GB ({mem.percent}%)")
 
     # launchd
     ld = launchd_status()
     log.info(f"  Launch agent: {'loaded' if ld['loaded'] else 'installed' if ld['installed'] else 'not installed'}")
 
-    # Services
-    services_config = cm.config.get("services", {})
+    # DMR config
+    dmr_cfg = cm.config.get("docker_model_runner", {})
+    dmr_enabled = dmr_cfg.get("enabled", True)
+    dmr_port = dmr_cfg.get("port", 12434)
     log.info("")
-    log.info("  Services:")
-    for name, svc_cfg in services_config.items():
-        enabled = svc_cfg.get("enabled", False)
-        svc_type = svc_cfg.get("type", "?")
-        desc = svc_cfg.get("description", "")
-        status_str = "enabled" if enabled else "disabled"
-        log.info(f"    {name:20s} [{svc_type:10s}] {status_str:10s} {desc}")
+    log.info("  Inference backends:")
+    log.info(f"    docker_model_runner  {'enabled' if dmr_enabled else 'disabled':10s}  port {dmr_port}")
+
+    # Whisper config
+    whisper_cfg = cm.config.get("services", {}).get("whisper", {})
+    whisper_enabled = whisper_cfg.get("enabled", False)
+    log.info(f"    whisper              {'enabled' if whisper_enabled else 'disabled'}")
 
     log.info("=" * 52)
     return 0
@@ -190,7 +172,9 @@ async def cmd_serve(log: logging.Logger) -> int:
     """Start the web UI, REST API, and service manager."""
     from config.manager import ConfigManager
     from data_dir import get_data_dir
-    from services import ServiceRegistry
+    from services.docker_model_runner import DockerModelRunner
+    from services.whisper_manager import WhisperManager
+    from services.llmfit import LlmfitClient
     from web import create_app
 
     # Load config — defaults from repo, user overrides from data_dir
@@ -210,20 +194,21 @@ async def cmd_serve(log: logging.Logger) -> int:
         if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
             handler.setLevel(getattr(logging, log_level.upper(), logging.INFO))
 
-    # Build service registry
-    health_config = cm.config.get("health_check", {})
-    registry = ServiceRegistry(health_config)
-
-    services_config = cm.config.get("services", {})
-    for name, svc_cfg in services_config.items():
-        svc = _create_service(name, svc_cfg)
-        if svc is not None:
-            registry.register(svc)
+    # Create DMR, whisper, and llmfit clients
+    dmr_cfg = cm.config.get("docker_model_runner", {})
+    dmr = DockerModelRunner(
+        host=dmr_cfg.get("host", "localhost"),
+        port=dmr_cfg.get("port", 12434),
+        api_base=dmr_cfg.get("api_base", "http://localhost:12434/engines/v1"),
+    )
+    whisper = WhisperManager(cm.config.get("services", {}).get("whisper", {}))
+    llmfit = LlmfitClient()
 
     # Create FastAPI app
-    app = create_app(cm, registry, _REPO_DIR, data_dir=data_dir)
+    app = create_app(cm, dmr, whisper, llmfit, _REPO_DIR, data_dir=data_dir)
 
     # Banner
+    dmr_available = await dmr.is_available()
     log.info("=" * 52)
     log.info("  LLM Gateway — Starting")
     log.info("=" * 52)
@@ -231,14 +216,15 @@ async def cmd_serve(log: logging.Logger) -> int:
     log.info(f"  REST API:     http://{host}:{port}/api/status")
     log.info(f"  Config dir:   {config_dir}")
     log.info(f"  Data dir:     {data_dir}")
-    svc_count = sum(1 for s in registry.services.values() if s.enabled)
-    log.info(f"  Services:     {svc_count} enabled / {len(registry.services)} configured")
+    log.info(f"  DMR:          {'available' if dmr_available else 'unavailable'} (port {dmr_cfg.get('port', 12434)})")
+    log.info(f"  Whisper:      {'enabled' if whisper.enabled else 'disabled'}")
+    log.info(f"  llmfit:       ready")
     log.info("=" * 52)
     log.info("")
 
     # Start managed services
-    await registry.start_all()
-    registry.start_health_monitor()
+    if whisper.enabled:
+        await whisper.start()
 
     # Graceful shutdown handler
     shutdown_event = asyncio.Event()
@@ -273,8 +259,8 @@ async def cmd_serve(log: logging.Logger) -> int:
 
     # Cleanup
     log.info("  Stopping services...")
-    registry.stop_health_monitor()
-    await registry.stop_all()
+    if whisper.enabled:
+        await whisper.stop()
 
     if not server_task.done():
         server.should_exit = True
