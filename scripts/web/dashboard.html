@@ -83,23 +83,33 @@ textarea { font-family: var(--mono); resize: vertical; }
 .validation-msg.error { background: rgba(248,81,73,.1); color: var(--red); }
 .validation-msg.warn { background: rgba(210,153,34,.1); color: var(--yellow); }
 
-/* Service list */
-.svc-row {
-  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 14px 16px; margin-bottom: 8px;
-  display: flex; align-items: center; gap: 16px;
+/* State badge */
+.badge {
+  display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px;
+  border-radius: 10px; text-transform: uppercase; letter-spacing: .04em;
 }
-.svc-row .svc-info { flex: 1; }
-.svc-row .svc-name { font-weight: 600; }
-.svc-row .svc-desc { font-size: 12px; color: var(--fg2); }
-.svc-row .svc-state { font-size: 13px; display: flex; align-items: center; gap: 6px; min-width: 100px; }
-.svc-row .svc-actions { display: flex; gap: 6px; }
+.badge.running { background: rgba(63,185,80,.15); color: var(--green); }
+.badge.stopped { background: rgba(72,79,88,.3); color: var(--fg2); }
+.badge.failed { background: rgba(248,81,73,.15); color: var(--red); }
 
-/* Ollama section */
-.pull-form { display: flex; gap: 8px; align-items: center; margin: 16px 0; }
+/* Models tables */
+.section-head { font-size: 14px; font-weight: 600; color: var(--fg2); margin: 0 0 12px; }
+.section-wrap { margin-bottom: 28px; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  text-align: left; font-size: 12px; font-weight: 600; color: var(--fg2);
+  padding: 6px 12px; border-bottom: 1px solid var(--border);
+}
+tbody td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: var(--bg2); }
+
+/* Pull form */
+.pull-form { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
 .pull-form input { flex: 1; max-width: 400px; }
-.model-list { margin-top: 12px; }
-.model-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--fg2); }
+
+/* llmfit filter row */
+.filter-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; font-size: 13px; color: var(--fg2); }
 
 /* Secrets key-value rows */
 .secret-row { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
@@ -131,7 +141,7 @@ textarea { font-family: var(--mono); resize: vertical; }
 
 <div class="tabs" id="tab-bar">
   <div class="tab active" data-tab="dashboard">Dashboard</div>
-  <div class="tab" data-tab="services">Services</div>
+  <div class="tab" data-tab="models">Models</div>
   <div class="tab" data-tab="config">Config</div>
   <div class="tab" data-tab="secrets">Secrets</div>
   <div class="tab external" onclick="window.open('http://localhost:4000/ui','_blank')">LiteLLM</div>
@@ -140,12 +150,16 @@ textarea { font-family: var(--mono); resize: vertical; }
 
 <div class="content">
 
-  <!-- ══════════ Dashboard ══════════ -->
+  <!-- Dashboard -->
   <div class="panel active" id="panel-dashboard">
     <h2 style="margin-bottom:16px">System Overview</h2>
 
-    <div id="mem-section" style="margin-bottom:24px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--fg2)">
+    <div class="cards" id="dashboard-cards">
+      <div class="card"><div class="card-meta">Loading...</div></div>
+    </div>
+
+    <div style="margin-bottom:24px">
+      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--fg2);margin-bottom:4px">
         <span id="mem-label-left">Memory</span>
         <span id="mem-label-right">--</span>
       </div>
@@ -154,42 +168,57 @@ textarea { font-family: var(--mono); resize: vertical; }
         <div class="mem-label" id="mem-bar-label">--</div>
       </div>
     </div>
+  </div>
 
-    <h3 style="margin-bottom:12px;font-size:14px;color:var(--fg2)">Services</h3>
-    <div class="cards" id="dashboard-cards">
-      <div class="card"><div class="card-meta">Loading...</div></div>
+  <!-- Models -->
+  <div class="panel" id="panel-models">
+    <h2 style="margin-bottom:20px">Model Management</h2>
+
+    <div class="section-wrap">
+      <div class="section-head">Local Models</div>
+      <table>
+        <thead><tr><th>Model ID</th><th style="width:100px">Actions</th></tr></thead>
+        <tbody id="local-models-body"><tr><td colspan="2" style="color:var(--fg2)">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="section-wrap">
+      <div class="section-head">Pull Model</div>
+      <div class="pull-form">
+        <input type="text" id="pull-model-input" placeholder="Model name (e.g. ai/llama3.2:3b-Q4_K_M)">
+        <button class="primary" onclick="pullModel()">Pull</button>
+      </div>
+      <div id="pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:200px;overflow:auto"></div>
+    </div>
+
+    <div class="section-wrap">
+      <div class="section-head">Discover Models</div>
+      <div class="filter-row">
+        <span>Use case:</span>
+        <select id="llmfit-usecase" onchange="loadLlmfitRecommendations()">
+          <option value="all">All</option>
+          <option value="coding">Coding</option>
+          <option value="chat">Chat</option>
+          <option value="reasoning">Reasoning</option>
+        </select>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Score</th>
+            <th>Memory Fit</th>
+            <th>Quality</th>
+            <th>Speed</th>
+            <th style="width:80px">Action</th>
+          </tr>
+        </thead>
+        <tbody id="llmfit-body"><tr><td colspan="6" style="color:var(--fg2)">Loading recommendations...</td></tr></tbody>
+      </table>
     </div>
   </div>
 
-  <!-- ══════════ Services ══════════ -->
-  <div class="panel" id="panel-services">
-    <h2 style="margin-bottom:16px">Managed Services</h2>
-    <div id="service-list">
-      <div class="svc-row"><span class="svc-info">Loading...</span></div>
-    </div>
-
-    <h3 style="margin:24px 0 8px;font-size:14px">Ollama Model Management</h3>
-    <div class="pull-form">
-      <input type="text" id="pull-model-input" placeholder="Model name (e.g. llama3.2:3b)">
-      <button class="primary" onclick="pullModel()">Pull Model</button>
-    </div>
-    <div id="pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:200px;overflow:auto;margin-bottom:12px"></div>
-    <div class="model-list" id="ollama-models"></div>
-  </div>
-
-  <!-- ══════════ Secrets ══════════ -->
-  <div class="panel" id="panel-secrets">
-    <h2 style="margin-bottom:16px">Secrets</h2>
-    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">This is your .env file. Edit values below; blank entries are not saved. Base URL variables are only written when their associated API key is set. Saving creates or overwrites .env and backs up the previous file if it exists.</p>
-    <div class="editor-toolbar" style="margin-bottom:12px">
-      <button class="primary" onclick="saveSecrets()">Save</button>
-      <button onclick="addSecretRow()">Add entry</button>
-      <span id="secrets-status" class="validation-msg" style="display:none"></span>
-    </div>
-    <div id="secrets-entries"></div>
-  </div>
-
-  <!-- ══════════ Config ══════════ -->
+  <!-- Config -->
   <div class="panel" id="panel-config">
     <h2 style="margin-bottom:16px">Configuration Editor</h2>
     <div class="editor-wrap">
@@ -203,31 +232,43 @@ textarea { font-family: var(--mono); resize: vertical; }
     </div>
   </div>
 
+  <!-- Secrets -->
+  <div class="panel" id="panel-secrets">
+    <h2 style="margin-bottom:16px">Secrets</h2>
+    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">This is your .env file. Edit values below; blank entries are not saved. Base URL variables are only written when their associated API key is set. Saving creates or overwrites .env and backs up the previous file if it exists.</p>
+    <div class="editor-toolbar" style="margin-bottom:12px">
+      <button class="primary" onclick="saveSecrets()">Save</button>
+      <button onclick="addSecretRow()">Add entry</button>
+      <span id="secrets-status" class="validation-msg" style="display:none"></span>
+    </div>
+    <div id="secrets-entries"></div>
+  </div>
+
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ── State ──────────────────────────────────────────────────────────────────
-let refreshTimer = null;
+// State
+var refreshTimer = null;
 
-// ── Tab switching ──────────────────────────────────────────────────────────
-document.querySelectorAll('.tab[data-tab]').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+// Tab switching
+document.querySelectorAll('.tab[data-tab]').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+    document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
     tab.classList.add('active');
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'config') loadConfigEditor();
     if (tab.dataset.tab === 'secrets') loadSecrets();
-    if (tab.dataset.tab === 'services') { refreshServices(); loadOllamaModels(); }
+    if (tab.dataset.tab === 'models') { loadLocalModels(); loadLlmfitRecommendations(); }
   });
 });
 
-// ── API helpers ────────────────────────────────────────────────────────────
+// API helpers
 async function api(path, opts) {
   try {
-    const r = await fetch(path, opts);
+    var r = await fetch(path, opts);
     return await r.json();
   } catch (e) {
     console.error('API error:', path, e);
@@ -235,11 +276,12 @@ async function api(path, opts) {
   }
 }
 
-function toast(msg, type = 'success') {
-  const el = document.getElementById('toast');
+function toast(msg, type) {
+  type = type || 'success';
+  var el = document.getElementById('toast');
   el.textContent = msg;
   el.className = 'toast show ' + type;
-  setTimeout(() => el.classList.remove('show'), 3500);
+  setTimeout(function() { el.classList.remove('show'); }, 3500);
 }
 
 function stateColor(state) {
@@ -253,179 +295,320 @@ function fmtUptime(sec) {
   if (!sec) return '--';
   if (sec < 60) return Math.round(sec) + 's';
   if (sec < 3600) return Math.round(sec / 60) + 'm';
-  const h = Math.floor(sec / 3600);
-  const m = Math.round((sec % 3600) / 60);
+  var h = Math.floor(sec / 3600);
+  var m = Math.round((sec % 3600) / 60);
   return h + 'h ' + m + 'm';
 }
 
-// ── Dashboard refresh ──────────────────────────────────────────────────────
+// Dashboard refresh
 async function refreshDashboard() {
-  const data = await api('/api/status');
+  var data = await api('/api/status');
   if (!data) return;
 
-  // Gateway status
-  const dot = document.getElementById('gateway-dot');
-  dot.className = 'dot green';
+  // Gateway header
+  document.getElementById('gateway-dot').className = 'dot green';
   document.getElementById('gateway-uptime').textContent =
-    'Up ' + fmtUptime(data.gateway.uptime_sec);
+    'Up ' + fmtUptime(data.gateway && data.gateway.uptime_sec);
+
+  // Status cards
+  var container = document.getElementById('dashboard-cards');
+  while (container.firstChild) container.removeChild(container.firstChild);
+
+  // DMR card
+  var dmr = data.dmr || {};
+  var dmrAvailable = dmr.available === true;
+  var dmrModelCount = dmr.model_count != null ? dmr.model_count : (dmr.models ? dmr.models.length : null);
+  container.appendChild(makeCard(
+    dmrAvailable ? 'green' : 'red',
+    'Docker Model Runner',
+    dmrAvailable ? 'Available' : 'Unavailable',
+    dmrModelCount != null ? dmrModelCount + ' model' + (dmrModelCount !== 1 ? 's' : '') + ' pulled' : null
+  ));
+
+  // Whisper card
+  var whisper = data.whisper || {};
+  var whisperState = whisper.state || 'stopped';
+  var badgeClass = whisperState === 'running' ? 'running' : whisperState === 'failed' ? 'failed' : 'stopped';
+  var canStart = ['stopped', 'failed'].indexOf(whisperState) >= 0;
+  var canStop = ['running', 'starting', 'unhealthy'].indexOf(whisperState) >= 0;
+
+  var wCard = document.createElement('div');
+  wCard.className = 'card';
+
+  var wTitle = document.createElement('div');
+  wTitle.className = 'card-title';
+  var wDot = document.createElement('span');
+  wDot.className = 'dot ' + stateColor(whisperState);
+  wTitle.appendChild(wDot);
+  wTitle.appendChild(document.createTextNode('\u00a0Whisper'));
+  wCard.appendChild(wTitle);
+
+  var wBadgeWrap = document.createElement('div');
+  wBadgeWrap.className = 'card-meta';
+  var wBadge = document.createElement('span');
+  wBadge.className = 'badge ' + badgeClass;
+  wBadge.textContent = whisperState;
+  wBadgeWrap.appendChild(wBadge);
+  wCard.appendChild(wBadgeWrap);
+
+  if (whisper.uptime_sec) {
+    var wUp = document.createElement('div');
+    wUp.className = 'card-meta';
+    wUp.textContent = 'Up ' + fmtUptime(whisper.uptime_sec);
+    wCard.appendChild(wUp);
+  }
+
+  var wActions = document.createElement('div');
+  wActions.className = 'card-actions';
+  if (canStart) {
+    var btnStart = document.createElement('button');
+    btnStart.textContent = 'Start';
+    btnStart.onclick = function() { whisperAction('start'); };
+    wActions.appendChild(btnStart);
+  }
+  if (canStop) {
+    var btnStop = document.createElement('button');
+    btnStop.textContent = 'Stop';
+    btnStop.onclick = function() { whisperAction('stop'); };
+    wActions.appendChild(btnStop);
+    var btnRestart = document.createElement('button');
+    btnRestart.textContent = 'Restart';
+    btnRestart.onclick = function() { whisperAction('restart'); };
+    wActions.appendChild(btnRestart);
+  }
+  wCard.appendChild(wActions);
+  container.appendChild(wCard);
 
   // Memory
-  const mem = data.memory;
-  const pct = mem.percent;
-  const bar = document.getElementById('mem-bar');
-  bar.style.width = pct + '%';
-  bar.className = 'mem-bar ' + (pct > 90 ? 'crit' : pct > 75 ? 'warn' : 'ok');
-  document.getElementById('mem-bar-label').textContent =
-    mem.used_gb + ' / ' + mem.total_gb + ' GB (' + pct + '%)';
-  document.getElementById('mem-label-right').textContent =
-    mem.available_gb + ' GB available';
-
-  // Service cards
-  const container = document.getElementById('dashboard-cards');
-  if (!data.services || data.services.length === 0) {
-    container.innerHTML = '<div class="card"><div class="card-meta">No services configured</div></div>';
-    return;
+  var mem = data.memory;
+  if (mem) {
+    var pct = mem.percent;
+    var bar = document.getElementById('mem-bar');
+    bar.style.width = pct + '%';
+    bar.className = 'mem-bar ' + (pct > 90 ? 'crit' : pct > 75 ? 'warn' : 'ok');
+    document.getElementById('mem-bar-label').textContent =
+      mem.used_gb + ' / ' + mem.total_gb + ' GB (' + pct + '%)';
+    document.getElementById('mem-label-right').textContent =
+      mem.available_gb + ' GB available';
   }
-  container.innerHTML = data.services.map(s => `
-    <div class="card">
-      <div class="card-title">
-        <span class="dot ${stateColor(s.state)}"></span> ${s.name}
-      </div>
-      <div class="card-meta">${s.description || ''}</div>
-      <div class="card-meta">
-        State: <strong>${s.state}</strong>
-        ${s.port ? ' · Port ' + s.port : ''}
-        ${s.uptime_sec ? ' · Up ' + fmtUptime(s.uptime_sec) : ''}
-      </div>
-    </div>
-  `).join('');
 }
 
-// ── Services panel ─────────────────────────────────────────────────────────
-async function refreshServices() {
-  const data = await api('/api/services');
-  if (!data) return;
-  const container = document.getElementById('service-list');
-
-  if (!data.services || data.services.length === 0) {
-    container.innerHTML = '<div class="svc-row"><span class="svc-info">No services configured</span></div>';
-    return;
+function makeCard(dotClass, title, meta1, meta2) {
+  var card = document.createElement('div');
+  card.className = 'card';
+  var titleEl = document.createElement('div');
+  titleEl.className = 'card-title';
+  var dot = document.createElement('span');
+  dot.className = 'dot ' + dotClass;
+  titleEl.appendChild(dot);
+  titleEl.appendChild(document.createTextNode('\u00a0' + title));
+  card.appendChild(titleEl);
+  if (meta1 != null) {
+    var m1 = document.createElement('div');
+    m1.className = 'card-meta';
+    m1.textContent = meta1;
+    card.appendChild(m1);
   }
-
-  container.innerHTML = data.services.map(s => {
-    const canStart = ['stopped', 'failed'].includes(s.state);
-    const canStop = ['running', 'unhealthy', 'starting'].includes(s.state);
-    const disabled = s.state === 'disabled';
-
-    return `<div class="svc-row">
-      <div class="svc-info">
-        <div class="svc-name">${s.name}</div>
-        <div class="svc-desc">${s.description || ''}${s.pid ? ' (pid ' + s.pid + ')' : ''}${s.restart_count ? ' · restarts: ' + s.restart_count : ''}</div>
-        ${s.last_error ? '<div class="svc-desc" style="color:var(--red)">Error: ' + s.last_error + '</div>' : ''}
-      </div>
-      <div class="svc-state">
-        <span class="dot ${stateColor(s.state)}"></span> ${s.state}
-      </div>
-      <div class="svc-actions">
-        ${disabled ? '<span style="color:var(--fg3);font-size:12px">disabled in config</span>' :
-          (canStart ? `<button onclick="svcAction('${s.name}','start')">Start</button>` : '') +
-          (canStop ? `<button onclick="svcAction('${s.name}','stop')">Stop</button>` : '') +
-          (canStop ? `<button onclick="svcAction('${s.name}','restart')">Restart</button>` : '')}
-      </div>
-    </div>`;
-  }).join('');
+  if (meta2 != null) {
+    var m2 = document.createElement('div');
+    m2.className = 'card-meta';
+    m2.textContent = meta2;
+    card.appendChild(m2);
+  }
+  return card;
 }
 
-async function svcAction(name, action) {
-  toast(action.charAt(0).toUpperCase() + action.slice(1) + 'ing ' + name + '...', 'success');
-  const r = await api('/ui/services/' + name + '/' + action, { method: 'POST' });
+async function whisperAction(action) {
+  toast(action.charAt(0).toUpperCase() + action.slice(1) + 'ing Whisper...', 'success');
+  var r = await api('/ui/whisper/' + action, { method: 'POST' });
   if (r) {
-    toast(name + ': ' + (r.status || 'done'), r.status === 'failed' ? 'error' : 'success');
+    toast('Whisper: ' + (r.status || 'done'), r.status === 'failed' ? 'error' : 'success');
   } else {
     toast('Action failed', 'error');
   }
-  setTimeout(() => { refreshServices(); refreshDashboard(); }, 1000);
+  setTimeout(refreshDashboard, 1000);
 }
 
-// ── Ollama models ──────────────────────────────────────────────────────────
-async function loadOllamaModels() {
-  const data = await api('/ui/ollama/models');
-  const el = document.getElementById('ollama-models');
+// Local models
+async function loadLocalModels() {
+  var data = await api('/api/models');
+  var tbody = document.getElementById('local-models-body');
+  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
   if (!data || !data.models || data.models.length === 0) {
-    el.innerHTML = '<div class="model-item">No models loaded (pull one above)</div>';
+    var row = tbody.insertRow();
+    var cell = row.insertCell();
+    cell.colSpan = 2;
+    cell.style.color = 'var(--fg2)';
+    cell.textContent = 'No models pulled yet';
     return;
   }
-  el.innerHTML = '<div style="font-size:13px;color:var(--fg2);margin-bottom:4px">Available models:</div>' +
-    data.models.map(m => {
-      const name = m.name || m;
-      const size = m.size ? ' (' + (m.size / 1e9).toFixed(1) + ' GB)' : '';
-      return `<div class="model-item">${name}${size}</div>`;
-    }).join('');
+  data.models.forEach(function(m) {
+    var name = typeof m === 'string' ? m : (m.id || m.name || String(m));
+    var row = tbody.insertRow();
+    var nameCell = row.insertCell();
+    nameCell.style.fontFamily = 'var(--mono)';
+    nameCell.style.fontSize = '12px';
+    nameCell.textContent = name;
+    var actCell = row.insertCell();
+    var btn = document.createElement('button');
+    btn.className = 'danger';
+    btn.textContent = 'Remove';
+    btn.onclick = (function(n) { return function() { removeModel(n); }; })(name);
+    actCell.appendChild(btn);
+  });
 }
 
-async function pullModel() {
-  const input = document.getElementById('pull-model-input');
-  const model = input.value.trim();
-  if (!model) { toast('Enter a model name', 'error'); return; }
+async function removeModel(name) {
+  if (!confirm('Remove model "' + name + '"?')) return;
+  var r = await api('/ui/models/' + encodeURIComponent(name), { method: 'DELETE' });
+  if (r && r.status === 'success') {
+    toast('Model removed: ' + name, 'success');
+    loadLocalModels();
+  } else {
+    toast((r && r.error) || 'Remove failed', 'error');
+  }
+}
 
-  const output = document.getElementById('pull-output');
+// Pull model
+async function pullModel() {
+  var input = document.getElementById('pull-model-input');
+  var model = input.value.trim();
+  if (!model) { toast('Enter a model name', 'error'); return; }
+  var output = document.getElementById('pull-output');
   output.style.display = 'block';
   output.textContent = 'Pulling ' + model + '... (this may take several minutes)';
-
-  const r = await api('/ui/ollama/pull', {
+  var r = await api('/ui/models/pull', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model }),
+    body: JSON.stringify({ model: model }),
   });
-
   if (r && r.status === 'success') {
     output.textContent = r.output || 'Pull complete';
     toast('Model pulled: ' + model, 'success');
-    loadOllamaModels();
+    loadLocalModels();
   } else {
     output.textContent = (r && r.output) || 'Pull failed';
     toast('Pull failed', 'error');
   }
 }
 
-// ── Secrets (.env) ──────────────────────────────────────────────────────────
-let secretsDefaults = {};
-let secretsRows = [];
+// llmfit recommendations
+async function loadLlmfitRecommendations() {
+  var useCase = document.getElementById('llmfit-usecase').value;
+  var tbody = document.getElementById('llmfit-body');
+  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+  var loadRow = tbody.insertRow();
+  var loadCell = loadRow.insertCell();
+  loadCell.colSpan = 6;
+  loadCell.style.color = 'var(--fg2)';
+  loadCell.textContent = 'Loading...';
+
+  var url = '/api/llmfit/recommendations';
+  if (useCase && useCase !== 'all') url += '?use_case=' + encodeURIComponent(useCase);
+  var data = await api(url);
+
+  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+  if (!data || !data.models || data.models.length === 0) {
+    var emptyRow = tbody.insertRow();
+    var emptyCell = emptyRow.insertCell();
+    emptyCell.colSpan = 6;
+    emptyCell.style.color = 'var(--fg2)';
+    emptyCell.textContent = 'No recommendations available';
+    return;
+  }
+  data.models.forEach(function(m) {
+    var name = m.model || m.id || '--';
+    var row = tbody.insertRow();
+    var nameCell = row.insertCell();
+    nameCell.style.fontFamily = 'var(--mono)';
+    nameCell.style.fontSize = '12px';
+    nameCell.textContent = name;
+    row.insertCell().textContent = m.composite_score != null ? m.composite_score.toFixed(2) : '--';
+    row.insertCell().textContent = m.memory_fit != null ? String(m.memory_fit) : '--';
+    row.insertCell().textContent = m.quality != null ? String(m.quality) : '--';
+    row.insertCell().textContent = m.speed != null ? String(m.speed) : '--';
+    var actCell = row.insertCell();
+    var btn = document.createElement('button');
+    btn.textContent = 'Pull';
+    btn.onclick = (function(n) { return function() { queuePull(n); }; })(name);
+    actCell.appendChild(btn);
+  });
+}
+
+function queuePull(name) {
+  document.getElementById('pull-model-input').value = name;
+  document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.panel').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelector('.tab[data-tab="models"]').classList.add('active');
+  document.getElementById('panel-models').classList.add('active');
+  document.getElementById('pull-model-input').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  pullModel();
+}
+
+// Secrets (.env)
+var secretsDefaults = {};
+var secretsRows = [];
 
 function getSecretsAvailableKeys() {
-  const used = new Set(secretsRows.map(r => r.key).filter(Boolean));
-  return (secretsDefaults.availableKeys || Object.keys(secretsDefaults.defaults || {})).filter(k => !used.has(k));
+  var used = new Set(secretsRows.map(function(r) { return r.key; }).filter(Boolean));
+  var keys = secretsDefaults.availableKeys || Object.keys(secretsDefaults.defaults || {});
+  return keys.filter(function(k) { return !used.has(k); });
 }
 
 function renderSecretsEntries() {
-  const container = document.getElementById('secrets-entries');
-  const available = getSecretsAvailableKeys();
-  container.innerHTML = secretsRows.map((row, idx) => {
-    const defaultVal = (secretsDefaults.defaults || {})[row.key] || '';
-    const isPlaceholder = !row.value && defaultVal;
-    const keyCell = row.key != null
-      ? `<span class="secret-key" style="font-family:var(--mono);font-size:13px">${escapeHtml(row.key)}</span>`
-      : `<select class="secret-key" data-idx="${idx}" onchange="commitSecretKey(${idx}, this.value)"><option value="">Select key...</option>${available.map(k => `<option value="${escapeHtml(k)}">${escapeHtml(k)}</option>`).join('')}</select>`;
-    return `<div class="secret-row" data-idx="${idx}">
-      ${keyCell}
-      <input type="text" class="secret-value ${isPlaceholder ? 'placeholder' : ''}" data-idx="${idx}" value="${escapeHtml(row.value)}" placeholder="${escapeHtml(defaultVal)}" oninput="updateSecretValue(${idx}, this)" />
-      <button type="button" class="secret-remove danger" onclick="removeSecretRow(${idx})">Remove</button>
-    </div>`;
-  }).join('');
-}
-
-function escapeHtml(s) {
-  if (s == null) return '';
-  const div = document.createElement('div');
-  div.textContent = s;
-  return div.innerHTML;
+  var container = document.getElementById('secrets-entries');
+  while (container.firstChild) container.removeChild(container.firstChild);
+  var available = getSecretsAvailableKeys();
+  secretsRows.forEach(function(row, idx) {
+    var defaultVal = (secretsDefaults.defaults || {})[row.key] || '';
+    var isPlaceholder = !row.value && !!defaultVal;
+    var rowEl = document.createElement('div');
+    rowEl.className = 'secret-row';
+    if (row.key != null) {
+      var keySpan = document.createElement('span');
+      keySpan.className = 'secret-key';
+      keySpan.style.fontFamily = 'var(--mono)';
+      keySpan.style.fontSize = '13px';
+      keySpan.textContent = row.key;
+      rowEl.appendChild(keySpan);
+    } else {
+      var keySelect = document.createElement('select');
+      keySelect.className = 'secret-key';
+      var emptyOpt = document.createElement('option');
+      emptyOpt.value = '';
+      emptyOpt.textContent = 'Select key...';
+      keySelect.appendChild(emptyOpt);
+      available.forEach(function(k) {
+        var opt = document.createElement('option');
+        opt.value = k;
+        opt.textContent = k;
+        keySelect.appendChild(opt);
+      });
+      keySelect.onchange = (function(i, sel) { return function() { commitSecretKey(i, sel.value); }; })(idx, keySelect);
+      rowEl.appendChild(keySelect);
+    }
+    var valueInput = document.createElement('input');
+    valueInput.type = 'text';
+    valueInput.className = 'secret-value' + (isPlaceholder ? ' placeholder' : '');
+    valueInput.value = row.value || '';
+    valueInput.placeholder = defaultVal;
+    valueInput.oninput = (function(i, inp) { return function() { updateSecretValue(i, inp); }; })(idx, valueInput);
+    rowEl.appendChild(valueInput);
+    var removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'secret-remove danger';
+    removeBtn.textContent = 'Remove';
+    removeBtn.onclick = (function(i) { return function() { removeSecretRow(i); }; })(idx);
+    rowEl.appendChild(removeBtn);
+    container.appendChild(rowEl);
+  });
 }
 
 function updateSecretValue(idx, input) {
   if (secretsRows[idx]) {
     secretsRows[idx].value = input.value;
-    const defaultVal = (secretsDefaults.defaults || {})[secretsRows[idx].key] || '';
-    input.classList.toggle('placeholder', !input.value && defaultVal);
+    var defaultVal = (secretsDefaults.defaults || {})[secretsRows[idx].key] || '';
+    input.classList.toggle('placeholder', !input.value && !!defaultVal);
   }
 }
 
@@ -446,50 +629,43 @@ function addSecretRow() {
 }
 
 async function loadSecrets() {
-  const [data, exampleData] = await Promise.all([
-    api('/ui/secrets'),
-    api('/ui/secrets/example'),
-  ]);
+  var results = await Promise.all([api('/ui/secrets'), api('/ui/secrets/example')]);
+  var data = results[0];
+  var exampleData = results[1];
   if (!data || !exampleData) return;
   secretsDefaults = {
     defaults: exampleData.defaults || {},
     availableKeys: exampleData.availableKeys || [],
   };
-  secretsRows = (data.entries || []).map(e => ({ key: e.key, value: e.value || '' }));
+  secretsRows = (data.entries || []).map(function(e) { return { key: e.key, value: e.value || '' }; });
   renderSecretsEntries();
 }
 
 function showSecretsStatus(msg, type) {
-  const el = document.getElementById('secrets-status');
+  var el = document.getElementById('secrets-status');
   el.style.display = 'inline-block';
   el.textContent = msg;
   el.className = 'validation-msg ' + type;
 }
 
 async function saveSecrets() {
-  const entries = secretsRows
-    .filter(r => r.key != null && r.key.trim() !== '')
-    .map(r => ({ key: r.key.trim(), value: (r.value || '').trim() }));
-  const r = await api('/ui/secrets/save', {
+  var entries = secretsRows
+    .filter(function(r) { return r.key != null && r.key.trim() !== ''; })
+    .map(function(r) { return { key: r.key.trim(), value: (r.value || '').trim() }; });
+  var r = await api('/ui/secrets/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ entries }),
+    body: JSON.stringify({ entries: entries }),
   });
-  if (!r) {
-    showSecretsStatus('Save failed — network error', 'error');
-    return;
-  }
-  if (r.error) {
-    showSecretsStatus(r.error, 'error');
-    return;
-  }
+  if (!r) { showSecretsStatus('Save failed \u2014 network error', 'error'); return; }
+  if (r.error) { showSecretsStatus(r.error, 'error'); return; }
   showSecretsStatus('Saved', 'ok');
   toast('.env saved', 'success');
 }
 
-// ── Config editor ──────────────────────────────────────────────────────────
+// Config editor
 async function loadConfigEditor() {
-  const data = await api('/ui/config/yaml');
+  var data = await api('/ui/config/yaml');
   if (data && data.yaml) {
     document.getElementById('config-editor').value = data.yaml;
   }
@@ -497,7 +673,7 @@ async function loadConfigEditor() {
 }
 
 function showConfigStatus(msg, type) {
-  const el = document.getElementById('config-status');
+  var el = document.getElementById('config-status');
   el.style.display = 'inline-block';
   el.textContent = msg;
   el.className = 'validation-msg ' + type;
@@ -507,13 +683,13 @@ function hideConfigStatus() {
 }
 
 async function saveConfig() {
-  const yaml = document.getElementById('config-editor').value;
-  const r = await api('/ui/config/save', {
+  var yaml = document.getElementById('config-editor').value;
+  var r = await api('/ui/config/save', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ yaml }),
+    body: JSON.stringify({ yaml: yaml }),
   });
-  if (!r) { showConfigStatus('Save failed — network error', 'error'); return; }
+  if (!r) { showConfigStatus('Save failed \u2014 network error', 'error'); return; }
   if (r.errors && r.errors.length) {
     showConfigStatus('Errors: ' + r.errors.join('; '), 'error');
   } else {
@@ -523,16 +699,16 @@ async function saveConfig() {
 }
 
 async function validateConfig() {
-  const yaml = document.getElementById('config-editor').value;
-  const r = await api('/ui/config/validate', {
+  var yaml = document.getElementById('config-editor').value;
+  var r = await api('/ui/config/validate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ yaml }),
+    body: JSON.stringify({ yaml: yaml }),
   });
-  if (!r) { showConfigStatus('Validation failed — network error', 'error'); return; }
+  if (!r) { showConfigStatus('Validation failed \u2014 network error', 'error'); return; }
   if (r.valid) {
-    const warnMsg = r.warnings && r.warnings.length ? ' Warnings: ' + r.warnings.join('; ') : '';
-    showConfigStatus('Valid ✓' + warnMsg, r.warnings && r.warnings.length ? 'warn' : 'ok');
+    var warnMsg = r.warnings && r.warnings.length ? ' Warnings: ' + r.warnings.join('; ') : '';
+    showConfigStatus('Valid \u2713' + warnMsg, r.warnings && r.warnings.length ? 'warn' : 'ok');
   } else {
     showConfigStatus('Invalid: ' + (r.errors || []).join('; '), 'error');
   }
@@ -540,7 +716,7 @@ async function validateConfig() {
 
 async function resetConfig() {
   if (!confirm('Reset configuration to shipped defaults? Your current config will be backed up.')) return;
-  const r = await api('/ui/config/reset', { method: 'POST' });
+  var r = await api('/ui/config/reset', { method: 'POST' });
   if (r && r.yaml) {
     document.getElementById('config-editor').value = r.yaml;
     showConfigStatus('Reset to defaults', 'ok');
@@ -548,23 +724,23 @@ async function resetConfig() {
   }
 }
 
-// ── Auto-refresh ───────────────────────────────────────────────────────────
+// Auto-refresh (dashboard tab only)
 function startAutoRefresh() {
   refreshDashboard();
   refreshTimer = setInterval(refreshDashboard, 10000);
 }
 
-// Handle tab key in textarea (insert spaces instead of switching focus)
+// Handle tab key in textarea
 document.getElementById('config-editor').addEventListener('keydown', function(e) {
   if (e.key === 'Tab') {
     e.preventDefault();
-    const s = this.selectionStart;
+    var s = this.selectionStart;
     this.value = this.value.substring(0, s) + '  ' + this.value.substring(this.selectionEnd);
     this.selectionStart = this.selectionEnd = s + 2;
   }
 });
 
-// ── Init ───────────────────────────────────────────────────────────────────
+// Init
 startAutoRefresh();
 </script>
 </body>
