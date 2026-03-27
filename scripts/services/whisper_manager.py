@@ -18,7 +18,6 @@ from typing import Optional
 
 log = logging.getLogger("llm-gateway")
 
-# Valid state strings
 STOPPED = "stopped"
 STARTING = "starting"
 RUNNING = "running"
@@ -195,7 +194,7 @@ class WhisperManager:
         if not self.health_url:
             return True
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         try:
             code = await loop.run_in_executor(None, self._http_get_status, self.health_url)
             return 200 <= code < 400

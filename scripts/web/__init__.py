@@ -32,7 +32,6 @@ def create_app(config_manager, dmr, whisper, llmfit, repo_dir, data_dir=None) ->
         redoc_url=None,      # disable ReDoc
     )
 
-    # Store references for route handlers
     app.state.config_manager = config_manager
     app.state.dmr = dmr
     app.state.whisper = whisper

@@ -22,6 +22,7 @@ import time
 
 import psutil
 from fastapi import APIRouter, Request
+from services.llmfit import INSTALL_COMMAND
 
 
 _start_time = time.time()
@@ -42,8 +43,9 @@ def create_api_router() -> APIRouter:
         whisper = request.app.state.whisper
         mem = psutil.virtual_memory()
 
-        dmr_available = await dmr.is_available()
-        dmr_models = await dmr.list_models() if dmr_available else []
+        # Single call: list_models returns [] on connection failure
+        dmr_models = await dmr.list_models()
+        dmr_available = len(dmr_models) > 0 or await dmr.is_available()
 
         return {
             "gateway": {
@@ -72,8 +74,8 @@ def create_api_router() -> APIRouter:
     async def dmr_status(request: Request):
         """DMR availability and model count."""
         dmr = request.app.state.dmr
-        available = await dmr.is_available()
-        models = await dmr.list_models() if available else []
+        models = await dmr.list_models()
+        available = len(models) > 0 or await dmr.is_available()
         return dmr.status_dict(available=available, models_count=len(models))
 
     @router.get("/models")
@@ -95,7 +97,7 @@ def create_api_router() -> APIRouter:
             return {
                 "installed": False,
                 "recommendations": [],
-                "install_hint": "curl -fsSL https://llmfit.axjns.dev/install.sh | sh",
+                "install_hint": INSTALL_COMMAND,
             }
         recommendations = await llmfit.recommend(use_case=use_case, limit=limit)
         return {"installed": True, "recommendations": recommendations}

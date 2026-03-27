@@ -1,13 +1,15 @@
 """llmfit CLI wrapper for hardware-aware model recommendations."""
+from __future__ import annotations
+
 import asyncio
 import json
 import logging
 import shutil
-from typing import Optional
+from typing import Any
 
 INSTALL_COMMAND = "curl -fsSL https://llmfit.axjns.dev/install.sh | sh"
 
-logger = logging.getLogger("llm-gateway")
+log = logging.getLogger("llm-gateway")
 
 
 class LlmfitClient:
@@ -19,7 +21,7 @@ class LlmfitClient:
 
     async def recommend(
         self,
-        use_case: Optional[str] = None,
+        use_case: str | None = None,
         limit: int = 5,
     ) -> list[dict]:
         """Run llmfit recommend and return parsed recommendations.
@@ -27,68 +29,50 @@ class LlmfitClient:
         Returns an empty list if llmfit is not installed or the command fails.
         """
         if not self.is_installed():
-            logger.debug("llmfit is not installed; skipping recommend")
+            log.debug("llmfit is not installed; skipping recommend")
             return []
 
-        cmd = ("llmfit", "recommend", "--json", "--limit", str(limit))
+        cmd = ["llmfit", "recommend", "--json", "--limit", str(limit)]
         if use_case:
-            cmd += ("--use-case", use_case)
+            cmd.extend(["--use-case", use_case])
 
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
-        except asyncio.TimeoutError:
-            logger.warning("llmfit recommend timed out")
-            return []
-        except Exception as exc:
-            logger.warning("llmfit recommend failed: %s", exc)
-            return []
+        result = await self._run_json_cmd(cmd, timeout=60)
+        return result if isinstance(result, list) else []
 
-        if proc.returncode != 0:
-            logger.warning("llmfit recommend exited %d: %s", proc.returncode, stderr.decode())
-            return []
-
-        try:
-            return json.loads(stdout)
-        except json.JSONDecodeError as exc:
-            logger.warning("llmfit recommend returned invalid JSON: %s", exc)
-            return []
-
-    async def system_info(self) -> Optional[dict]:
+    async def system_info(self) -> dict | None:
         """Run llmfit system --json and return parsed system information.
 
         Returns None if llmfit is not installed or the command fails.
         """
         if not self.is_installed():
-            logger.debug("llmfit is not installed; skipping system_info")
+            log.debug("llmfit is not installed; skipping system_info")
             return None
 
-        cmd = ("llmfit", "system", "--json")
+        result = await self._run_json_cmd(["llmfit", "system", "--json"], timeout=30)
+        return result if isinstance(result, dict) else None
 
+    async def _run_json_cmd(self, cmd: list[str], timeout: int) -> Any:
+        """Run a CLI command and parse its stdout as JSON. Returns None on failure."""
         try:
             proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
         except asyncio.TimeoutError:
-            logger.warning("llmfit system timed out")
+            log.warning("%s timed out", cmd[1])
             return None
         except Exception as exc:
-            logger.warning("llmfit system failed: %s", exc)
+            log.warning("%s failed: %s", cmd[1], exc)
             return None
 
         if proc.returncode != 0:
-            logger.warning("llmfit system exited %d: %s", proc.returncode, stderr.decode())
+            log.warning("%s exited %d: %s", cmd[1], proc.returncode, stderr.decode())
             return None
 
         try:
             return json.loads(stdout)
         except json.JSONDecodeError as exc:
-            logger.warning("llmfit system returned invalid JSON: %s", exc)
+            log.warning("%s returned invalid JSON: %s", cmd[1], exc)
             return None
