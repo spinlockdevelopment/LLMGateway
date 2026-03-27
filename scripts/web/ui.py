@@ -9,10 +9,11 @@ Routes:
     GET  /ui/secrets/example — keys and default values from .env.example
     GET  /ui/secrets — current .env entries (or defaults)
     POST /ui/secrets/save — save .env (backup if exists; restarts LiteLLM if relevant keys changed)
-    POST /ui/services/{name}/start — start a service
-    POST /ui/services/{name}/stop — stop a service
-    POST /ui/services/{name}/restart — restart a service
-    POST /ui/ollama/pull — pull an Ollama model
+    POST /ui/models/pull — pull a model via Docker Model Runner
+    DELETE /ui/models/{name:path} — remove a model via Docker Model Runner
+    POST /ui/whisper/start — start the Whisper service
+    POST /ui/whisper/stop — stop the Whisper service
+    POST /ui/whisper/restart — restart the Whisper service
 """
 
 from __future__ import annotations
@@ -22,6 +23,8 @@ import logging
 import shutil
 from datetime import datetime
 from pathlib import Path
+
+from urllib.parse import unquote
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -342,74 +345,53 @@ def create_ui_router() -> APIRouter:
         cm = request.app.state.config_manager
         return {"yaml": cm.get_yaml_text()}
 
-    # ── Service actions ───────────────────────────────────────────────────────
+    # ── DMR model management ──────────────────────────────────────────────────
 
-    @router.post("/ui/services/{name}/start")
-    async def start_service(name: str, request: Request):
-        """Start a managed service."""
-        svc = request.app.state.service_registry.get(name)
-        if svc is None:
-            raise HTTPException(404, f"Service not found: {name}")
-        ok = await svc.start()
-        return {"status": "started" if ok else "failed", "service": svc.status().to_dict()}
-
-    @router.post("/ui/services/{name}/stop")
-    async def stop_service(name: str, request: Request):
-        """Stop a managed service."""
-        svc = request.app.state.service_registry.get(name)
-        if svc is None:
-            raise HTTPException(404, f"Service not found: {name}")
-        ok = await svc.stop()
-        return {"status": "stopped" if ok else "failed", "service": svc.status().to_dict()}
-
-    @router.post("/ui/services/{name}/restart")
-    async def restart_service(name: str, request: Request):
-        """Restart a managed service."""
-        svc = request.app.state.service_registry.get(name)
-        if svc is None:
-            raise HTTPException(404, f"Service not found: {name}")
-        ok = await svc.restart()
-        return {"status": "restarted" if ok else "failed", "service": svc.status().to_dict()}
-
-    # ── Ollama model management ───────────────────────────────────────────────
-
-    @router.post("/ui/ollama/pull")
-    async def pull_ollama_model(request: Request):
-        """Pull a model via Ollama."""
+    @router.post("/ui/models/pull")
+    async def pull_model(request: Request):
+        """Pull a model via Docker Model Runner."""
         body = await request.json()
-        model_name = body.get("model", "").strip()
+        model_name = (body.get("model") or "").strip()
         if not model_name:
             return JSONResponse(status_code=400, content={"error": "Model name is required"})
 
-        registry = request.app.state.service_registry
-        ollama = registry.get("ollama")
-        if ollama is None:
-            return JSONResponse(status_code=404, content={"error": "Ollama service not configured"})
-
-        from services.ollama import OllamaService
-        if not isinstance(ollama, OllamaService):
-            return JSONResponse(status_code=400, content={"error": "Service is not an Ollama instance"})
-
-        ok, output = await ollama.pull_model(model_name)
+        dmr = request.app.state.dmr
+        ok, output = await dmr.pull_model(model_name)
         return {
             "status": "success" if ok else "failed",
             "model": model_name,
-            "output": output[:2000],
+            "output": output[:2000] if output else "",
         }
 
-    @router.get("/ui/ollama/models")
-    async def list_ollama_models(request: Request):
-        """List models available in Ollama."""
-        registry = request.app.state.service_registry
-        ollama = registry.get("ollama")
-        if ollama is None:
-            return {"models": []}
+    @router.delete("/ui/models/{name:path}")
+    async def remove_model(name: str, request: Request):
+        """Remove a model via Docker Model Runner."""
+        model_name = unquote(name)
+        dmr = request.app.state.dmr
+        ok = await dmr.remove_model(model_name)
+        return {"status": "removed" if ok else "failed", "model": model_name}
 
-        from services.ollama import OllamaService
-        if not isinstance(ollama, OllamaService):
-            return {"models": []}
+    # ── Whisper actions ───────────────────────────────────────────────────────
 
-        models = await ollama.list_models()
-        return {"models": models}
+    @router.post("/ui/whisper/start")
+    async def whisper_start(request: Request):
+        """Start the Whisper service."""
+        whisper = request.app.state.whisper
+        ok = await whisper.start()
+        return {"status": "started" if ok else "failed", **whisper.status_dict()}
+
+    @router.post("/ui/whisper/stop")
+    async def whisper_stop(request: Request):
+        """Stop the Whisper service."""
+        whisper = request.app.state.whisper
+        ok = await whisper.stop()
+        return {"status": "stopped" if ok else "failed", **whisper.status_dict()}
+
+    @router.post("/ui/whisper/restart")
+    async def whisper_restart(request: Request):
+        """Restart the Whisper service."""
+        whisper = request.app.state.whisper
+        ok = await whisper.restart()
+        return {"status": "restarted" if ok else "failed", **whisper.status_dict()}
 
     return router
