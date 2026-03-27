@@ -42,8 +42,8 @@ def create_api_router() -> APIRouter:
         whisper = request.app.state.whisper
         mem = psutil.virtual_memory()
 
-        await dmr.is_available()
-        await dmr.list_models()
+        dmr_available = await dmr.is_available()
+        dmr_models = await dmr.list_models() if dmr_available else []
 
         return {
             "gateway": {
@@ -58,7 +58,7 @@ def create_api_router() -> APIRouter:
                 "available_gb": round(mem.available / (1024 ** 3), 1),
                 "percent": mem.percent,
             },
-            "dmr": dmr.status_dict(),
+            "dmr": dmr.status_dict(available=dmr_available, models_count=len(dmr_models)),
             "whisper": whisper.status_dict(),
         }
 
@@ -72,7 +72,9 @@ def create_api_router() -> APIRouter:
     async def dmr_status(request: Request):
         """DMR availability and model count."""
         dmr = request.app.state.dmr
-        return dmr.status_dict()
+        available = await dmr.is_available()
+        models = await dmr.list_models() if available else []
+        return dmr.status_dict(available=available, models_count=len(models))
 
     @router.get("/models")
     async def list_models(request: Request):
