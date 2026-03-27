@@ -36,7 +36,7 @@ class DockerModelRunner:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(f"{self.api_base}/models")
             response.raise_for_status()
-            data = await response.json()
+            data = response.json()
             return data.get("data", [])
 
     async def pull_model(self, name: str) -> tuple[bool, str]:

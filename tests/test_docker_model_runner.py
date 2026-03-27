@@ -3,7 +3,7 @@
 import json
 import sys
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -53,9 +53,9 @@ async def test_is_available_connection_error(dmr):
 
 @pytest.mark.asyncio
 async def test_list_models(dmr):
-    mock_response = AsyncMock()
+    mock_response = MagicMock()
     mock_response.status_code = 200
-    mock_response.raise_for_status = lambda: None
+    mock_response.raise_for_status = MagicMock()
     mock_response.json.return_value = {
         "data": [
             {"id": "ai/qwen2.5-coder:7b", "object": "model"},
