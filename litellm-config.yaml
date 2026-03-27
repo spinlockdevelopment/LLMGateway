@@ -1,7 +1,7 @@
 # ============================================================
 # LLM Gateway — LiteLLM Proxy Configuration
 # ============================================================
-# Default stack: Anthropic Claude via OpenRouter + local Ollama
+# Default stack: Anthropic Claude via OpenRouter + local Docker Model Runner
 # Clients: Claude Code, Cursor IDE, any OpenAI/Anthropic SDK
 #
 # This single file replaces all custom routing, auth, and
@@ -106,11 +106,12 @@ model_list:
       tpm: 1000000
 
   # ── heartbeat ───────────────────────────────────────────────
-  # Fast health-check / smoke-test model. Local Ollama preferred.
+  # Fast health-check / smoke-test model. Local Docker Model Runner preferred.
   - model_name: heartbeat
     litellm_params:
-      model: ollama_chat/llama3.2:1b
-      api_base: http://host.docker.internal:11434
+      model: openai/ai/llama3.2:1b
+      api_base: http://host.docker.internal:12434/engines/v1
+      api_key: not-needed
       order: 1
       rpm: 300
   - model_name: heartbeat
@@ -121,28 +122,20 @@ model_list:
       rpm: 60
 
   # ── local-only ──────────────────────────────────────────────
-  # Never leaves the machine. Ollama on bare metal (Metal GPU).
+  # Never leaves the machine. Docker Model Runner in containers.
   - model_name: local-only
     litellm_params:
-      model: ollama_chat/llama3.2:3b
-      api_base: http://host.docker.internal:11434
+      model: openai/ai/qwen2.5-coder:7b
+      api_base: http://host.docker.internal:12434/engines/v1
+      api_key: not-needed
       order: 1
       rpm: 60
   - model_name: local-only
     litellm_params:
-      model: ollama_chat/llama3.1:8b
-      api_base: http://host.docker.internal:11434
-      order: 2
-      rpm: 30
-
-  # ── llama-local ─────────────────────────────────────────────
-  # Direct llama.cpp server (start separately on host).
-  # Uses OpenAI-compatible endpoint that llama-server exposes.
-  - model_name: llama-local
-    litellm_params:
-      model: openai/local-model
-      api_base: http://host.docker.internal:8081/v1
+      model: openai/ai/llama3.2:3b
+      api_base: http://host.docker.internal:12434/engines/v1
       api_key: not-needed
+      order: 2
       rpm: 30
 
   # ── Direct pass-through models ──────────────────────────────
