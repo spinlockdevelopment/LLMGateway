@@ -102,7 +102,7 @@ docker:
 health_check:
   interval_sec: 15
   restart_delay_sec: 5
-  max_restart_attempts: 5
+  max_restart_attempts: 3
   restart_backoff_multiplier: 1.5
 
 # ---------------------------------------------------------------------------

@@ -171,6 +171,11 @@ textarea { font-family: var(--mono); resize: vertical; }
     <div id="docker-service-list">
       <div class="svc-row"><span class="svc-info">Loading...</span></div>
     </div>
+    <div id="service-log-viewer" style="margin-top:16px;display:none">
+      <h3 style="margin:16px 0 8px;font-size:14px">Service Logs</h3>
+      <div id="service-log-meta" style="font-size:12px;color:var(--fg2);margin-bottom:4px"></div>
+      <pre id="service-log-content" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--mono);font-size:12px;max-height:260px;overflow:auto;white-space:pre-wrap"></pre>
+    </div>
 
     <h3 style="margin:24px 0 8px;font-size:14px">Ollama Model Management</h3>
     <div class="pull-form">
@@ -332,41 +337,9 @@ async function refreshDashboard() {
 
 // ── Services panel (Docker containers) ─────────────────────────────────────
 async function refreshDockerServices() {
-  const data = await api('/api/docker/containers');
-  if (!data) return;
   const container = document.getElementById('docker-service-list');
-
-  if (!data.containers || data.containers.length === 0) {
-    container.innerHTML = '<div class="svc-row"><span class="svc-info">No Docker containers found</span></div>';
-    return;
-  }
-
-  container.innerHTML = data.containers.map(c => {
-    const isRunning = (c.state || '').toLowerCase() === 'running';
-    const state = c.state || (c.status || '').split(' ')[0] || 'unknown';
-    const statusText = c.status || state;
-    const ports = c.ports || '';
-    const serviceName = c.compose_service || c.service || '';
-    const configPaths = (c.config_paths || []).join(', ');
-    const dataMounts = (c.data_mounts || []).join(', ');
-
-    return `<div class="svc-row">
-      <div class="svc-info">
-        <div class="svc-name">${c.name || c.id}</div>
-        <div class="svc-desc">
-          Image: ${c.image || 'unknown'}
-          ${serviceName ? ' · Compose service: ' + serviceName : ''}
-        </div>
-        ${ports ? '<div class="svc-desc">Ports: ' + ports + '</div>' : ''}
-        ${c.created ? '<div class="svc-desc">Created: ' + c.created + '</div>' : ''}
-        ${configPaths ? '<div class="svc-desc">Config: ' + configPaths + '</div>' : ''}
-        ${dataMounts ? '<div class="svc-desc">Data: ' + dataMounts + '</div>' : ''}
-      </div>
-      <div class="svc-state">
-        <span class="dot ${stateColor(isRunning ? 'running' : state)}"></span> ${statusText}
-      </div>
-    </div>`;
-  }).join('');
+  if (!container) return;
+  container.innerHTML = '<div class="svc-row"><span class="svc-info">Docker service details will appear here in a future update.</span></div>';
 }
 
 async function svcAction(name, action) {
@@ -377,7 +350,35 @@ async function svcAction(name, action) {
   } else {
     toast('Action failed', 'error');
   }
-  setTimeout(() => { refreshServices(); refreshDashboard(); }, 1000);
+  setTimeout(() => {
+    try { refreshDashboard(); } catch (e) { console.error(e); }
+    try { refreshDockerServices(); } catch (e) { console.error(e); }
+  }, 1000);
+}
+
+async function viewServiceLogs(name) {
+  const metaEl = document.getElementById('service-log-meta');
+  const contentEl = document.getElementById('service-log-content');
+  const viewerEl = document.getElementById('service-log-viewer');
+  if (!metaEl || !contentEl || !viewerEl) return;
+
+  metaEl.textContent = 'Loading logs for ' + name + '...';
+  contentEl.textContent = '';
+  viewerEl.style.display = 'block';
+
+  const data = await api('/ui/services/' + encodeURIComponent(name) + '/logs?lines=200');
+  if (!data) {
+    metaEl.textContent = 'Failed to load logs.';
+    return;
+  }
+
+  const lines = data.lines || [];
+  contentEl.textContent = lines.length ? lines.join('\\n') : (data.message || 'No log output yet.');
+  let metaText = 'Logs for ' + name;
+  if (data.truncated) {
+    metaText += ' (showing last 200 lines)';
+  }
+  metaEl.textContent = metaText;
 }
 
 // ── Ollama models ──────────────────────────────────────────────────────────

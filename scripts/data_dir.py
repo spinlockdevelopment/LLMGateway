@@ -72,3 +72,8 @@ def log_dir() -> Path:
 def backups_dir() -> Path:
     """Path to the backups directory."""
     return get_data_dir() / "backups"
+
+
+def litellm_config_path() -> Path:
+    """Path to the LiteLLM configuration file."""
+    return get_data_dir() / "litellm-config.yaml"

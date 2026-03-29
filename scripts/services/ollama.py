@@ -12,8 +12,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import shutil
 import subprocess
+from pathlib import Path
 from typing import Optional
 
 from . import BaseService, ServiceState
@@ -39,37 +41,48 @@ class OllamaService(BaseService):
     # ── Lifecycle overrides ───────────────────────────────────────────────────
 
     async def start(self) -> bool:
+        """
+        Start Ollama using `ollama serve` when needed.
+
+        If an Ollama server is already running and responding on the
+        configured port, this method will not launch a new process and
+        will instead attach to the existing server.
+        """
         if self._state == ServiceState.DISABLED:
             return False
-        if self._state == ServiceState.RUNNING and await self.health_check():
+
+        # If an Ollama server is already up, just mark as running.
+        if await self.health_check():
             log.debug(f"  [{self.name}] Already running and healthy")
             return True
 
+        # Warn about common permission misconfiguration before starting.
+        self.warn_if_owned_by_root()
+
         self._state = ServiceState.STARTING
-        log.info(f"  [{self.name}] Starting Ollama...")
-
-        # Prefer brew services (launchd-managed, auto-restart on crash)
-        if self._use_brew_services():
-            return await self._start_via_brew()
-
-        # Fallback: direct process launch
+        log.info(f"  [{self.name}] Starting Ollama via `ollama serve`...")
         return await super().start()
 
     async def stop(self) -> bool:
         if self._state in (ServiceState.STOPPED, ServiceState.DISABLED):
             return True
-
-        if self._use_brew_services():
-            return await self._stop_via_brew()
-
         return await super().stop()
 
     async def health_check(self) -> bool:
-        """Check Ollama health via its API endpoint."""
+        """
+        Check Ollama health via its HTTP API, independent of process tracking.
+        """
         if not self.health_url:
             port = self.svc_config.get("port", 11434)
             self.health_url = f"http://localhost:{port}/api/tags"
-        return await super().health_check()
+        loop = asyncio.get_event_loop()
+        try:
+            code = await loop.run_in_executor(
+                None, self._http_get_status, self.health_url
+            )
+            return 200 <= code < 400
+        except Exception:
+            return False
 
     # ── Ollama-specific operations ────────────────────────────────────────────
 
@@ -126,74 +139,32 @@ class OllamaService(BaseService):
         except Exception:
             return []
 
-    # ── brew services integration ─────────────────────────────────────────────
+    def warn_if_owned_by_root(self) -> None:
+        """
+        Log a warning if the Ollama data directory appears to be owned by root.
 
-    @staticmethod
-    def _use_brew_services() -> bool:
-        """Return True if brew services is available and Ollama is a brew formula."""
-        if not shutil.which("brew"):
-            return False
-        result = subprocess.run(
-            ["brew", "list", "ollama"],
-            capture_output=True,
-            timeout=10,
-        )
-        return result.returncode == 0
-
-    async def _start_via_brew(self) -> bool:
-        """Start Ollama via brew services (launchd-managed)."""
-        loop = asyncio.get_event_loop()
+        This helps explain cases where Ollama prints that it must run as admin:
+        the most common cause is that ~/.ollama was created by a root process,
+        so a normal user cannot read/write its contents.
+        """
+        models_dir = self.svc_config.get("models_dir", "~/.ollama")
+        expanded = Path(os.path.expanduser(models_dir))
         try:
-            result = await loop.run_in_executor(
-                None,
-                lambda: subprocess.run(
-                    ["brew", "services", "start", "ollama"],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                ),
+            st = expanded.stat()
+        except FileNotFoundError:
+            return
+        except OSError:
+            return
+
+        # On macOS/Linux, uid 0 is root.
+        if st.st_uid == 0:
+            log.warning(
+                "  [ollama] Models directory %s is owned by root. "
+                "Run `chown -R $(whoami) %s` or reinstall Ollama as the "
+                "same user that runs the gateway to avoid permission issues.",
+                expanded,
+                expanded,
             )
-            if result.returncode != 0:
-                err = result.stderr.strip() or result.stdout.strip()
-                # "already started" is not an error
-                if "already started" not in err.lower():
-                    raise RuntimeError(f"brew services start failed: {err}")
 
-            # Wait for the API to respond
-            for _ in range(20):
-                await asyncio.sleep(1)
-                if await self.health_check():
-                    self._state = ServiceState.RUNNING
-                    log.info(f"  [{self.name}] Started via brew services")
-                    return True
-
-            self._state = ServiceState.UNHEALTHY
-            log.warning(f"  [{self.name}] Started but health check not responding")
-            return True  # process may be starting slowly
-
-        except Exception as e:
-            self._state = ServiceState.FAILED
-            self._last_error = str(e)
-            log.error(f"  [{self.name}] brew services start failed: {e}")
-            return False
-
-    async def _stop_via_brew(self) -> bool:
-        """Stop Ollama via brew services."""
-        self._state = ServiceState.STOPPING
-        loop = asyncio.get_event_loop()
-        try:
-            await loop.run_in_executor(
-                None,
-                lambda: subprocess.run(
-                    ["brew", "services", "stop", "ollama"],
-                    capture_output=True,
-                    timeout=30,
-                ),
-            )
-            self._state = ServiceState.STOPPED
-            log.info(f"  [{self.name}] Stopped via brew services")
-            return True
-        except Exception as e:
-            self._last_error = str(e)
-            log.error(f"  [{self.name}] brew services stop failed: {e}")
-            return False
+    # Homebrew services integration intentionally removed; Ollama is launched
+    # directly via the `ollama` CLI and monitored via HTTP.

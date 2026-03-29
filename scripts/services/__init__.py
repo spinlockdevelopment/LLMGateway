@@ -156,10 +156,18 @@ class BaseService:
             env = {**os.environ, **self.svc_config.get("environment", {})}
             work_dir = self.svc_config.get("working_dir")
 
+            # Per-service log file (under LLM gateway data_dir/logs)
+            from data_dir import log_dir as _gateway_log_dir
+
+            svc_log_dir = _gateway_log_dir()
+            svc_log_dir.mkdir(parents=True, exist_ok=True)
+            log_path = svc_log_dir / f"{self.name}.log"
+            log_file = open(log_path, "ab", buffering=0)
+
             self._process = subprocess.Popen(
                 cmd,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=log_file,
+                stderr=log_file,
                 start_new_session=True,    # detach from our process group
                 env=env,
                 cwd=work_dir,

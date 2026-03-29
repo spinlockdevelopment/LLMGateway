@@ -346,30 +346,86 @@ def create_ui_router() -> APIRouter:
 
     @router.post("/ui/services/{name}/start")
     async def start_service(name: str, request: Request):
-        """Start a managed service."""
+        """Start a managed service asynchronously."""
         svc = request.app.state.service_registry.get(name)
         if svc is None:
             raise HTTPException(404, f"Service not found: {name}")
-        ok = await svc.start()
-        return {"status": "started" if ok else "failed", "service": svc.status().to_dict()}
+
+        task = asyncio.create_task(svc.start())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+
+        # Return immediately; clients should poll /api/services for updated state.
+        return {"status": "starting", "service": svc.status().to_dict()}
 
     @router.post("/ui/services/{name}/stop")
     async def stop_service(name: str, request: Request):
-        """Stop a managed service."""
+        """Stop a managed service asynchronously."""
         svc = request.app.state.service_registry.get(name)
         if svc is None:
             raise HTTPException(404, f"Service not found: {name}")
-        ok = await svc.stop()
-        return {"status": "stopped" if ok else "failed", "service": svc.status().to_dict()}
+
+        task = asyncio.create_task(svc.stop())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+
+        return {"status": "stopping", "service": svc.status().to_dict()}
 
     @router.post("/ui/services/{name}/restart")
     async def restart_service(name: str, request: Request):
-        """Restart a managed service."""
+        """Restart a managed service asynchronously."""
         svc = request.app.state.service_registry.get(name)
         if svc is None:
             raise HTTPException(404, f"Service not found: {name}")
-        ok = await svc.restart()
-        return {"status": "restarted" if ok else "failed", "service": svc.status().to_dict()}
+
+        async def _restart():
+            await svc.restart()
+
+        task = asyncio.create_task(_restart())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+
+        return {"status": "restarting", "service": svc.status().to_dict()}
+
+    @router.get("/ui/services/{name}/logs")
+    async def service_logs(name: str, request: Request):
+        """
+        Return the tail of a service's log file from the gateway data_dir/logs.
+
+        Query params:
+            lines: number of lines from the end of the log (default 200).
+        """
+        from data_dir import log_dir as gateway_log_dir
+
+        lines_param = request.query_params.get("lines")
+        try:
+            max_lines = int(lines_param) if lines_param is not None else 200
+        except ValueError:
+            max_lines = 200
+        max_lines = max(1, min(max_lines, 2000))
+
+        log_path = gateway_log_dir() / f"{name}.log"
+        if not log_path.exists():
+            return {"lines": [], "truncated": False, "message": "No logs available for this service yet."}
+
+        def _tail(path: Path, num_lines: int) -> tuple[list[str], bool]:
+            # Simple tail implementation; efficient for reasonably sized logs.
+            with path.open("rb") as f:
+                f.seek(0, 2)
+                size = f.tell()
+                block_size = 4096
+                data = b""
+                pos = size
+                while pos > 0 and data.count(b"\n") <= num_lines:
+                    read_size = min(block_size, pos)
+                    pos -= read_size
+                    f.seek(pos)
+                    data = f.read(read_size) + data
+                lines = data.splitlines()[-num_lines:]
+                return [line.decode("utf-8", errors="replace") for line in lines], len(lines) == num_lines and size > len(data)
+
+        log_lines, truncated = _tail(log_path, max_lines)
+        return {"lines": log_lines, "truncated": truncated}
 
     # ── Ollama model management ───────────────────────────────────────────────
 

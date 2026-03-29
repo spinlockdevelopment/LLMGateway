@@ -34,6 +34,7 @@ import json
 import logging
 import os
 import re
+import socket
 import subprocess
 import sys
 import time
@@ -288,8 +289,8 @@ def _status_label(state: str) -> str:
     return "not found" if state == "absent" else state
 
 
-def print_row(name: str, state: str, endpoint: str = "", desc: str = "") -> None:
-    """Print one status row: icon, name, state, endpoint, description."""
+def print_row(name: str, state: str, endpoint: str = "", desc: str = "", proc: str = "") -> None:
+    """Print one status row: icon, name, state, endpoint, process, description."""
     color = _status_color(state)
     icon = _status_icon(state)
     label = _status_label(state)
@@ -299,10 +300,14 @@ def print_row(name: str, state: str, endpoint: str = "", desc: str = "") -> None
         line += f"  {cyan(f'{endpoint:<36s}')}"
     else:
         line += f"  {'':36s}"
+    if proc:
+        line += f"  {dim(f'{proc:<18s}')}"
+    else:
+        line += f"  {'':18s}"
     if desc:
         line += f"  {dim(desc)}"
     info(line)
-    _log(f"  {name}: {label} {endpoint} {desc}")
+    _log(f"  {name}: {label} {endpoint} {proc} {desc}")
 
 
 def print_path(label: str, path: str, desc: str = "") -> None:
@@ -366,7 +371,7 @@ def _resolve_compose_service(name: str) -> str:
 
 # ── Commands ──────────────────────────────────────────────────────────────────
 
-def cmd_status() -> None:
+def cmd_status(show_more: bool = False) -> None:
     """Show status of all components and key paths."""
     enabled = _enabled_components()
     data_dir = get_data_dir()
@@ -384,27 +389,99 @@ def cmd_status() -> None:
     blank()
     info(f"  {bold('LLM Gateway — Status')}  {dim(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}")
     blank()
-    header = f"{'COMPONENT':<15s} {'STATUS':<12s} {'ENDPOINT':<38s} DESCRIPTION"
+
+    # Determine hostname for public .local endpoints.
+    host = socket.gethostname().split(".")[0] or "localhost"
+    public_host = f"{host}.local"
+
+    header = f"{'COMPONENT':<15s} {'STATUS':<12s} {'ENDPOINT':<38s} {'PROCESS':<18s} DESCRIPTION"
     info(f"  {dim(header)}")
     separator()
     blank()
 
     # Bare-metal services
+    public_rows = []
+    internal_rows = []
+
     if "management" in enabled:
-        print_row("management", management_state(),
-                  f"http://localhost:{MANAGEMENT_PORT}", "Gateway web UI + REST API")
+        mgmt_pid = ""
+        try:
+            result = subprocess.run(
+                ["pgrep", "-fl", "llmgateway.py"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0 and result.stdout:
+                pid = result.stdout.splitlines()[0].strip().split()[0]
+                mgmt_pid = f"llmgateway.py:{pid}"
+        except Exception:
+       	    pass
+        public_rows.append((
+            "management",
+            management_state(),
+            f"http://{public_host}:{MANAGEMENT_PORT}",
+            "Gateway web UI + REST API",
+            mgmt_pid,
+        ))
 
     if "ollama" in enabled:
-        print_row("ollama", ollama_state(),
-                  "http://localhost:11434", "Local LLM runtime (Metal GPU)")
+        ollama_pid = ""
+        try:
+            result = subprocess.run(
+                ["pgrep", "-fl", "ollama"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0 and result.stdout:
+                pid = result.stdout.splitlines()[0].strip().split()[0]
+                ollama_pid = f"ollama:{pid}"
+        except Exception:
+            pass
+        internal_rows.append((
+            "ollama",
+            ollama_state(),
+            "http://0.0.0.0:11434",
+            "Local LLM runtime (Metal GPU)",
+            ollama_pid,
+        ))
 
     if "llama-server" in enabled:
-        print_row("llama-server", llama_server_state(),
-                  f"http://localhost:{LLAMA_SERVER_DEFAULT_PORT}", "llama.cpp GGUF server")
+        llama_pid = ""
+        try:
+            result = subprocess.run(
+                ["pgrep", "-fl", "llama-server"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0 and result.stdout:
+                pid = result.stdout.splitlines()[0].strip().split()[0]
+                llama_pid = f"llama-server:{pid}"
+        except Exception:
+            pass
+        internal_rows.append((
+            "llama-server",
+            llama_server_state(),
+            f"http://0.0.0.0:{LLAMA_SERVER_DEFAULT_PORT}",
+            "llama.cpp GGUF server",
+            llama_pid,
+        ))
 
     if "whisper-server" in enabled:
-        print_row("whisper-server", whisper_server_state(),
-                  f"http://localhost:{WHISPER_SERVER_DEFAULT_PORT}", "Speech-to-text (whisper.cpp)")
+        whisper_pid = ""
+        try:
+            result = subprocess.run(
+                ["pgrep", "-fl", "whisper-server"],
+                capture_output=True, text=True, timeout=5,
+            )
+            if result.returncode == 0 and result.stdout:
+                pid = result.stdout.splitlines()[0].strip().split()[0]
+                whisper_pid = f"whisper-server:{pid}"
+        except Exception:
+            pass
+        internal_rows.append((
+            "whisper-server",
+            whisper_server_state(),
+            f"http://0.0.0.0:{WHISPER_SERVER_DEFAULT_PORT}",
+            "Speech-to-text (whisper.cpp)",
+            whisper_pid,
+        ))
 
     blank()
 
@@ -418,16 +495,57 @@ def cmd_status() -> None:
         blank()
     else:
         docker_rows = [
-            ("llm-gateway",  "litellm",    "http://localhost:4000", "LiteLLM proxy (UI → /ui)"),
-            ("llm-postgres", "postgres",   "",                      "PostgreSQL — spend tracking"),
-            ("grafana",      "grafana",    "http://localhost:3000", "Grafana dashboards"),
-            ("prometheus",   "prometheus", "http://localhost:9090", "Prometheus metrics"),
-            ("loki",         "loki",       "http://localhost:3100", "Loki log aggregation"),
-            ("alloy",        "alloy",      "",                      "Grafana Alloy collector"),
+            ("llm-gateway",  "litellm",    f"http://{public_host}:4000", "LiteLLM proxy (UI → /ui)"),
+            ("llm-postgres", "postgres",   "http://0.0.0.0:5432",        "PostgreSQL — spend tracking"),
+            ("grafana",      "grafana",    f"http://{public_host}:3000", "Grafana dashboards"),
+            ("prometheus",   "prometheus", f"http://{public_host}:9090", "Prometheus metrics"),
+            ("loki",         "loki",       f"http://{public_host}:3100", "Loki log aggregation"),
+            ("alloy",        "alloy",      "",                           "Grafana Alloy collector"),
         ]
         for container, display, endpoint, desc in docker_rows:
             if display in enabled:
-                print_row(display, docker_container_state(container), endpoint, desc)
+                state = docker_container_state(container)
+                proc = ""
+                try:
+                    pid_result = subprocess.run(
+                        ["docker", "inspect", "--format", "{{.State.Pid}}", container],
+                        capture_output=True, text=True, timeout=5,
+                    )
+                    if pid_result.returncode == 0:
+                        pid = pid_result.stdout.strip()
+                        if pid and pid != "0":
+                            proc = f"docker:{container}:{pid}"
+                except Exception:
+                    pass
+                # Public endpoints first, then internal
+                row = (display, state, endpoint, desc, proc)
+                if endpoint.startswith(f"http://{public_host}"):
+                    public_rows.append(row)
+                else:
+                    internal_rows.append(row)
+
+        # Sort and print rows: public endpoints first, then internal/none.
+        def _endpoint_key(row: tuple[str, str, str, str, str]) -> tuple[int, str]:
+            _, _, ep, _, _ = row
+            if ep.startswith(f"http://{public_host}"):
+                group = 0
+            elif ep:
+                group = 1
+            else:
+                group = 2
+            return (group, ep)
+
+        public_rows_sorted = sorted(public_rows, key=_endpoint_key)
+        internal_rows_sorted = sorted(internal_rows, key=_endpoint_key)
+
+        for name, state, ep, desc, proc in public_rows_sorted:
+            print_row(name, state, ep, desc, proc)
+
+        if internal_rows_sorted:
+            blank()
+            for name, state, ep, desc, proc in internal_rows_sorted:
+                print_row(name, state, ep, desc, proc)
+
         blank()
 
     # Service accounts
@@ -452,7 +570,7 @@ def cmd_status() -> None:
     info(f"  {'Grafana admin:':<18s} {bold(grafana_user)}  {dim('docker stack (.env)')}")
     blank()
 
-    # Key paths
+    # Key paths (condensed by default)
     header = f"{'PATH':<15s} {'TYPE':<12s} {'':38s} DESCRIPTION"
     info(f"  {dim(header)}")
     separator()
@@ -463,60 +581,63 @@ def cmd_status() -> None:
     secrets_path = data_dir / ".env"
     defaults_path = REPO_DIR / "config" / "llmgateway.defaults.yaml"
     user_cfg_path = data_dir / "config" / "llmgateway.yaml"
-    litellm_cfg_path = REPO_DIR / "config" / "litellm-config.yaml"
+    litellm_cfg_path = data_dir / "litellm-config.yaml"
 
     # Order: setup, secrets, then config files.
     print_path("setup", _prefer_tilde(setup_path), "initial setup choices")
     print_path("secrets", _prefer_tilde(secrets_path), "API keys, passwords")
-    print_path("config", _prefer_tilde(defaults_path), "gateway defaults (read-only)")
     print_path("config", _prefer_tilde(user_cfg_path), "gateway overrides")
     print_path("config", _prefer_tilde(litellm_cfg_path), "LiteLLM model routing")
+
+    if show_more:
+        print_path("config", _prefer_tilde(defaults_path), "gateway defaults (read-only)")
 
     info(f"\n  {dim('Logs')}")
     blank()
     print_path("log", _prefer_tilde(data_dir / "logs" / "gateway.log"), "management service")
     print_path("log", _prefer_tilde(data_dir / "logs" / "gw.log"), "gw script (this run)")
 
-    info(f"\n  {dim('System')}")
-    blank()
-    print_path("launchd", f"~/Library/LaunchAgents/{MANAGEMENT_LABEL}.plist", "autostart agent")
-    if "ollama" in enabled:
-        print_path("data", "~/.ollama/models", "ollama: model weights")
-
-    info(f"\n  {dim('Docker stack')}")
-    blank()
-    print_path("docker", "docker/docker-compose.yml", "docker compose stack definition")
-    print_path("docker", "docker/prometheus/prometheus.yml", "Prometheus scrape config")
-    print_path("docker", "docker/grafana/provisioning", "Grafana dashboards + data sources")
-    print_path("docker", "docker/alloy/alloy-config.alloy", "Grafana Alloy collector config")
-
-    # Docker volumes
-    if docker_available():
-        compose_project = ""
-        try:
-            result = subprocess.run(
-                _compose_cmd("config"),
-                capture_output=True, text=True, timeout=15,
-            )
-            for line in result.stdout.splitlines():
-                if line.startswith("name:"):
-                    compose_project = line.split(":", 1)[1].strip()
-                    break
-        except Exception:
-            pass
-        if not compose_project:
-            compose_project = "docker"
-
-        info(f"\n  {dim('Docker volumes')}")
+    if show_more:
+        info(f"\n  {dim('System')}")
         blank()
-        print_volume(f"{compose_project}_postgres-data", "PostgreSQL DB")
-        print_volume(f"{compose_project}_prometheus-data", "Prometheus TSDB")
-        print_volume(f"{compose_project}_loki-data", "Loki log chunks")
-        print_volume(f"{compose_project}_grafana-data", "Grafana DB + dashboards")
+        print_path("launchd", f"~/Library/LaunchAgents/{MANAGEMENT_LABEL}.plist", "autostart agent")
+        if "ollama" in enabled:
+            print_path("data", "~/.ollama/models", "ollama: model weights")
 
-    blank()
-    info(f"  {dim(f'Data dir: {_prefer_tilde(data_dir)}')}")
-    info(f"  {dim('Commands: ./gw start|stop|restart|logs <component>  •  ./gw uninstall')}")
+        info(f"\n  {dim('Docker stack')}")
+        blank()
+        print_path("docker", "docker/docker-compose.yml", "docker compose stack definition")
+        print_path("docker", "docker/prometheus/prometheus.yml", "Prometheus scrape config")
+        print_path("docker", "docker/grafana/provisioning", "Grafana dashboards + data sources")
+        print_path("docker", "docker/alloy/alloy-config.alloy", "Grafana Alloy collector config")
+
+        # Docker volumes
+        if docker_available():
+            compose_project = ""
+            try:
+                result = subprocess.run(
+                    _compose_cmd("config"),
+                    capture_output=True, text=True, timeout=15,
+                )
+                for line in result.stdout.splitlines():
+                    if line.startswith("name:"):
+                        compose_project = line.split(":", 1)[1].strip()
+                        break
+            except Exception:
+                pass
+            if not compose_project:
+                compose_project = "docker"
+
+            info(f"\n  {dim('Docker volumes')}")
+            blank()
+            print_volume(f"{compose_project}_postgres-data", "PostgreSQL DB")
+            print_volume(f"{compose_project}_prometheus-data", "Prometheus TSDB")
+            print_volume(f"{compose_project}_loki-data", "Loki log chunks")
+            print_volume(f"{compose_project}_grafana-data", "Grafana DB + dashboards")
+
+        blank()
+        info(f"  {dim(f'Data dir: {_prefer_tilde(data_dir)}')}")
+        info(f"  {dim('Commands: ./gw start|stop|restart|logs <component>  •  ./gw uninstall')}")
     blank()
 
 
@@ -839,10 +960,11 @@ def cmd_usage() -> None:
     blank()
     info(f"  {bold('Usage:')}")
     info(f"    ./gw                         Show status of all components")
+    info(f"    ./gw --more                  Show status plus detailed paths/volumes")
     info(f"    ./gw start <component>       Start a component")
     info(f"    ./gw stop <component>        Stop a component")
     info(f"    ./gw restart <component>     Restart a component")
-    info(f"    ./gw logs <component>        Tail logs for a component")
+    info(f"    ./gw log[s] <component>      Tail logs for a component")
     info(f"    ./gw uninstall               Deregister autostart, stop all")
     blank()
     info(f"  {bold('Components:')}")
@@ -867,11 +989,16 @@ def main() -> int:
     _log(f"gw invoked: {' '.join(sys.argv)}")
 
     args = sys.argv[1:]
+    show_more = False
+    if "--more" in args:
+        show_more = True
+        args = [a for a in args if a != "--more"]
+
     cmd = args[0] if args else "status"
     component = args[1] if len(args) > 1 else None
 
     if cmd in ("", "-s", "status"):
-        cmd_status()
+        cmd_status(show_more=show_more)
     elif cmd == "start":
         if not component:
             error("component name required")
@@ -890,7 +1017,7 @@ def main() -> int:
             cmd_usage()
             return 1
         cmd_restart(component)
-    elif cmd == "logs":
+    elif cmd in ("logs", "log"):
         if not component:
             error("component name required")
             cmd_usage()

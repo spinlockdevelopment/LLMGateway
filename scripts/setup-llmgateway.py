@@ -100,6 +100,11 @@ def _install_brew_formula(formula: str, binary_name: str = "") -> bool:
     """Install a Homebrew formula if its binary is not already on PATH."""
     check_name = binary_name or formula
     if shutil.which(check_name):
+        # whisper-server does not support --version; just report presence.
+        if check_name == "whisper-server":
+            success(f"{check_name}: installed")
+            return True
+
         result = subprocess.run(
             [check_name, "--version"],
             capture_output=True, text=True, timeout=10,

@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from . import ProvisioningStep, log, run
-from data_dir import setup_config_path
+from data_dir import setup_config_path, litellm_config_path
 from setup_config import SetupConfig
 
 
@@ -172,6 +172,18 @@ class DockerStack(ProvisioningStep):
 
     def _launch(self) -> None:
         """Pull images, start services, wait for stabilization."""
+        # Ensure LiteLLM config exists under the data directory and is synced
+        # to the repo config path mounted into the container.
+        try:
+            data_cfg = litellm_config_path()
+            repo_cfg = self.repo_dir / "config" / "litellm-config.yaml"
+            if not data_cfg.exists() and repo_cfg.exists():
+                data_cfg.write_text(repo_cfg.read_text(encoding="utf-8"), encoding="utf-8")
+            if data_cfg.exists():
+                repo_cfg.parent.mkdir(parents=True, exist_ok=True)
+                repo_cfg.write_text(data_cfg.read_text(encoding="utf-8"), encoding="utf-8")
+        except Exception:
+            log.warning("  Could not sync LiteLLM config to data dir; using repo copy.")
         # Verify Docker daemon is responsive
         result = run(["docker", "info"], check=False, capture=True, timeout=15)
         if result.returncode != 0:
