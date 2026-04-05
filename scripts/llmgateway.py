@@ -261,6 +261,7 @@ async def cmd_serve(log: logging.Logger) -> int:
     log.info("  Stopping services...")
     if whisper.enabled:
         await whisper.stop()
+    await dmr.close()
 
     if not server_task.done():
         server.should_exit = True

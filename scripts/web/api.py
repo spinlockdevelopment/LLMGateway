@@ -28,6 +28,18 @@ from services.llmfit import INSTALL_COMMAND
 _start_time = time.time()
 
 
+async def _get_dmr_status(dmr) -> tuple[list[dict], bool]:
+    """Fetch DMR models and availability in a single pass.
+
+    list_models() already hits GET /models — if it returns results the
+    endpoint is reachable; an empty list means either "no models" or
+    "unreachable", so we fall back to is_available() only when empty.
+    """
+    models = await dmr.list_models()
+    available = bool(models) or await dmr.is_available()
+    return models, available
+
+
 def create_api_router() -> APIRouter:
     router = APIRouter()
 
@@ -43,9 +55,7 @@ def create_api_router() -> APIRouter:
         whisper = request.app.state.whisper
         mem = psutil.virtual_memory()
 
-        # Single call: list_models returns [] on connection failure
-        dmr_models = await dmr.list_models()
-        dmr_available = len(dmr_models) > 0 or await dmr.is_available()
+        dmr_models, dmr_available = await _get_dmr_status(dmr)
 
         return {
             "gateway": {
@@ -74,8 +84,7 @@ def create_api_router() -> APIRouter:
     async def dmr_status(request: Request):
         """DMR availability and model count."""
         dmr = request.app.state.dmr
-        models = await dmr.list_models()
-        available = len(models) > 0 or await dmr.is_available()
+        models, available = await _get_dmr_status(dmr)
         return dmr.status_dict(available=available, models_count=len(models))
 
     @router.get("/models")

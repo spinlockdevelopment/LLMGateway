@@ -147,42 +147,27 @@ def create_ui_router() -> APIRouter:
         # .env lives in data_dir; .env.example stays in repo
         return data_dir / ".env", repo_dir / ".env.example"
 
-    def _parse_env_file(path: Path) -> list[dict]:
-        """Parse a .env file into list of {key, value}. Skips comments and empty lines."""
+    def _iter_env_entries(path: Path):
+        """Yield (key, value) pairs from a .env-style file, skipping comments and excluded keys."""
         if not path.exists():
-            return []
-        entries = []
+            return
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
+            if not line or line.startswith("#") or "=" not in line:
                 continue
             key, _, rest = line.partition("=")
             key = key.strip()
             if key in _EXCLUDED_ENV_KEYS:
                 continue
-            value = rest.strip()
-            entries.append({"key": key, "value": value})
-        return entries
+            yield key, rest.strip()
+
+    def _parse_env_file(path: Path) -> list[dict]:
+        """Parse a .env file into list of {key, value}."""
+        return [{"key": k, "value": v} for k, v in _iter_env_entries(path)]
 
     def _parse_env_example(path: Path) -> dict[str, str]:
-        """Parse .env.example into key -> default value. Excludes DATABASE_URL."""
-        if not path.exists():
-            return {}
-        defaults = {}
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            key, _, rest = line.partition("=")
-            key = key.strip()
-            if key in _EXCLUDED_ENV_KEYS:
-                continue
-            defaults[key] = rest.strip()
-        return defaults
+        """Parse .env.example into key -> default value."""
+        return dict(_iter_env_entries(path))
 
     def _create_env_backup(env_path: Path) -> None:
         """Create a timestamped backup of .env and prune old backups."""

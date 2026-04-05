@@ -173,18 +173,11 @@ def _ensure_venv() -> None:
     venv_dir = _REPO_DIR / ".venv"
     venv_python = venv_dir / "bin" / "python3"
 
-    if venv_python.exists():
-        try:
-            if Path(sys.executable).samefile(venv_python):
-                return
-        except OSError:
-            pass
-
+    # Check if we're already running inside the venv (handles symlinks too)
     try:
-        current_exe = Path(sys.executable).resolve()
-        current_exe.relative_to(venv_dir.resolve())
-        return
-    except (ValueError, OSError):
+        if Path(sys.executable).resolve().is_relative_to(venv_dir.resolve()):
+            return
+    except (OSError, ValueError):
         pass
 
     if venv_python.exists():

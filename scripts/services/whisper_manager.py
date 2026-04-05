@@ -13,8 +13,9 @@ import os
 import signal
 import subprocess
 import time
-import urllib.request
 from typing import Optional
+
+import httpx
 
 log = logging.getLogger("llm-gateway")
 
@@ -194,18 +195,12 @@ class WhisperManager:
         if not self.health_url:
             return True
 
-        loop = asyncio.get_running_loop()
         try:
-            code = await loop.run_in_executor(None, self._http_get_status, self.health_url)
-            return 200 <= code < 400
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                resp = await client.get(self.health_url)
+                return 200 <= resp.status_code < 400
         except Exception:
             return False
-
-    @staticmethod
-    def _http_get_status(url: str, timeout: int = 5) -> int:
-        req = urllib.request.Request(url, method="GET")
-        resp = urllib.request.urlopen(req, timeout=timeout)
-        return resp.status
 
     # ── Status ────────────────────────────────────────────────────────────────
 

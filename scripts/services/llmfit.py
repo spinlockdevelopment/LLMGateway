@@ -15,9 +15,14 @@ log = logging.getLogger("llm-gateway")
 class LlmfitClient:
     """Wrapper around the llmfit CLI tool."""
 
+    def __init__(self) -> None:
+        self._installed: bool | None = None
+
     def is_installed(self) -> bool:
-        """Return True if the llmfit CLI is available on PATH."""
-        return shutil.which("llmfit") is not None
+        """Return True if the llmfit CLI is available on PATH (cached after first check)."""
+        if self._installed is None:
+            self._installed = shutil.which("llmfit") is not None
+        return self._installed
 
     async def recommend(
         self,

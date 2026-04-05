@@ -20,13 +20,17 @@ class DockerModelRunner:
         self.host = host
         self.port = port
         self.api_base = api_base.rstrip("/")
+        self._client = httpx.AsyncClient(timeout=10.0)
+
+    async def close(self) -> None:
+        """Close the shared HTTP client."""
+        await self._client.aclose()
 
     async def is_available(self) -> bool:
         """Return True if the DMR REST API responds with HTTP 200."""
         try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(f"{self.api_base}/models")
-                return resp.status_code == 200
+            resp = await self._client.get(f"{self.api_base}/models")
+            return resp.status_code == 200
         except Exception as exc:
             log.debug("Docker Model Runner not available: %s", exc)
             return False
@@ -38,10 +42,9 @@ class DockerModelRunner:
         separately when the distinction matters).
         """
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.get(f"{self.api_base}/models")
-                resp.raise_for_status()
-                return resp.json().get("data", [])
+            resp = await self._client.get(f"{self.api_base}/models")
+            resp.raise_for_status()
+            return resp.json().get("data", [])
         except Exception as exc:
             log.warning("Failed to list DMR models: %s", exc)
             return []
