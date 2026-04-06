@@ -195,12 +195,7 @@ def _main_in_venv() -> int:
     def _install_brew_formula(formula: str, binary_name: str = "") -> bool:
         check_name = binary_name or formula
         if shutil.which(check_name):
-            result = subprocess.run(
-                [check_name, "--version"],
-                capture_output=True, text=True, timeout=10,
-            )
-            version = result.stdout.strip() or result.stderr.strip() or "installed"
-            success(f"{check_name}: {version}")
+            success(f"{check_name}: {dim('installed')}")
             return True
         if not shutil.which("brew"):
             warn(f"Cannot install {formula} — Homebrew not found")
