@@ -2,8 +2,8 @@
 Configuration manager for LLM Gateway.
 
 Handles loading, saving, validation, and defaults for the gateway config file.
-The user config (llmgateway.yaml) overlays the shipped defaults
-(llmgateway.defaults.yaml). Saving always writes to the user config file.
+Defaults are embedded in code. The user config (llmgateway.yaml) overlays them.
+Saving always writes to the user config file.
 
 Secrets (.env) are handled separately — they are never written to YAML.
 """
@@ -24,10 +24,47 @@ from .schema import validate_config
 
 log = logging.getLogger("llm-gateway")
 
-_DEFAULTS_FILENAME = "llmgateway.defaults.yaml"
 _USER_FILENAME = "llmgateway.yaml"
 _BACKUP_SUFFIX = ".bak"
 _MAX_BACKUPS = 5
+
+# Embedded defaults — previously shipped as config/llmgateway.defaults.yaml
+_DEFAULTS: dict = {
+    "gateway": {
+        "host": "127.0.0.1",
+        "port": 8080,
+        "log_level": "INFO",
+    },
+    "docker_model_runner": {
+        "enabled": True,
+        "host": "localhost",
+        "port": 12434,
+        "api_base": "http://localhost:12434/engines/v1",
+    },
+    "services": {
+        "whisper": {
+            "enabled": False,
+            "type": "whisper",
+            "description": "Whisper — Speech-to-text (whisper-server or mlx-whisper)",
+            "binary": "whisper-server",
+            "args": {
+                "--model": "",
+                "--host": "127.0.0.1",
+                "--port": "8178",
+            },
+            "extra_args": [],
+            "health_check_url": "http://localhost:8178/health",
+        },
+    },
+    "llmfit": {
+        "auto_recommend_on_setup": True,
+        "default_limit": 5,
+    },
+    "docker": {
+        "auto_launch": True,
+        "compose_file": "docker/docker-compose.yml",
+    },
+}
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
@@ -48,7 +85,7 @@ class ConfigManager:
     """
     Manages the gateway configuration lifecycle.
 
-    - Loads shipped defaults + user overrides (deep-merged).
+    - Loads embedded defaults + user overrides (deep-merged).
     - Validates on load and before save.
     - Keeps timestamped backups on save.
     - Provides reset-to-defaults.
@@ -61,7 +98,8 @@ class ConfigManager:
     ) -> None:
         """
         Args:
-            config_dir:      Directory containing llmgateway.defaults.yaml (ships with repo).
+            config_dir:      Directory containing config files (ships with repo).
+                             Used only for backward compat — defaults are now embedded.
             user_config_dir: Directory for llmgateway.yaml user overrides and backups.
                              Defaults to config_dir for backward compatibility.
                              Typically set to <data_dir>/config/ so user config
@@ -69,9 +107,8 @@ class ConfigManager:
         """
         self._config_dir = config_dir
         self._user_config_dir = user_config_dir or config_dir
-        self._defaults_path = config_dir / _DEFAULTS_FILENAME
         self._user_path = self._user_config_dir / _USER_FILENAME
-        self._defaults: dict = {}
+        self._defaults: dict = copy.deepcopy(_DEFAULTS)
         self._config: dict = {}
 
     # ── Public interface ──────────────────────────────────────────────────────
@@ -95,14 +132,6 @@ class ConfigManager:
         Load defaults + user config (if present). Returns validation warnings.
         Creates user config from defaults on first run.
         """
-        # Load shipped defaults (required)
-        if not self._defaults_path.exists():
-            raise FileNotFoundError(
-                f"Defaults file not found: {self._defaults_path}"
-            )
-        self._defaults = self._load_yaml(self._defaults_path)
-        log.info(f"  Loaded defaults from {self._defaults_path}")
-
         # Load user overrides (optional — created from defaults on first run)
         if self._user_path.exists():
             user_config = self._load_yaml(self._user_path)
@@ -121,8 +150,8 @@ class ConfigManager:
             raise ValueError(
                 f"Configuration has {len(errors)} error(s): {'; '.join(errors)}"
             )
-        for warn in warnings:
-            log.warning(f"  Config warning: {warn}")
+        for w in warnings:
+            log.warning(f"  Config warning: {w}")
 
         return warnings
 
@@ -136,15 +165,11 @@ class ConfigManager:
         if errors:
             return errors, warnings
 
-        # Backup existing file
         if self._user_path.exists():
             self._create_backup()
 
-        # Write
         self._save_yaml(self._user_path, new_config)
         self._secure_file(self._user_path)
-
-        # Reload merged config
         self._config = _deep_merge(self._defaults, new_config)
         log.info(f"  Config saved to {self._user_path}")
 
@@ -206,12 +231,11 @@ class ConfigManager:
         path.write_text(text, encoding="utf-8")
 
     def _save_initial_config(self) -> None:
-        """Create the initial user config file from the defaults template."""
-        if self._defaults_path.exists():
-            self._user_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(self._defaults_path, self._user_path)
-            self._secure_file(self._user_path)
-            log.info(f"  Created initial config: {self._user_path}")
+        """Create the initial user config file from embedded defaults."""
+        self._user_path.parent.mkdir(parents=True, exist_ok=True)
+        self._save_yaml(self._user_path, self._defaults)
+        self._secure_file(self._user_path)
+        log.info(f"  Created initial config: {self._user_path}")
 
     def _create_backup(self) -> None:
         """Create a timestamped backup of the user config file."""
@@ -236,7 +260,7 @@ class ConfigManager:
         try:
             os.chmod(path, 0o600)
         except OSError:
-            pass  # Windows or permission issue — non-fatal
+            pass
 
     @staticmethod
     def _mask_secrets(data: Any, _depth: int = 0) -> Any:

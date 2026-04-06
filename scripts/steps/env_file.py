@@ -2,20 +2,16 @@
 Environment file (.env) provisioning step.
 
 Copies .env.example to .env on first run so the stack has a configuration
-file to read. Warns prominently if placeholder values remain, since the
-stack will fail to authenticate against providers without real API keys.
+file to read.
 """
 
 from __future__ import annotations
 
 import shutil
-from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
-from . import ProvisioningStep, log
+from . import log, provision
 
-# Values that indicate the .env has not been configured by the user.
 _PLACEHOLDER_MARKERS = (
     "your-key-here",
     "change-me",
@@ -26,66 +22,38 @@ _PLACEHOLDER_MARKERS = (
 )
 
 
-class EnvFile(ProvisioningStep):
-    """
-    Ensures a .env file exists in the repository root.
+def setup(repo_dir: Path, data_dir: Path, dry_run: bool = False) -> bool:
+    """Ensure .env exists in the data directory."""
+    env_file = data_dir / ".env"
+    env_example = repo_dir / ".env.example"
 
-    - is_installed():    True if .env exists.
-    - current_version(): last-modified timestamp of .env (proxy for "version").
-    - install():         copies .env.example → .env (warns about placeholder values).
-    - _on_already_installed(): warns if placeholder values are still present.
-    """
+    def is_ready() -> bool:
+        return env_file.exists()
 
-    name = "Environment File (.env)"
-
-    def __init__(self, repo_dir: Path, data_dir: Path | None = None) -> None:
-        self.repo_dir = repo_dir
-        self._data_dir = data_dir or repo_dir
-        self._env_file = self._data_dir / ".env"
-        self._env_example = repo_dir / ".env.example"
-
-    # ── Interface ─────────────────────────────────────────────────────────────
-
-    def is_installed(self) -> bool:
-        return self._env_file.exists()
-
-    def current_version(self) -> Optional[str]:
-        if not self._env_file.exists():
-            return None
-        mtime = self._env_file.stat().st_mtime
-        return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M")
-
-    def install(self) -> None:
-        if not self._env_example.exists():
-            log.warning(f"  .env.example not found at {self._env_example}")
+    def install() -> None:
+        if not env_example.exists():
+            log.warning(f"  .env.example not found at {env_example}")
             log.warning("  Create .env manually with your API keys")
             return
+        env_file.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(env_example, env_file)
+        log.warning("  .env created from template — add your API keys:")
+        log.warning(f"    {env_file}")
 
-        log.info(f"  Copying .env.example → .env")
-        shutil.copy2(self._env_example, self._env_file)
-        log.warning("  .env created from example — edit it with API keys you need:")
-        log.warning(f"    {self._env_file}")
-        log.warning("  Set LITELLM_MASTER_KEY for proxy admin and virtual keys; add provider keys (e.g. OPENROUTER_API_KEY) as needed.")
+    ok = provision(
+        name="Environment File (.env)",
+        is_ready=is_ready,
+        install=install,
+        dry_run=dry_run,
+    )
 
-    # ── Internal helpers ──────────────────────────────────────────────────────
-
-    def _has_placeholders(self) -> bool:
-        """Return True if .env still contains any known placeholder strings."""
+    # Warn about placeholders even if file already existed
+    if env_file.exists():
         try:
-            content = self._env_file.read_text(errors="replace")
-            return any(marker in content for marker in _PLACEHOLDER_MARKERS)
+            content = env_file.read_text(errors="replace")
+            if any(m in content for m in _PLACEHOLDER_MARKERS):
+                log.warning("  .env contains placeholder values — update via dashboard Secrets tab")
         except OSError:
-            return False
+            pass
 
-    # ── Already-installed hook ────────────────────────────────────────────────
-
-    def _on_already_installed(self) -> None:
-        log.info(f"  .env: {self._env_file}")
-        if self._has_placeholders():
-            log.warning("  .env contains placeholder values!")
-            log.warning(
-                "  Edit .env and set real values for any keys you use "
-                "(e.g. LITELLM_MASTER_KEY, OPENROUTER_API_KEY)"
-            )
-        else:
-            log.info("  .env: configured (no placeholder values detected)")
+    return ok

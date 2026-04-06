@@ -3,10 +3,9 @@ Data directory discovery for LLM Gateway.
 
 The data directory stores runtime state that should survive repo deletion:
   - .env (secrets / API keys)
-  - config/llmgateway.yaml (user config overrides)
+  - config/llmgateway.yaml (user config overrides + install choices)
   - logs/ (management service stdout/stderr)
   - backups/ (config backups)
-  - setup-config.yaml (initial setup choices)
 
 Default: ~/.llm-gateway/
 Override: set LLM_GATEWAY_DATA_DIR environment variable.
@@ -29,7 +28,7 @@ def get_data_dir() -> Path:
     """
     Return the resolved data directory path.
 
-    Priority: LLM_GATEWAY_DATA_DIR env var → ~/.llm-gateway/
+    Priority: LLM_GATEWAY_DATA_DIR env var -> ~/.llm-gateway/
     """
     env_val = os.environ.get(_ENV_VAR, "").strip()
     if env_val:
@@ -57,11 +56,6 @@ def env_path() -> Path:
 def user_config_path() -> Path:
     """Path to the user config overrides YAML."""
     return get_data_dir() / "config" / "llmgateway.yaml"
-
-
-def setup_config_path() -> Path:
-    """Path to the initial setup preferences file."""
-    return get_data_dir() / "setup-config.yaml"
 
 
 def log_dir() -> Path:

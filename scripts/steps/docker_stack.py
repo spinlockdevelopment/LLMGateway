@@ -1,9 +1,8 @@
 """
 Docker Compose stack launch and health-check provisioning step.
 
-Brings up the Docker Compose stack if it is not already running. If the
-stack is running, performs health checks only — no restart. Sanity checks
-hit each service's health/readiness endpoint and log pass/fail per service.
+Brings up the Docker Compose stack if it is not already running.
+Supports optional observability stack (Grafana, Prometheus, Loki, Alloy).
 """
 
 from __future__ import annotations
@@ -12,277 +11,191 @@ import json
 import platform
 import time
 from pathlib import Path
-from typing import Optional
 
-from . import ProvisioningStep, log, run
+from . import log, provision, run
 
-# Services checked after stack launch. Tuple: (label, url, expect_http_2xx)
-_HEALTH_CHECKS = [
-    ("LiteLLM Proxy",  "http://localhost:4000/health/liveliness",       False),
-    ("Grafana",        "http://localhost:3000/api/health",               True),
-    ("Prometheus",     "http://localhost:9090/-/healthy",                False),
-    ("Ollama (host)",  "http://localhost:11434/api/tags",                False),  # optional
-]
-
-_STABILIZE_WAIT = 30  # seconds to wait after `docker compose up -d`
-_LITELLM_HEALTH_RETRIES = 6   # retries for LiteLLM endpoint (15s apart → up to ~90s extra)
+_STABILIZE_WAIT = 30
+_LITELLM_HEALTH_RETRIES = 6
 _LITELLM_HEALTH_INTERVAL = 15
 
 
-class DockerStack(ProvisioningStep):
-    """
-    Manages the Docker Compose stack lifecycle.
+def _compose_cmd(
+    repo_dir: Path,
+    data_dir: Path,
+    observability: bool,
+    *args: str,
+) -> list[str]:
+    """Build docker compose command with appropriate files and env."""
+    compose_file = repo_dir / "docker" / "docker-compose.yml"
+    cmd = ["docker", "compose", "-f", str(compose_file)]
+    if observability:
+        obs_file = repo_dir / "docker" / "docker-compose.observability.yml"
+        cmd.extend(["-f", str(obs_file)])
+    env_file = data_dir / ".env"
+    if env_file.exists():
+        cmd.extend(["--env-file", str(env_file)])
+    cmd.extend(args)
+    return cmd
 
-    - is_installed():    True if docker-compose.yml exists.
-    - current_version(): summary of running/total containers.
-    - install():         launches the stack (pull + up -d + health checks).
-    - provision():       fully overridden — launches if not running, else checks.
-    """
 
-    name = "Docker Compose Stack"
-
-    def __init__(self, repo_dir: Path, data_dir: Path | None = None) -> None:
-        self.repo_dir = repo_dir
-        self._data_dir = data_dir or repo_dir
-        self._compose_file = repo_dir / "docker" / "docker-compose.yml"
-
-    def _compose_cmd(self, *args: str) -> list[str]:
-        """Build docker compose command with --env-file from data_dir."""
-        cmd = ["docker", "compose", "-f", str(self._compose_file)]
-        env_file = self._data_dir / ".env"
-        if env_file.exists():
-            cmd.extend(["--env-file", str(env_file)])
-        cmd.extend(args)
-        return cmd
-
-    # ── Interface ─────────────────────────────────────────────────────────────
-
-    def is_installed(self) -> bool:
-        """True if the compose file is present (a necessary precondition)."""
-        return self._compose_file.exists()
-
-    def current_version(self) -> Optional[str]:
-        """Return a human-readable count of running containers."""
+def _check_http(url: str, expect_2xx: bool = False) -> bool:
+    """Return True if the endpoint is reachable."""
+    if expect_2xx:
         result = run(
-            self._compose_cmd("ps", "--format", "json"),
-            check=False,
-            timeout=30,
+            ["curl", "-sf", "-o", "/dev/null", "-w", "%{http_code}", url],
+            check=False, timeout=15,
         )
-        if result.returncode != 0 or not result.stdout.strip():
-            return None
+        return result.returncode == 0 and result.stdout.strip().startswith("2")
+    else:
+        result = run(["curl", "-sf", url], check=False, timeout=15)
+        return result.returncode == 0
+
+
+def _is_running(repo_dir: Path, data_dir: Path, observability: bool) -> bool:
+    """Return True if at least one container is running."""
+    result = run(
+        _compose_cmd(repo_dir, data_dir, observability, "ps", "--format", "json"),
+        check=False, timeout=30,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        return False
+    try:
+        containers = [
+            json.loads(line)
+            for line in result.stdout.strip().splitlines()
+            if line.strip()
+        ]
+        return any(
+            c.get("State", c.get("state", "")).lower() == "running"
+            for c in containers
+        )
+    except (json.JSONDecodeError, KeyError):
+        return False
+
+
+def _launch(repo_dir: Path, data_dir: Path, observability: bool) -> None:
+    """Pull images, start services, wait for stabilization."""
+    result = run(["docker", "info"], check=False, capture=True, timeout=15)
+    if result.returncode != 0:
+        raise RuntimeError("Docker daemon is not running — start Docker Desktop first")
+
+    env_file = data_dir / ".env"
+    if env_file.exists():
         try:
-            containers = [
-                json.loads(line)
-                for line in result.stdout.strip().splitlines()
-                if line.strip()
-            ]
-            running = sum(
-                1
-                for c in containers
-                if c.get("State", c.get("state", "")).lower() == "running"
-            )
-            return f"{running}/{len(containers)} containers running"
-        except (json.JSONDecodeError, KeyError):
-            return None
+            content = env_file.read_text(errors="replace")
+            if any(m in content for m in ("your-key-here", "change-me", "changeme")):
+                log.warning("  .env contains placeholder values — update via dashboard Secrets tab")
+        except OSError:
+            pass
 
-    def install(self) -> None:
-        """Launch the stack (pull images, docker compose up -d, health check)."""
-        self._launch()
+    if platform.system() == "Darwin":
+        log.info(
+            "  On macOS you may see 'Terminal would like to access data from other apps' — "
+            "click Allow once."
+        )
 
-    # ── Orchestration override ────────────────────────────────────────────────
+    log.info("  Pulling latest Docker images (this may take a while)...")
+    pull_result = run(
+        _compose_cmd(repo_dir, data_dir, observability, "pull"),
+        check=False, timeout=600,
+    )
+    if pull_result.returncode != 0:
+        log.warning("  docker compose pull reported errors — proceeding with cached images")
 
-    def provision(self, dry_run: bool = False) -> bool:
-        """
-        Override: launch the stack if not running; health check if already up.
-        In dry_run mode, only reports status.
-        """
-        log.info(self._section_header())
+    log.info("  Starting services (docker compose up -d)...")
+    run(
+        _compose_cmd(repo_dir, data_dir, observability, "up", "-d", "--remove-orphans"),
+        capture=False, timeout=300,
+    )
 
+    log.info(f"  Waiting {_STABILIZE_WAIT}s for services to stabilize...")
+    time.sleep(_STABILIZE_WAIT)
+
+    # LiteLLM often needs extra time for DB migrations
+    litellm_url = "http://localhost:4000/health/liveliness"
+    for attempt in range(1, _LITELLM_HEALTH_RETRIES + 1):
+        if _check_http(litellm_url):
+            log.info("  LiteLLM proxy is ready.")
+            break
+        log.info(
+            f"  LiteLLM not yet ready (attempt {attempt}/{_LITELLM_HEALTH_RETRIES}), "
+            f"waiting {_LITELLM_HEALTH_INTERVAL}s..."
+        )
+        time.sleep(_LITELLM_HEALTH_INTERVAL)
+    else:
+        log.warning("  LiteLLM proxy did not become ready; check: docker compose logs litellm")
+
+    _run_health_checks(repo_dir, data_dir, observability)
+
+
+def _run_health_checks(repo_dir: Path, data_dir: Path, observability: bool) -> None:
+    """Log pass/fail for each service health endpoint."""
+    log.info("  Health checks:")
+
+    result = run(
+        _compose_cmd(repo_dir, data_dir, observability, "ps", "--format", "json"),
+        check=False, timeout=30,
+    )
+    if result.returncode == 0 and result.stdout.strip():
         try:
-            if not self._compose_file.exists():
-                log.error(f"  docker-compose.yml not found: {self._compose_file}")
-                return False
-            if dry_run:
-                status = self.current_version()
-                log.info(f"  Status: {status or 'not running'}")
-                self._run_health_checks()
-                return True
+            for line in result.stdout.strip().splitlines():
+                if not line.strip():
+                    continue
+                c = json.loads(line)
+                name = c.get("Name", c.get("name", "?"))
+                state = c.get("State", c.get("state", "?"))
+                health = c.get("Health", c.get("health", ""))
+                label = state + (f" ({health})" if health else "")
+                if state.lower() == "running":
+                    log.info(f"    + {name}: {label}")
+                else:
+                    log.error(f"    x {name}: {label}")
+        except (json.JSONDecodeError, KeyError) as e:
+            log.warning(f"    Could not parse container status: {e}")
 
-            if self._is_running():
-                log.info(f"  Stack already running: {self.current_version()}")
-                self._run_health_checks()
-            else:
-                log.info("  Stack not running — launching...")
-                self._launch()
+    # HTTP endpoint checks
+    checks = [("LiteLLM Proxy", "http://localhost:4000/health/liveliness", False)]
+    if observability:
+        checks.extend([
+            ("Grafana", "http://localhost:3000/api/health", True),
+            ("Prometheus", "http://localhost:9090/-/healthy", False),
+        ])
 
-            return True
-
-        except Exception as e:
-            log.error(f"  Stack provisioning FAILED: {e}")
-            log.debug("  Stack trace:", exc_info=True)
-            return False
-
-    # ── Internal helpers ──────────────────────────────────────────────────────
-
-    def _is_running(self) -> bool:
-        """Return True if at least one container is in the 'running' state."""
-        result = run(
-            self._compose_cmd("ps", "--format", "json"),
-            check=False,
-            timeout=30,
-        )
-        if result.returncode != 0 or not result.stdout.strip():
-            return False
-        try:
-            containers = [
-                json.loads(line)
-                for line in result.stdout.strip().splitlines()
-                if line.strip()
-            ]
-            return any(
-                c.get("State", c.get("state", "")).lower() == "running"
-                for c in containers
-            )
-        except (json.JSONDecodeError, KeyError):
-            return False
-
-    def _launch(self) -> None:
-        """Pull images, start services, wait for stabilization."""
-        # Verify Docker daemon is responsive
-        result = run(["docker", "info"], check=False, capture=True, timeout=15)
-        if result.returncode != 0:
-            raise RuntimeError(
-                "Docker daemon is not running — start Docker Desktop first"
-            )
-
-        # Warn (but don't block) if .env still has placeholder values
-        env_file = self._data_dir / ".env"
-        if env_file.exists():
-            try:
-                content = env_file.read_text(errors="replace")
-                if any(m in content for m in ("your-key-here", "change-me", "changeme")):
-                    log.warning(
-                        "  .env contains placeholder values (e.g. LITELLM_MASTER_KEY)."
-                    )
-                    log.warning(
-                        "  The stack will start with defaults. Update .env later via"
-                    )
-                    log.warning(
-                        "  the Secrets UI (http://localhost:8080) or LiteLLM UI (http://localhost:4000/ui)."
-                    )
-            except OSError as e:
-                log.warning(f"  Could not read .env for validation: {e}")
-
-        # Pull latest images (non-fatal — will use cached images on failure)
-        if platform.system() == "Darwin":
-            log.info(
-                "  On macOS you may see 'Terminal would like to access data from other apps' — "
-                "click Allow once (grant permanently in System Settings → Privacy & Security → Automation)."
-            )
-        log.info("  Pulling latest Docker images (this may take a while)...")
-        pull_result = run(
-            self._compose_cmd("pull"),
-            check=False,
-            timeout=600,
-        )
-        if pull_result.returncode != 0:
-            log.warning("  docker compose pull reported errors — proceeding with cached images")
-
-        # Bring up the stack (stream output so user sees progress)
-        log.info("  Starting services (docker compose up -d)...")
-        run(
-            self._compose_cmd("up", "-d", "--remove-orphans"),
-            capture=False,
-            timeout=300,
-        )
-
-        log.info(f"  Waiting {_STABILIZE_WAIT}s for services to stabilize...")
-        time.sleep(_STABILIZE_WAIT)
-
-        self._run_health_checks()
-
-        # LiteLLM often needs extra time (e.g. DB migrations). Retry until healthy or limit.
-        litellm_url = "http://localhost:4000/health/liveliness"
-        for attempt in range(1, _LITELLM_HEALTH_RETRIES + 1):
-            if self._check_http(litellm_url, expect_2xx=False):
-                log.info("  LiteLLM proxy is ready.")
-                break
-            log.info(
-                f"  LiteLLM not yet ready (attempt {attempt}/{_LITELLM_HEALTH_RETRIES}), "
-                f"waiting {_LITELLM_HEALTH_INTERVAL}s..."
-            )
-            time.sleep(_LITELLM_HEALTH_INTERVAL)
+    for svc_name, url, expect_2xx in checks:
+        ok = _check_http(url, expect_2xx)
+        if ok:
+            log.info(f"    + {svc_name}: healthy")
         else:
-            log.warning("  LiteLLM proxy did not become ready; check logs: docker compose logs litellm")
-        self._run_health_checks()
+            log.warning(f"    ? {svc_name}: not responding (may still be starting)")
 
-    def _check_http(self, url: str, expect_2xx: bool = False) -> bool:
-        """
-        Return True if the endpoint is reachable.
-        If expect_2xx=True, also verifies the HTTP status starts with '2'.
-        """
-        if expect_2xx:
-            result = run(
-                ["curl", "-sf", "-o", "/dev/null", "-w", "%{http_code}", url],
-                check=False,
-                timeout=15,
-            )
-            return result.returncode == 0 and result.stdout.strip().startswith("2")
-        else:
-            result = run(["curl", "-sf", url], check=False, timeout=15)
-            return result.returncode == 0
+    log.info("")
+    log.info("  Endpoints:")
+    log.info("    LiteLLM Proxy:  http://localhost:4000")
+    log.info("    LiteLLM UI:     http://localhost:4000/ui")
+    if observability:
+        log.info("    Grafana:        http://localhost:3000")
+        log.info("    Prometheus:     http://localhost:9090")
 
-    def _run_health_checks(self) -> None:
-        """Log pass/fail for each service health endpoint."""
-        log.info("  Health checks:")
-        all_critical_ok = True
 
-        # Container-level status from docker compose ps
-        result = run(
-            self._compose_cmd("ps", "--format", "json"),
-            check=False,
-            timeout=30,
-        )
-        if result.returncode == 0 and result.stdout.strip():
-            try:
-                for line in result.stdout.strip().splitlines():
-                    if not line.strip():
-                        continue
-                    c = json.loads(line)
-                    name = c.get("Name", c.get("name", "?"))
-                    state = c.get("State", c.get("state", "?"))
-                    health = c.get("Health", c.get("health", ""))
-                    label = state + (f" ({health})" if health else "")
-                    if state.lower() == "running":
-                        log.info(f"    ✓ {name}: {label}")
-                    else:
-                        log.error(f"    ✗ {name}: {label}")
-                        all_critical_ok = False
-            except (json.JSONDecodeError, KeyError) as e:
-                log.warning(f"    Could not parse container status: {e}")
+def setup(
+    repo_dir: Path,
+    data_dir: Path,
+    observability: bool = False,
+    dry_run: bool = False,
+) -> bool:
+    """Ensure Docker Compose stack is running."""
+    compose_file = repo_dir / "docker" / "docker-compose.yml"
+    if not compose_file.exists():
+        log.error(f"  docker-compose.yml not found: {compose_file}")
+        return False
 
-        # HTTP endpoint checks
-        for svc_name, url, expect_2xx in _HEALTH_CHECKS:
-            ok = self._check_http(url, expect_2xx)
-            is_optional = "Ollama" in svc_name
-            if ok:
-                log.info(f"    ✓ {svc_name}: healthy")
-            elif is_optional:
-                log.warning(f"    ⚠ {svc_name}: not responding (optional — run: ollama serve)")
-            else:
-                log.warning(f"    ⚠ {svc_name}: not responding (may still be starting)")
+    label = "Docker Compose Stack"
+    if observability:
+        label += " + Observability"
 
-        # Summary
-        if all_critical_ok:
-            log.info("")
-            log.info("  Stack is healthy:")
-            log.info("    LiteLLM Proxy:  http://localhost:4000")
-            log.info("    LiteLLM UI:     http://localhost:4000/ui")
-            log.info("    Grafana:        http://localhost:3000")
-            log.info("    Prometheus:     http://localhost:9090")
-        else:
-            log.error("")
-            log.error("  One or more containers are not running!")
-            log.error(
-                f"  Check logs: docker compose -f {self._compose_file} logs"
-            )
+    return provision(
+        name=label,
+        is_ready=lambda: _is_running(repo_dir, data_dir, observability),
+        install=lambda: _launch(repo_dir, data_dir, observability),
+        dry_run=dry_run,
+    )

@@ -12,16 +12,14 @@ Usage:
 
 Components:
     management     Gateway management service (llmgateway.py / launchd)
-    ollama         Ollama local inference (bare metal, Metal GPU)
-    llama-server   llama.cpp server (bare metal, default port 8081)
     whisper-server whisper.cpp server (bare metal, default port 8083)
     docker         Entire Docker Compose stack
     litellm        LiteLLM proxy container
     postgres       PostgreSQL container
-    grafana        Grafana dashboards container
-    prometheus     Prometheus metrics container
-    loki           Loki log aggregation container
-    alloy          Grafana Alloy collector container
+    grafana        Grafana dashboards container (if observability enabled)
+    prometheus     Prometheus metrics container (if observability enabled)
+    loki           Loki log aggregation container (if observability enabled)
+    alloy          Grafana Alloy collector container (if observability enabled)
 
 Console output: clean, no timestamps. Warnings in yellow, errors in red.
 Log file: <data_dir>/logs/gw.log — full timestamps, overwritten each run.
@@ -33,7 +31,6 @@ import datetime
 import json
 import logging
 import os
-import re
 import subprocess
 import sys
 import time
@@ -50,13 +47,13 @@ try:
         info, success, warn, error, bold, dim, green, red, yellow, cyan,
         heading, separator, blank,
     )
-    from data_dir import get_data_dir, setup_config_path, log_dir
+    from data_dir import get_data_dir, log_dir
 except ImportError:
     # Minimal fallback if scripts/ is broken
     def info(msg=""): print(msg)
-    def success(msg): print(f"  ✓ {msg}")
-    def warn(msg): print(f"  ⚠ Warning: {msg}")
-    def error(msg): print(f"  ✗ Error: {msg}")
+    def success(msg): print(f"  + {msg}")
+    def warn(msg): print(f"  ? Warning: {msg}")
+    def error(msg): print(f"  x Error: {msg}")
     def bold(t): return t
     def dim(t): return t
     def green(t): return t
@@ -67,17 +64,16 @@ except ImportError:
     def separator(w=88): print(f"  {'─' * w}")
     def blank(): print()
     def get_data_dir(): return Path.home() / ".llm-gateway"
-    def setup_config_path(): return get_data_dir() / "setup-config.yaml"
     def log_dir(): return get_data_dir() / "logs"
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 COMPOSE_FILE = REPO_DIR / "docker" / "docker-compose.yml"
+COMPOSE_OBS_FILE = REPO_DIR / "docker" / "docker-compose.observability.yml"
 MANAGEMENT_LABEL = "com.local.llm-gateway"
 MANAGEMENT_SCRIPT = REPO_DIR / "scripts" / "llmgateway.py"
 MANAGEMENT_PLIST = Path.home() / "Library" / "LaunchAgents" / f"{MANAGEMENT_LABEL}.plist"
 MANAGEMENT_PORT = 8080
-LLAMA_SERVER_DEFAULT_PORT = 8081
 WHISPER_SERVER_DEFAULT_PORT = 8083
 
 
@@ -90,13 +86,13 @@ def _setup_log_file() -> None:
         log_path.parent.mkdir(parents=True, exist_ok=True)
         logging.basicConfig(
             filename=str(log_path),
-            filemode="w",  # overwrite each run
+            filemode="w",
             level=logging.DEBUG,
             format="%(asctime)s [%(levelname)-8s] %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S",
         )
     except Exception:
-        pass  # non-fatal — console output still works
+        pass
 
 
 def _log(msg: str, level: str = "INFO") -> None:
@@ -104,27 +100,33 @@ def _log(msg: str, level: str = "INFO") -> None:
     getattr(logging, level.lower(), logging.info)(msg)
 
 
-# ── Setup config (which components are enabled) ──────────────────────────────
+# ── Install config (which components are enabled) ────────────────────────────
 
-def _load_setup_config() -> dict:
-    """Load setup-config.yaml. Returns empty dict on failure."""
-    path = setup_config_path()
-    if not path.exists():
+def _load_install_config() -> dict:
+    """Load install choices from llmgateway.yaml install: section."""
+    config_path = get_data_dir() / "config" / "llmgateway.yaml"
+    if not config_path.exists():
         return {}
     try:
-        # Try PyYAML first (available if venv active)
         import yaml
-        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        return data.get("install", {})
     except ImportError:
-        # Fallback: simple key: value parser for flat YAML
+        # Fallback: simple parser for flat YAML
         result = {}
         try:
-            for line in path.read_text(encoding="utf-8").splitlines():
-                line = line.strip()
-                if not line or line.startswith("#"):
+            in_install = False
+            for line in config_path.read_text(encoding="utf-8").splitlines():
+                stripped = line.strip()
+                if not stripped or stripped.startswith("#"):
                     continue
-                if ":" in line:
-                    key, _, val = line.partition(":")
+                if stripped == "install:":
+                    in_install = True
+                    continue
+                if in_install and not line.startswith(" "):
+                    break
+                if in_install and ":" in stripped:
+                    key, _, val = stripped.partition(":")
                     val = val.strip()
                     if val.lower() == "true":
                         result[key.strip()] = True
@@ -139,20 +141,17 @@ def _load_setup_config() -> dict:
         return {}
 
 
+def _observability_enabled() -> bool:
+    """Return True if observability stack was selected during setup."""
+    return _load_install_config().get("install_observability", False)
+
+
 def _enabled_components() -> set[str]:
     """Return set of component names that should appear in status."""
-    config = _load_setup_config()
-    # Always show core components
-    components = {
-        "management", "docker",
-        "litellm", "postgres", "grafana", "prometheus", "loki", "alloy",
-    }
-    # Show optional components based on setup config
-    # Default to True when config file is missing (backward compat)
-    if config.get("install_ollama", True):
-        components.add("ollama")
-    if config.get("install_llama_cpp", False):
-        components.add("llama-server")
+    config = _load_install_config()
+    components = {"management", "docker", "litellm", "postgres"}
+    if config.get("install_observability", False):
+        components.update({"grafana", "prometheus", "loki", "alloy"})
     if config.get("install_whisper", False):
         components.add("whisper-server")
     return components
@@ -161,7 +160,6 @@ def _enabled_components() -> set[str]:
 # ── Status check helpers ──────────────────────────────────────────────────────
 
 def _http_ok(url: str, timeout: int = 2) -> bool:
-    """Return True if HTTP GET succeeds."""
     try:
         resp = urllib.request.urlopen(url, timeout=timeout)
         return 200 <= resp.status < 400
@@ -170,7 +168,6 @@ def _http_ok(url: str, timeout: int = 2) -> bool:
 
 
 def _process_running(pattern: str) -> bool:
-    """Return True if a process matching the pattern is running."""
     try:
         result = subprocess.run(
             ["pgrep", "-qf", pattern],
@@ -234,29 +231,6 @@ def management_state() -> str:
     return "absent"
 
 
-def ollama_state() -> str:
-    if _http_ok("http://localhost:11434/api/tags"):
-        return "running"
-    if _process_running("ollama"):
-        return "starting"
-    return "stopped"
-
-
-def llama_server_state() -> str:
-    for port in (8081, 8082):
-        if _http_ok(f"http://localhost:{port}/health"):
-            return "running"
-    if _process_running("llama-server"):
-        return "starting"
-    try:
-        import shutil
-        if shutil.which("llama-server"):
-            return "stopped"
-    except Exception:
-        pass
-    return "absent"
-
-
 def whisper_server_state() -> str:
     if _http_ok(f"http://localhost:{WHISPER_SERVER_DEFAULT_PORT}/health"):
         return "running"
@@ -274,10 +248,7 @@ def whisper_server_state() -> str:
 # ── Display helpers ───────────────────────────────────────────────────────────
 
 def _status_color(state: str) -> callable:
-    return {
-        "running": green,
-        "starting": yellow,
-    }.get(state, red)
+    return {"running": green, "starting": yellow}.get(state, red)
 
 
 def _status_icon(state: str) -> str:
@@ -289,11 +260,9 @@ def _status_label(state: str) -> str:
 
 
 def print_row(name: str, state: str, endpoint: str = "", desc: str = "") -> None:
-    """Print one status row: icon, name, state, endpoint, description."""
     color = _status_color(state)
     icon = _status_icon(state)
     label = _status_label(state)
-
     line = f"  {color(icon)} {name:<14s} {color(f'{label:<12s}')}"
     if endpoint:
         line += f"  {cyan(f'{endpoint:<36s}')}"
@@ -306,33 +275,32 @@ def print_row(name: str, state: str, endpoint: str = "", desc: str = "") -> None
 
 
 def print_path(label: str, path: str, desc: str = "") -> None:
-    """Print a path row with exists/missing indicator."""
     expanded = str(Path(path).expanduser()) if path.startswith("~") else path
     if not os.path.isabs(expanded):
         expanded = str(REPO_DIR / expanded)
-
-    mark = green("✓") if os.path.exists(expanded) else dim("·")
+    mark = green("+") if os.path.exists(expanded) else dim(".")
     info(f"  {mark}  {dim(f'{label:<12s}')}  {path:<45s}  {dim(desc)}")
 
 
 def print_volume(name: str, desc: str = "") -> None:
-    """Print a Docker volume row with exists indicator."""
     try:
         result = subprocess.run(
             ["docker", "volume", "inspect", name],
             capture_output=True, timeout=10,
         )
-        mark = green("✓") if result.returncode == 0 else dim("·")
+        mark = green("+") if result.returncode == 0 else dim(".")
     except Exception:
-        mark = dim("·")
+        mark = dim(".")
     info(f"  {mark}  {dim('volume'):<16s}  {name:<45s}  {dim(desc)}")
 
 
 # ── Docker compose helper ────────────────────────────────────────────────────
 
 def _compose_cmd(*args: str) -> list[str]:
-    """Build docker compose command with --env-file from data_dir."""
+    """Build docker compose command with --env-file and optional observability."""
     cmd = ["docker", "compose", "-f", str(COMPOSE_FILE)]
+    if _observability_enabled() and COMPOSE_OBS_FILE.exists():
+        cmd.extend(["-f", str(COMPOSE_OBS_FILE)])
     env_file = get_data_dir() / ".env"
     if env_file.exists():
         cmd.extend(["--env-file", str(env_file)])
@@ -341,7 +309,6 @@ def _compose_cmd(*args: str) -> list[str]:
 
 
 def _venv_python_for_repo(repo_dir: Path) -> str | None:
-    """Return the repo's venv Python executable path if it exists."""
     candidates = [
         repo_dir / ".venv" / "bin" / "python3",
         repo_dir / ".venv" / "bin" / "python",
@@ -353,7 +320,6 @@ def _venv_python_for_repo(repo_dir: Path) -> str | None:
 
 
 def _resolve_compose_service(name: str) -> str:
-    """Map user-facing name to docker compose service name."""
     return {
         "litellm": "litellm",
         "postgres": "postgres", "db": "postgres",
@@ -367,9 +333,9 @@ def _resolve_compose_service(name: str) -> str:
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 def cmd_status() -> None:
-    """Show status of all components and key paths."""
     enabled = _enabled_components()
     data_dir = get_data_dir()
+    obs = _observability_enabled()
 
     blank()
     info(f"  {bold('LLM Gateway — Status')}  {dim(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}")
@@ -383,14 +349,6 @@ def cmd_status() -> None:
     if "management" in enabled:
         print_row("management", management_state(),
                   f"http://localhost:{MANAGEMENT_PORT}", "Gateway web UI + REST API")
-
-    if "ollama" in enabled:
-        print_row("ollama", ollama_state(),
-                  "http://localhost:11434", "Local LLM runtime (Metal GPU)")
-
-    if "llama-server" in enabled:
-        print_row("llama-server", llama_server_state(),
-                  f"http://localhost:{LLAMA_SERVER_DEFAULT_PORT}", "llama.cpp GGUF server")
 
     if "whisper-server" in enabled:
         print_row("whisper-server", whisper_server_state(),
@@ -408,13 +366,16 @@ def cmd_status() -> None:
         blank()
     else:
         docker_rows = [
-            ("llm-gateway",  "litellm",    "http://localhost:4000", "LiteLLM proxy (UI → /ui)"),
+            ("llm-gateway",  "litellm",    "http://localhost:4000", "LiteLLM proxy (UI -> /ui)"),
             ("llm-postgres", "postgres",   "",                      "PostgreSQL — spend tracking"),
-            ("grafana",      "grafana",    "http://localhost:3000", "Grafana dashboards"),
-            ("prometheus",   "prometheus", "http://localhost:9090", "Prometheus metrics"),
-            ("loki",         "loki",       "http://localhost:3100", "Loki log aggregation"),
-            ("alloy",        "alloy",      "",                      "Grafana Alloy collector"),
         ]
+        if obs:
+            docker_rows.extend([
+                ("grafana",      "grafana",    "http://localhost:3000", "Grafana dashboards"),
+                ("prometheus",   "prometheus", "http://localhost:9090", "Prometheus metrics"),
+                ("loki",         "loki",       "http://localhost:3100", "Loki log aggregation"),
+                ("alloy",        "alloy",      "",                      "Grafana Alloy collector"),
+            ])
         for container, display, endpoint, desc in docker_rows:
             if display in enabled:
                 print_row(display, docker_container_state(container), endpoint, desc)
@@ -424,22 +385,22 @@ def cmd_status() -> None:
     info(f"\n  {dim('Service accounts')}")
     blank()
     user = os.environ.get("USER", "unknown")
-    info(f"  {'Host (local):':<18s} {bold(user)}  {dim('management, ollama, llama-server')}")
+    info(f"  {'Host (local):':<18s} {bold(user)}  {dim('management, whisper-server')}")
     info(f"  {'PostgreSQL:':<18s} {bold('litellm')}  {dim('LiteLLM DB (docker stack)')}")
 
-    # Read Grafana user from .env
-    grafana_user = "admin"
-    env_file = data_dir / ".env"
-    if env_file.exists():
-        try:
-            for line in env_file.read_text(errors="replace").splitlines():
-                if line.startswith("GF_SECURITY_ADMIN_USER="):
-                    val = line.split("=", 1)[1].strip().strip("'\"")
-                    if val:
-                        grafana_user = val
-        except Exception:
-            pass
-    info(f"  {'Grafana admin:':<18s} {bold(grafana_user)}  {dim('docker stack (.env)')}")
+    if obs:
+        grafana_user = "admin"
+        env_file = data_dir / ".env"
+        if env_file.exists():
+            try:
+                for line in env_file.read_text(errors="replace").splitlines():
+                    if line.startswith("GF_SECURITY_ADMIN_USER="):
+                        val = line.split("=", 1)[1].strip().strip("'\"")
+                        if val:
+                            grafana_user = val
+            except Exception:
+                pass
+        info(f"  {'Grafana admin:':<18s} {bold(grafana_user)}  {dim('docker stack (.env)')}")
     blank()
 
     # Key paths
@@ -449,11 +410,9 @@ def cmd_status() -> None:
 
     info(f"\n  {dim('Config files')}")
     blank()
-    print_path("config",  "config/llmgateway.defaults.yaml", "shipped defaults (read-only)")
-    print_path("config",  str(data_dir / "config" / "llmgateway.yaml"), "user overrides")
+    print_path("config",  str(data_dir / "config" / "llmgateway.yaml"), "gateway config + install choices")
     print_path("config",  "litellm-config.yaml", "litellm: model routing")
     print_path("secrets", str(data_dir / ".env"), "API keys, passwords")
-    print_path("setup",   str(data_dir / "setup-config.yaml"), "initial setup choices")
 
     info(f"\n  {dim('Logs')}")
     blank()
@@ -463,14 +422,15 @@ def cmd_status() -> None:
     info(f"\n  {dim('System')}")
     blank()
     print_path("launchd", f"~/Library/LaunchAgents/{MANAGEMENT_LABEL}.plist", "autostart agent")
-    print_path("data",    "~/.ollama/models", "ollama: model weights")
 
     info(f"\n  {dim('Docker stack')}")
     blank()
-    print_path("docker",  "docker/docker-compose.yml", "docker compose stack definition")
-    print_path("docker",  "docker/prometheus/prometheus.yml", "Prometheus scrape config")
-    print_path("docker",  "docker/grafana/provisioning", "Grafana dashboards + data sources")
-    print_path("docker",  "docker/alloy/alloy-config.alloy", "Grafana Alloy collector config")
+    print_path("docker",  "docker/docker-compose.yml", "core stack (LiteLLM + PostgreSQL)")
+    if obs:
+        print_path("docker",  "docker/docker-compose.observability.yml", "observability stack")
+        print_path("docker",  "docker/prometheus/prometheus.yml", "Prometheus scrape config")
+        print_path("docker",  "docker/grafana/provisioning", "Grafana dashboards + data sources")
+        print_path("docker",  "docker/alloy/alloy-config.alloy", "Grafana Alloy collector config")
 
     # Docker volumes
     if docker_available():
@@ -492,23 +452,23 @@ def cmd_status() -> None:
         info(f"\n  {dim('Docker volumes')}")
         blank()
         print_volume(f"{compose_project}_postgres-data", "PostgreSQL DB")
-        print_volume(f"{compose_project}_prometheus-data", "Prometheus TSDB")
-        print_volume(f"{compose_project}_loki-data", "Loki log chunks")
-        print_volume(f"{compose_project}_grafana-data", "Grafana DB + dashboards")
+        if obs:
+            print_volume(f"{compose_project}_prometheus-data", "Prometheus TSDB")
+            print_volume(f"{compose_project}_loki-data", "Loki log chunks")
+            print_volume(f"{compose_project}_grafana-data", "Grafana DB + dashboards")
 
         info(f"\n  {dim('Docker runtime (host)')}")
         blank()
         print_path("docker", "~/.docker", "Docker CLI config, credentials")
-        print_path("docker", "~/Library/Containers/com.docker.docker", "Docker Desktop data (images, containers, logs)")
+        print_path("docker", "~/Library/Containers/com.docker.docker", "Docker Desktop data")
 
     blank()
     info(f"  {dim(f'Data dir: {data_dir}')}")
-    info(f"  {dim('Commands: ./gw start|stop|restart|logs <component>  •  ./gw uninstall')}")
+    info(f"  {dim('Commands: ./gw start|stop|restart|logs <component>  |  ./gw uninstall')}")
     blank()
 
 
 def cmd_start(name: str) -> None:
-    """Start a component."""
     if name in ("management", "gateway"):
         info(f"  Starting management service...")
         if MANAGEMENT_PLIST.exists():
@@ -523,37 +483,6 @@ def cmd_start(name: str) -> None:
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
-    elif name == "ollama":
-        info(f"  Starting Ollama...")
-        try:
-            result = subprocess.run(
-                ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
-            )
-            if result.returncode == 0 and "ollama" in result.stdout:
-                subprocess.run(["brew", "services", "start", "ollama"])
-            else:
-                subprocess.Popen(
-                    ["ollama", "serve"],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    start_new_session=True,
-                )
-        except Exception:
-            subprocess.Popen(
-                ["ollama", "serve"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-    elif name == "llama-server":
-        info(f"  Starting llama-server...")
-        import shutil
-        if not shutil.which("llama-server"):
-            error("llama-server not found. Install: brew install llama.cpp")
-            return
-        subprocess.Popen(
-            ["llama-server", "--host", "0.0.0.0", "--port", str(LLAMA_SERVER_DEFAULT_PORT)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
     elif name == "whisper-server":
         info(f"  Starting whisper-server...")
         import shutil
@@ -582,28 +511,12 @@ def cmd_start(name: str) -> None:
 
 
 def cmd_stop(name: str) -> None:
-    """Stop a component."""
     if name in ("management", "gateway"):
         info(f"  Stopping management service...")
         if MANAGEMENT_PLIST.exists():
             subprocess.run(["launchctl", "unload", str(MANAGEMENT_PLIST)],
                            capture_output=True)
         subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
-    elif name == "ollama":
-        info(f"  Stopping Ollama...")
-        try:
-            result = subprocess.run(
-                ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
-            )
-            if result.returncode == 0 and "ollama" in result.stdout:
-                subprocess.run(["brew", "services", "stop", "ollama"])
-            else:
-                subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
-        except Exception:
-            subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
-    elif name == "llama-server":
-        info(f"  Stopping llama-server...")
-        subprocess.run(["pkill", "-f", "llama-server"], capture_output=True)
     elif name == "whisper-server":
         info(f"  Stopping whisper-server...")
         subprocess.run(["pkill", "-f", "whisper-server"], capture_output=True)
@@ -624,7 +537,6 @@ def cmd_stop(name: str) -> None:
 
 
 def cmd_restart(name: str) -> None:
-    """Restart a component."""
     if name in ("management", "gateway"):
         info(f"  Restarting management service...")
         if MANAGEMENT_PLIST.exists():
@@ -637,35 +549,6 @@ def cmd_restart(name: str) -> None:
             time.sleep(1)
             subprocess.Popen(
                 [sys.executable, str(MANAGEMENT_SCRIPT)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-    elif name == "ollama":
-        info(f"  Restarting Ollama...")
-        try:
-            result = subprocess.run(
-                ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
-            )
-            if result.returncode == 0 and "ollama" in result.stdout:
-                subprocess.run(["brew", "services", "restart", "ollama"])
-            else:
-                subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
-                time.sleep(1)
-                subprocess.Popen(
-                    ["ollama", "serve"],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    start_new_session=True,
-                )
-        except Exception:
-            pass
-    elif name == "llama-server":
-        info(f"  Restarting llama-server...")
-        subprocess.run(["pkill", "-f", "llama-server"], capture_output=True)
-        time.sleep(1)
-        import shutil
-        if shutil.which("llama-server"):
-            subprocess.Popen(
-                ["llama-server", "--host", "0.0.0.0", "--port", str(LLAMA_SERVER_DEFAULT_PORT)],
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 start_new_session=True,
             )
@@ -697,7 +580,6 @@ def cmd_restart(name: str) -> None:
 
 
 def cmd_logs(name: str) -> None:
-    """Tail logs for a component."""
     data_dir = get_data_dir()
 
     if name in ("management", "gateway"):
@@ -711,15 +593,7 @@ def cmd_logs(name: str) -> None:
         else:
             warn(f"Log not found: {log_file}")
             info(f"  {dim('The log is created when the management service runs via launchd.')}")
-    elif name == "ollama":
-        info(f"  {dim('Streaming macOS system log for Ollama (Ctrl-C to stop)...')}")
-        try:
-            subprocess.run(
-                ["log", "stream", "--predicate", 'process == "ollama"', "--style", "syslog"]
-            )
-        except KeyboardInterrupt:
-            pass
-    elif name in ("llama-server", "whisper-server"):
+    elif name == "whisper-server":
         info(f"  {dim(f'No dedicated log for {name}.')}")
         log_file = data_dir / "logs" / "gateway-stdout.log"
         if log_file.exists():
@@ -740,13 +614,12 @@ def cmd_logs(name: str) -> None:
 
 
 def cmd_uninstall() -> None:
-    """Deregister all autostart, stop services. Preserve data."""
     blank()
     info(f"  {bold('Uninstall')} — deregister autostart, stop services")
     info(f"  {dim('Docker images, data volumes, and config are preserved.')}")
     blank()
 
-    # 1. Management service
+    # Management service
     if MANAGEMENT_PLIST.exists():
         info(f"  Unregistering management launchd agent...")
         subprocess.run(["launchctl", "unload", str(MANAGEMENT_PLIST)], capture_output=True)
@@ -759,27 +632,13 @@ def cmd_uninstall() -> None:
         subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
         success("done")
 
-    # 2. Ollama
-    try:
-        result = subprocess.run(
-            ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
-        )
-        if result.returncode == 0 and "ollama" in result.stdout:
-            if "started" in result.stdout.split("ollama")[1][:50]:
-                info(f"  Removing Ollama from brew services autostart...")
-                subprocess.run(["brew", "services", "stop", "ollama"])
-                success("done")
-    except Exception:
-        pass
+    # whisper-server
+    if _process_running("whisper-server"):
+        info(f"  Stopping whisper-server...")
+        subprocess.run(["pkill", "-f", "whisper-server"], capture_output=True)
+        success("done")
 
-    # 3. llama-server / whisper-server
-    for proc in ("llama-server", "whisper-server"):
-        if _process_running(proc):
-            info(f"  Stopping {proc}...")
-            subprocess.run(["pkill", "-f", proc], capture_output=True)
-            success("done")
-
-    # 4. Docker
+    # Docker
     if docker_available():
         info(f"  Stopping Docker Compose stack (images + volumes preserved)...")
         subprocess.run(_compose_cmd("down"), capture_output=True)
@@ -795,7 +654,6 @@ def cmd_uninstall() -> None:
 
 
 def cmd_usage() -> None:
-    """Print usage information."""
     blank()
     info(f"  {bold('Usage:')}")
     info(f"    ./gw                         Show status of all components")
@@ -807,16 +665,15 @@ def cmd_usage() -> None:
     blank()
     info(f"  {bold('Components:')}")
     info(f"    {'management':<14s}  Gateway web UI + management service (launchd)")
-    info(f"    {'ollama':<14s}  Ollama local inference (bare metal, Metal GPU)")
-    info(f"    {'llama-server':<14s}  llama.cpp server  → http://localhost:8081")
-    info(f"    {'whisper-server':<14s}  whisper.cpp STT   → http://localhost:8083")
+    info(f"    {'whisper-server':<14s}  whisper.cpp STT   -> http://localhost:8083")
     info(f"    {'docker':<14s}  Entire Docker Compose stack")
-    info(f"    {'litellm':<14s}  LiteLLM proxy     → http://localhost:4000")
+    info(f"    {'litellm':<14s}  LiteLLM proxy     -> http://localhost:4000")
     info(f"    {'postgres':<14s}  PostgreSQL container")
-    info(f"    {'grafana':<14s}  Grafana dashboards → http://localhost:3000")
-    info(f"    {'prometheus':<14s}  Prometheus metrics → http://localhost:9090")
-    info(f"    {'loki':<14s}  Loki log aggregation → http://localhost:3100")
-    info(f"    {'alloy':<14s}  Grafana Alloy collector")
+    if _observability_enabled():
+        info(f"    {'grafana':<14s}  Grafana dashboards -> http://localhost:3000")
+        info(f"    {'prometheus':<14s}  Prometheus metrics -> http://localhost:9090")
+        info(f"    {'loki':<14s}  Loki log aggregation -> http://localhost:3100")
+        info(f"    {'alloy':<14s}  Grafana Alloy collector")
     blank()
 
 

@@ -113,7 +113,7 @@ def install(
     else:
         log.error("  Project virtual environment not found.")
         log.error("  Expected: .venv with a Python interpreter inside the repo.")
-        log.error("  Run ./bootstrap-llmgateway.sh (or create the venv) and retry.")
+        log.error("  Run: python3 scripts/setup-llmgateway.py (creates the venv automatically)")
         return False
 
     script_path = str(repo_dir / "scripts" / "llmgateway.py")
