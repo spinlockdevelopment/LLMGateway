@@ -1,11 +1,12 @@
 """llmfit CLI wrapper for hardware-aware model recommendations."""
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import shutil
 from typing import Any
+
+from services import run_cmd
 
 INSTALL_COMMAND = "curl -fsSL https://llmfit.axjns.dev/install.sh | sh"
 
@@ -58,24 +59,13 @@ class LlmfitClient:
 
     async def _run_json_cmd(self, cmd: list[str], timeout: int) -> Any:
         """Run a CLI command and parse its stdout as JSON. Returns None on failure."""
-        try:
-            proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:
-            log.warning("%s timed out", cmd[1])
+        rc, stdout, stderr = await run_cmd(cmd, timeout=timeout)
+        if rc == -1:
+            log.warning("%s timed out or failed to run", cmd[1])
             return None
-        except Exception as exc:
-            log.warning("%s failed: %s", cmd[1], exc)
+        if rc != 0:
+            log.warning("%s exited %d: %s", cmd[1], rc, stderr)
             return None
-
-        if proc.returncode != 0:
-            log.warning("%s exited %d: %s", cmd[1], proc.returncode, stderr.decode())
-            return None
-
         try:
             return json.loads(stdout)
         except json.JSONDecodeError as exc:

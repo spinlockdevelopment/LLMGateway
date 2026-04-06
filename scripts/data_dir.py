@@ -66,3 +66,16 @@ def log_dir() -> Path:
 def backups_dir() -> Path:
     """Path to the backups directory."""
     return get_data_dir() / "backups"
+
+
+def load_install_config(data_dir: Path | None = None) -> dict:
+    """Load install choices from the install: section of llmgateway.yaml."""
+    config_path = (data_dir or get_data_dir()) / "config" / "llmgateway.yaml"
+    if not config_path.exists():
+        return {}
+    try:
+        import yaml
+        data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        return data.get("install", {})
+    except Exception:
+        return {}

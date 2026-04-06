@@ -10,7 +10,7 @@ from __future__ import annotations
 import shutil
 from pathlib import Path
 
-from . import log, provision
+from . import info, success, warn, provision
 
 _PLACEHOLDER_MARKERS = (
     "your-key-here",
@@ -32,13 +32,13 @@ def setup(repo_dir: Path, data_dir: Path, dry_run: bool = False) -> bool:
 
     def install() -> None:
         if not env_example.exists():
-            log.warning(f"  .env.example not found at {env_example}")
-            log.warning("  Create .env manually with your API keys")
+            warn(f".env.example not found at {env_example}")
+            warn("Create .env manually with your API keys")
             return
         env_file.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(env_example, env_file)
-        log.warning("  .env created from template — add your API keys:")
-        log.warning(f"    {env_file}")
+        success(f".env created from template: {env_file}")
+        warn(".env created from template — add your API keys")
 
     ok = provision(
         name="Environment File (.env)",
@@ -52,7 +52,7 @@ def setup(repo_dir: Path, data_dir: Path, dry_run: bool = False) -> bool:
         try:
             content = env_file.read_text(errors="replace")
             if any(m in content for m in _PLACEHOLDER_MARKERS):
-                log.warning("  .env contains placeholder values — update via dashboard Secrets tab")
+                warn(".env contains placeholder values — update via dashboard Secrets tab")
         except OSError:
             pass
 

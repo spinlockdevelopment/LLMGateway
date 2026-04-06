@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import shutil
 
-from . import log, provision, run
+from . import info, success, warn, provision, run
 
 
 def _is_installed() -> bool:
@@ -19,46 +19,46 @@ def _is_installed() -> bool:
 
 def _install() -> None:
     import sys
-    log.info("  Installing llmfit via pip...")
+    info("  Installing llmfit via pip...")
     run([sys.executable, "-m", "pip", "install", "llmfit"], timeout=120)
-    log.info("  llmfit installed")
+    success("llmfit: installed")
     _run_recommendations()
 
 
 def _run_recommendations() -> None:
     """Run llmfit recommend, present results, and offer to pull models."""
-    log.info("  Running: llmfit recommend --json --limit 5 ...")
+    info("  Running: llmfit recommend --json --limit 5 ...")
     result = run(
         ["llmfit", "recommend", "--json", "--limit", "5"],
         check=False, timeout=60,
     )
     if result.returncode != 0:
-        log.warning("  llmfit recommend failed (non-fatal). Run manually: llmfit recommend")
+        warn("llmfit recommend failed (non-fatal). Run manually: llmfit recommend")
         return
 
     models = _parse_recommendations(result.stdout)
     if not models:
-        log.info("  No recommendations returned by llmfit.")
+        info("  No recommendations returned by llmfit.")
         return
 
-    log.info("  Recommended models for your hardware:")
+    info("  Recommended models for your hardware:")
     for i, model in enumerate(models, 1):
         name = model.get("name") or model.get("id") or str(model)
         desc = model.get("description") or model.get("size") or ""
         if desc:
-            log.info(f"    {i}) {name}  ({desc})")
+            info(f"    {i}) {name}  ({desc})")
         else:
-            log.info(f"    {i}) {name}")
+            info(f"    {i}) {name}")
 
-    log.info("")
-    log.info("  Enter the numbers of models to pull (e.g. 1,3) or press Enter to skip:")
+    info("")
+    info("  Enter the numbers of models to pull (e.g. 1,3) or press Enter to skip:")
     try:
         raw = input("  Pull models: ").strip()
     except (EOFError, KeyboardInterrupt):
         raw = ""
 
     if not raw:
-        log.info("  Skipping model pull.")
+        info("  Skipping model pull.")
         return
 
     for part in raw.split(","):
@@ -68,15 +68,15 @@ def _run_recommendations() -> None:
             if 0 <= idx < len(models):
                 model = models[idx]
                 name = model.get("name") or model.get("id") or str(model)
-                log.info(f"  Pulling: docker model pull {name} ...")
+                info(f"  Pulling: docker model pull {name} ...")
                 result = run(
                     ["docker", "model", "pull", name],
                     check=False, timeout=600,
                 )
                 if result.returncode == 0:
-                    log.info(f"  Pulled: {name}")
+                    success(f"Pulled: {name}")
                 else:
-                    log.warning(f"  Pull failed for {name} (exit {result.returncode})")
+                    warn(f"Pull failed for {name} (exit {result.returncode})")
 
 
 def _parse_recommendations(stdout: str) -> list[dict]:

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 
-from . import command_exists, log, provision, run
+from . import command_exists, info, success, warn, dim, provision, run
 
 _WAIT_SECONDS = 150
 _POLL_INTERVAL = 5
@@ -29,23 +29,23 @@ def _ensure_running() -> None:
         )
 
     if is_daemon_running():
-        log.info("  Docker daemon: running")
+        success(f"Docker daemon: {dim('running')}")
         return
 
-    log.info("  Docker daemon not running — opening Docker Desktop...")
+    info("  Docker daemon not running — opening Docker Desktop...")
     run(["open", "-a", "Docker"], check=False)
 
-    log.info(f"  Waiting up to {_WAIT_SECONDS}s for Docker daemon...")
+    info(f"  Waiting up to {_WAIT_SECONDS}s for Docker daemon...")
     for elapsed in range(0, _WAIT_SECONDS, _POLL_INTERVAL):
         if is_daemon_running():
-            log.info(f"  Docker daemon: ready (after {elapsed}s)")
+            success(f"Docker daemon: ready {dim(f'(after {elapsed}s)')}")
             return
         time.sleep(_POLL_INTERVAL)
         if elapsed > 0 and elapsed % 30 == 0:
-            log.info(f"  Still waiting for Docker ({elapsed}s elapsed)...")
+            info(f"  Still waiting for Docker ({elapsed}s elapsed)...")
 
-    log.warning(
-        f"  Docker daemon did not respond within {_WAIT_SECONDS}s. "
+    warn(
+        f"Docker daemon did not respond within {_WAIT_SECONDS}s. "
         "Start Docker Desktop manually and re-run."
     )
 

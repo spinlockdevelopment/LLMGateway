@@ -10,9 +10,12 @@ from __future__ import annotations
 import asyncio
 import datetime
 import os
+import sys
 from pathlib import Path
 
-import httpx
+sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
+from data_dir import load_install_config
+from services import run_cmd, http_ok
 
 
 MANAGEMENT_PORT = 8080
@@ -33,53 +36,30 @@ _DOCKER_OBS_ROWS = [
 
 # ── Low-level helpers ────────────────────────────────────────────────────────
 
-async def _run(cmd: list[str], timeout: int = 10) -> tuple[int, str, str]:
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        return proc.returncode, stdout.decode(errors="replace"), stderr.decode(errors="replace")
-    except (asyncio.TimeoutError, FileNotFoundError, OSError):
-        return -1, "", ""
-
-
-async def _http_ok(url: str, timeout: float = 2) -> bool:
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await client.get(url)
-            return 200 <= resp.status_code < 400
-    except Exception:
-        return False
-
-
 async def _process_running(pattern: str) -> bool:
-    rc, _, _ = await _run(["pgrep", "-qf", pattern], timeout=5)
+    rc, _, _ = await run_cmd(["pgrep", "-qf", pattern], timeout=5)
     return rc == 0
 
 
 # ── Component state checks ──────────────────────────────────────────────────
 
 async def docker_available() -> bool:
-    rc, _, _ = await _run(["docker", "info"], timeout=10)
+    rc, _, _ = await run_cmd(["docker", "info"], timeout=10)
     return rc == 0
 
 
 async def docker_container_state(container: str) -> str:
-    rc, stdout, _ = await _run(
-        ["docker", "inspect", "--format", "{{.State.Status}}", container],
+    rc, stdout, _ = await run_cmd(
+        ["docker", "inspect", "--format",
+         "{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}",
+         container],
     )
     if rc != 0:
         return "absent"
-    status = stdout.strip()
+    parts = stdout.strip().split("|", 1)
+    status = parts[0]
+    health = parts[1] if len(parts) > 1 else ""
     if status == "running":
-        rc2, health_out, _ = await _run(
-            ["docker", "inspect", "--format",
-             "{{if .State.Health}}{{.State.Health.Status}}{{end}}", container],
-        )
-        health = health_out.strip()
         return "unhealthy" if health == "unhealthy" else "running"
     if status in ("exited", "dead"):
         return "stopped"
@@ -89,11 +69,11 @@ async def docker_container_state(container: str) -> str:
 
 
 async def management_state() -> str:
-    if await _http_ok(f"http://localhost:{MANAGEMENT_PORT}/"):
+    if await http_ok(f"http://localhost:{MANAGEMENT_PORT}/"):
         return "running"
     if await _process_running("llmgateway.py"):
         return "starting"
-    rc, stdout, _ = await _run(["launchctl", "list"], timeout=10)
+    rc, stdout, _ = await run_cmd(["launchctl", "list"], timeout=10)
     if rc == 0 and MANAGEMENT_LABEL in stdout:
         return "stopped"
     plist = Path.home() / "Library" / "LaunchAgents" / f"{MANAGEMENT_LABEL}.plist"
@@ -103,7 +83,7 @@ async def management_state() -> str:
 
 
 async def whisper_server_state() -> str:
-    if await _http_ok(f"http://localhost:{WHISPER_SERVER_DEFAULT_PORT}/health"):
+    if await http_ok(f"http://localhost:{WHISPER_SERVER_DEFAULT_PORT}/health"):
         return "running"
     if await _process_running("whisper-server"):
         return "starting"
@@ -113,25 +93,11 @@ async def whisper_server_state() -> str:
     return "absent"
 
 
-# ── Install config (which components are enabled) ───────────────────────────
-
-def _load_install_config(data_dir: Path) -> dict:
-    config_path = data_dir / "config" / "llmgateway.yaml"
-    if not config_path.exists():
-        return {}
-    try:
-        import yaml
-        data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-        return data.get("install", {})
-    except Exception:
-        return {}
-
-
 # ── Full status aggregator ──────────────────────────────────────────────────
 
 async def get_full_status(repo_dir: Path, data_dir: Path) -> dict:
     """Return structured status matching the gw CLI output."""
-    config = _load_install_config(data_dir)
+    config = load_install_config(data_dir)
     obs = config.get("install_observability", False)
 
     enabled = {"management", "docker", "litellm", "postgres"}
@@ -164,9 +130,7 @@ async def get_full_status(repo_dir: Path, data_dir: Path) -> dict:
     # Docker containers (check concurrently)
     is_docker = await docker_available()
     if is_docker:
-        rows = list(_DOCKER_ROWS)
-        if obs:
-            rows.extend(_DOCKER_OBS_ROWS)
+        rows = _DOCKER_ROWS + (_DOCKER_OBS_ROWS if obs else [])
         active_rows = [(c, d, e, desc) for c, d, e, desc in rows if d in enabled]
         if active_rows:
             states = await asyncio.gather(

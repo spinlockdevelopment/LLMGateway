@@ -15,7 +15,7 @@ import subprocess
 import time
 from typing import Optional
 
-import httpx
+from services import http_ok
 
 log = logging.getLogger("llm-gateway")
 
@@ -195,12 +195,7 @@ class WhisperManager:
         if not self.health_url:
             return True
 
-        try:
-            async with httpx.AsyncClient(timeout=5.0) as client:
-                resp = await client.get(self.health_url)
-                return 200 <= resp.status_code < 400
-        except Exception:
-            return False
+        return await http_ok(self.health_url, timeout=5.0)
 
     # ── Status ────────────────────────────────────────────────────────────────
 

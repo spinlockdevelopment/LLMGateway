@@ -29,6 +29,7 @@ from urllib.parse import unquote
 import json as _json
 
 import httpx
+from services import run_cmd
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
@@ -81,36 +82,18 @@ async def _restart_litellm_container(repo_dir: Path, data_dir: Path | None = Non
         log.warning("  docker-compose.yml not found — skipping LiteLLM restart")
         return False
 
-    # Build command with --env-file pointing to data_dir/.env
     cmd = ["docker", "compose", "-f", str(compose_file)]
     env_file = (data_dir or repo_dir) / ".env"
     if env_file.exists():
         cmd.extend(["--env-file", str(env_file)])
     cmd.extend(["restart", "litellm"])
 
-    try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
-        if proc.returncode == 0:
-            log.info("  LiteLLM container restarted after .env change")
-            return True
-        else:
-            err = (stderr or stdout or b"").decode(errors="replace").strip()
-            log.warning("  LiteLLM restart failed (rc=%d): %s", proc.returncode, err)
-            return False
-    except asyncio.TimeoutError:
-        log.warning("  LiteLLM restart timed out (60s)")
-        return False
-    except FileNotFoundError:
-        log.warning("  docker command not found — cannot restart LiteLLM")
-        return False
-    except Exception:
-        log.warning("  LiteLLM restart failed unexpectedly", exc_info=True)
-        return False
+    rc, _, stderr = await run_cmd(cmd, timeout=60)
+    if rc == 0:
+        log.info("  LiteLLM container restarted after .env change")
+        return True
+    log.warning("  LiteLLM restart failed (rc=%d): %s", rc, stderr.strip())
+    return False
 
 
 def _litellm_keys_changed(old_entries: list[dict], new_entries: list[dict]) -> bool:
@@ -200,11 +183,12 @@ def create_ui_router() -> APIRouter:
         defaults = _parse_env_example(example_path)
         if env_path.exists():
             entries = _parse_env_file(env_path)
+            entry_keys = {e["key"] for e in entries}
             for e in entries:
                 if e["key"] not in defaults:
                     defaults[e["key"]] = ""
             for key in defaults:
-                if not any(e["key"] == key for e in entries):
+                if key not in entry_keys:
                     entries.append({"key": key, "value": defaults[key]})
             entries.sort(key=lambda x: x["key"])
             return {"entries": entries, "defaults": defaults}

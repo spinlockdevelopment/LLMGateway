@@ -10,11 +10,18 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
+import sys
+from pathlib import Path
 from typing import Callable
 
 log = logging.getLogger("llm-gateway-provision")
 
-_HEADER_TOTAL_WIDTH = 50
+# Import console helpers for rich output — step modules re-export these
+sys.path.insert(0, str(Path(__file__).parent.parent.resolve()))
+from console import (  # noqa: E402
+    info, success, warn, error as cerror, heading, blank,
+    dim, green, yellow, cyan,
+)
 
 
 # ── Subprocess helper ─────────────────────────────────────────────────────────
@@ -44,14 +51,14 @@ def run(
             log.debug(f"  stderr: {result.stderr.strip()[:500]}")
         return result
     except subprocess.CalledProcessError as e:
-        log.error(f"  Command failed (exit {e.returncode}): {cmd_str}")
+        cerror(f"Command failed (exit {e.returncode}): {cmd_str}")
         if e.stdout:
-            log.error(f"  stdout: {e.stdout.strip()[:500]}")
+            log.debug(f"  stdout: {e.stdout.strip()[:500]}")
         if e.stderr:
-            log.error(f"  stderr: {e.stderr.strip()[:500]}")
+            log.debug(f"  stderr: {e.stderr.strip()[:500]}")
         raise
     except subprocess.TimeoutExpired:
-        log.error(f"  Command timed out after {timeout}s: {cmd_str}")
+        cerror(f"Command timed out after {timeout}s: {cmd_str}")
         raise
 
 
@@ -73,25 +80,25 @@ def provision(
 
     Returns True on success, False on failure.
     """
-    prefix = f"── {name} "
-    header = prefix + "─" * max(0, _HEADER_TOTAL_WIDTH - len(prefix))
-    log.info(header)
+    heading(name)
 
     try:
         if dry_run:
-            status = "ready" if is_ready() else "NOT READY"
-            log.info(f"  Status: {status}")
+            ready = is_ready()
+            if ready:
+                success(f"{name}: {green('ready')}")
+            else:
+                info(f"  {yellow('!')} {name}: {yellow('not ready')}")
             return True
 
         if is_ready():
-            log.info(f"  Already ready")
+            success(f"{name}: {dim('already ready')}")
         else:
-            log.info(f"  Setting up...")
             install()
 
         return True
 
     except Exception as e:
-        log.error(f"  FAILED: {e}")
+        cerror(f"{name}: {e}")
         log.debug("  Stack trace:", exc_info=True)
         return False

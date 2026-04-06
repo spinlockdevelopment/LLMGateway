@@ -45,35 +45,43 @@ _REPO_DIR = _SCRIPT_DIR.parent.resolve()
 
 # ── Phase 0: Self-bootstrap ──────────────────────────────────────────────────
 
+def _in_venv() -> bool:
+    """Return True if running inside a virtual environment."""
+    return sys.prefix != sys.base_prefix
+
+
 def _bootstrap_venv() -> None:
     """
     If not running inside the project venv, create it (if needed),
     install dependencies, and re-exec with the venv Python.
     """
-    venv_dir = _REPO_DIR / ".venv"
-    venv_python = venv_dir / "bin" / "python3"
+    if _in_venv():
+        return
 
-    # Already in venv?
-    try:
-        if Path(sys.executable).resolve().is_relative_to(venv_dir.resolve()):
-            return
-    except (OSError, ValueError):
-        pass
+    # console.py has zero external deps — safe to import from system Python
+    sys.path.insert(0, str(_SCRIPT_DIR))
+    from console import info, success, error, dim, banner, blank
+
+    banner("Phase 0 — Environment Setup")
+    blank()
 
     # Check prerequisites
     _check_prerequisites()
 
+    venv_dir = _REPO_DIR / ".venv"
+    venv_python = venv_dir / "bin" / "python3"
+
     # Create venv if it doesn't exist
     if not venv_python.exists():
-        print(f"  Creating virtual environment at {venv_dir}...")
+        info(f"  Creating virtual environment...")
         try:
             subprocess.run(
                 [sys.executable, "-m", "venv", str(venv_dir)],
                 check=True,
             )
         except subprocess.CalledProcessError:
-            print(f"\n  Error: Failed to create virtual environment at {venv_dir}")
-            print("  Try: python3 -m venv .venv")
+            error(f"Failed to create virtual environment at {venv_dir}")
+            info("  Try: python3 -m venv .venv")
             sys.exit(1)
         # Ensure scripts are executable
         for script in venv_dir.glob("bin/*"):
@@ -81,11 +89,14 @@ def _bootstrap_venv() -> None:
                 script.chmod(script.stat().st_mode | 0o111)
             except OSError:
                 pass
+        success(f"Virtual environment: {dim(str(venv_dir))}")
+    else:
+        success(f"Virtual environment: {dim('already exists')}")
 
     # Install/upgrade dependencies
     requirements = _REPO_DIR / "requirements.txt"
     if requirements.exists():
-        print("  Installing dependencies...")
+        info(f"  Installing dependencies...")
         try:
             subprocess.run(
                 [str(venv_python), "-m", "pip", "install", "--quiet",
@@ -100,34 +111,42 @@ def _bootstrap_venv() -> None:
                 capture_output=True,
             )
         except subprocess.CalledProcessError as e:
-            print(f"\n  Error: Failed to install dependencies: {e}")
-            print("  Try: .venv/bin/pip install -r requirements.txt")
+            error(f"Failed to install dependencies: {e}")
+            info("  Try: .venv/bin/pip install -r requirements.txt")
             sys.exit(1)
+        success(f"Dependencies: {dim('installed')}")
 
-    # Re-exec with venv Python
-    resolved = str(venv_python.resolve())
-    print(f"  Launching with venv Python: {resolved}")
+    # Re-exec with venv Python — use the symlink path, NOT .resolve(),
+    # so Python's startup detects pyvenv.cfg and activates the venv.
+    venv_bin = str(venv_python)
+    blank()
+    info(f"  {dim('Entering virtual environment...')}")
+    sys.stdout.flush()
     try:
-        os.execv(resolved, [resolved] + sys.argv)
+        os.execv(venv_bin, [venv_bin] + sys.argv)
     except OSError as e:
-        print(f"\n  Error: Cannot exec venv Python ({resolved}): {e}")
-        print("  Try: rm -rf .venv && python3 scripts/setup-llmgateway.py")
+        error(f"Cannot exec venv Python ({venv_bin}): {e}")
+        info("  Try: rm -rf .venv && python3 scripts/setup-llmgateway.py")
         sys.exit(1)
 
 
 def _check_prerequisites() -> None:
     """Verify Python version and Docker are available."""
+    from console import success, error, info, dim
+
     # Python version
     if sys.version_info < (3, 11):
-        print(f"\n  Error: Python 3.11+ required (found {sys.version.split()[0]})")
-        print("  Install: brew install python@3.12")
+        error(f"Python 3.11+ required (found {sys.version.split()[0]})")
+        info("  Install: brew install python@3.12")
         sys.exit(1)
+    success(f"Python: {dim(sys.version.split()[0])}")
 
     # Docker
     if not shutil.which("docker"):
-        print("\n  Error: Docker Desktop not found.")
-        print("  Install: https://docker.com/products/docker-desktop/")
+        error("Docker Desktop not found.")
+        info("  Install: https://docker.com/products/docker-desktop/")
         sys.exit(1)
+    success(f"Docker: {dim('found')}")
 
 
 # ── From here on, we're in the venv ──────────────────────────────────────────
@@ -141,27 +160,18 @@ def _main_in_venv() -> int:
         heading, separator, blank, banner,
         is_interactive, prompt_yes_no, prompt_input,
     )
-    from data_dir import get_data_dir, ensure_data_dir, env_path
+    from data_dir import get_data_dir, ensure_data_dir, env_path, load_install_config
 
-    # ── Logging ──────────────────────────────────────────────────────────
-
-    class _CleanConsoleHandler(logging.Handler):
-        def emit(self, record: logging.LogRecord) -> None:
-            msg = self.format(record)
-            if record.levelno >= logging.ERROR:
-                error(msg.lstrip())
-            elif record.levelno >= logging.WARNING:
-                warn(msg.lstrip())
-            else:
-                info(f"  {msg.lstrip()}")
+    # ── Logging (debug + syslog only; user-facing output uses console) ──
 
     def _setup_logging(verbose: bool = False) -> logging.Logger:
         logger = logging.getLogger("llm-gateway-provision")
-        logger.setLevel(logging.DEBUG)
-        console = _CleanConsoleHandler()
-        console.setLevel(logging.DEBUG if verbose else logging.INFO)
-        console.setFormatter(logging.Formatter("%(message)s"))
-        logger.addHandler(console)
+        logger.setLevel(logging.DEBUG if verbose else logging.WARNING)
+        if verbose:
+            console = logging.StreamHandler()
+            console.setLevel(logging.DEBUG)
+            console.setFormatter(logging.Formatter("  [debug] %(message)s"))
+            logger.addHandler(console)
         try:
             from logging.handlers import SysLogHandler
             syslog = SysLogHandler(address="/var/run/syslog")
@@ -296,18 +306,6 @@ def _main_in_venv() -> int:
             "install_llmfit": llmfit,
         }
 
-    def _load_install_config(data_dir: Path) -> dict:
-        """Load install choices from llmgateway.yaml install: section."""
-        config_path = data_dir / "config" / "llmgateway.yaml"
-        if not config_path.exists():
-            return {}
-        try:
-            import yaml
-            data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-            return data.get("install", {})
-        except Exception:
-            return {}
-
     def _save_install_config(data_dir: Path, install_config: dict) -> None:
         """Save install choices to the install: section of llmgateway.yaml."""
         import yaml
@@ -346,6 +344,9 @@ def _main_in_venv() -> int:
     def _collect_configuration() -> tuple[Path, dict]:
         banner("Phase 2 — Configuration")
 
+        # Load existing config if data dir already exists
+        existing = load_install_config(get_data_dir())
+
         # Data directory
         heading("Data Directory")
         data_dir_str = _collect_data_dir(existing)
@@ -357,8 +358,8 @@ def _main_in_venv() -> int:
         data_dir = ensure_data_dir()
         success(f"Data directory: {data_dir}")
 
-        # Load existing install config
-        existing = _load_install_config(data_dir)
+        # Reload config from the confirmed data dir
+        existing = load_install_config(data_dir)
         existing["data_dir"] = data_dir_str
 
         # Components
@@ -433,7 +434,7 @@ def _main_in_venv() -> int:
         data_dir, install_cfg = _collect_configuration()
     else:
         data_dir = get_data_dir()
-        install_cfg = _load_install_config(data_dir)
+        install_cfg = load_install_config(data_dir)
         info(f"  Data dir:     {data_dir}")
         blank()
 
