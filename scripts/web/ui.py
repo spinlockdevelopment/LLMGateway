@@ -26,8 +26,11 @@ from pathlib import Path
 
 from urllib.parse import unquote
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+import json as _json
+
+import httpx
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 log = logging.getLogger("llm-gateway")
 
@@ -348,6 +351,26 @@ def create_ui_router() -> APIRouter:
             "output": output[:2000] if output else "",
         }
 
+    @router.get("/ui/models/pull/stream")
+    async def pull_model_stream(model: str, request: Request):
+        """Stream model pull progress via Server-Sent Events."""
+        model_name = model.strip()
+        if not model_name:
+            return JSONResponse(status_code=400, content={"error": "Model name is required"})
+
+        dmr = request.app.state.dmr
+
+        async def event_stream():
+            async for line, done, success in dmr.pull_model_stream(model_name):
+                payload = _json.dumps({"line": line, "done": done, "success": success})
+                yield f"data: {payload}\n\n"
+
+        return StreamingResponse(
+            event_stream(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+
     @router.delete("/ui/models/{name:path}")
     async def remove_model(name: str, request: Request):
         """Remove a model via Docker Model Runner."""
@@ -378,5 +401,40 @@ def create_ui_router() -> APIRouter:
         whisper = request.app.state.whisper
         ok = await whisper.restart()
         return {"status": "restarted" if ok else "failed", **whisper.status_dict()}
+
+    @router.post("/ui/whisper/transcribe")
+    async def whisper_transcribe(request: Request, file: UploadFile = File(...)):
+        """Upload an audio file and proxy to the Whisper server for transcription."""
+        whisper = request.app.state.whisper
+        if whisper.state != "running":
+            return JSONResponse(status_code=400, content={"error": "Whisper is not running"})
+
+        health_url = whisper.health_url
+        if not health_url:
+            return JSONResponse(status_code=400, content={"error": "Whisper health URL not configured"})
+
+        # Derive transcription URL from health URL (e.g. http://localhost:8178/health -> .../v1/audio/transcriptions)
+        base_url = health_url.rsplit("/health", 1)[0]
+        transcription_url = f"{base_url}/v1/audio/transcriptions"
+
+        content = await file.read()
+        if len(content) > 25 * 1024 * 1024:
+            return JSONResponse(status_code=413, content={"error": "File too large (max 25 MB)"})
+
+        filename = Path(file.filename).name if file.filename else "audio.wav"
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(
+                    transcription_url,
+                    files={"file": (filename, content, file.content_type or "audio/wav")},
+                    data={"model": "whisper-1"},
+                )
+                resp.raise_for_status()
+                return {"status": "ok", "text": resp.json().get("text", "")}
+        except httpx.TimeoutException:
+            return JSONResponse(status_code=504, content={"error": "Transcription timed out"})
+        except Exception as e:
+            log.warning("Whisper transcription failed: %s", e)
+            return JSONResponse(status_code=502, content={"error": f"Transcription failed: {e}"})
 
     return router

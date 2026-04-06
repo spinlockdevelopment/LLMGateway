@@ -23,6 +23,7 @@ import time
 import psutil
 from fastapi import APIRouter, Request
 from services.llmfit import INSTALL_COMMAND
+from services.status import get_full_status
 
 
 _start_time = time.time()
@@ -73,6 +74,13 @@ def create_api_router() -> APIRouter:
             "dmr": dmr.status_dict(available=dmr_available, models_count=len(dmr_models)),
             "whisper": whisper.status_dict(),
         }
+
+    @router.get("/status/full")
+    async def full_status(request: Request):
+        """Full system status matching gw CLI output: components, paths, accounts."""
+        repo_dir = request.app.state.repo_dir
+        data_dir = request.app.state.data_dir
+        return await get_full_status(repo_dir, data_dir)
 
     @router.get("/config")
     async def get_config(request: Request):

@@ -141,6 +141,7 @@ tbody tr:hover td { background: var(--bg2); }
 
 <div class="tabs" id="tab-bar">
   <div class="tab active" data-tab="dashboard">Dashboard</div>
+  <div class="tab" data-tab="status">Status</div>
   <div class="tab" data-tab="models">Models</div>
   <div class="tab" data-tab="config">Config</div>
   <div class="tab" data-tab="secrets">Secrets</div>
@@ -168,6 +169,45 @@ tbody tr:hover td { background: var(--bg2); }
         <div class="mem-label" id="mem-bar-label">--</div>
       </div>
     </div>
+
+    <div id="whisper-transcribe-section" style="display:none;margin-top:24px">
+      <div class="section-head">Test Transcription</div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <input type="file" id="transcribe-file" accept="audio/*,.wav,.mp3,.m4a,.flac,.ogg,.webm" style="font-size:13px;color:var(--fg2)">
+        <button class="primary" onclick="transcribeAudio()">Transcribe</button>
+      </div>
+      <div id="transcribe-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-size:13px;white-space:pre-wrap"></div>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div class="panel" id="panel-status">
+    <h2 style="margin-bottom:16px">System Status</h2>
+    <div style="font-size:12px;color:var(--fg2);margin-bottom:16px">Last updated: <span id="status-timestamp">--</span></div>
+
+    <div class="section-wrap">
+      <div class="section-head">Components</div>
+      <table>
+        <thead><tr><th>Component</th><th>Status</th><th>Endpoint</th><th>Description</th></tr></thead>
+        <tbody id="status-components-body"><tr><td colspan="4" style="color:var(--fg2)">Loading...</td></tr></tbody>
+      </table>
+    </div>
+
+    <div class="section-wrap">
+      <div class="section-head">Service Accounts</div>
+      <table>
+        <thead><tr><th>Role</th><th>User</th><th>Description</th></tr></thead>
+        <tbody id="status-accounts-body"></tbody>
+      </table>
+    </div>
+
+    <div class="section-wrap">
+      <div class="section-head">Key Paths</div>
+      <table>
+        <thead><tr><th>Type</th><th>Path</th><th style="width:40px"></th><th>Description</th></tr></thead>
+        <tbody id="status-paths-body"></tbody>
+      </table>
+    </div>
   </div>
 
   <!-- Models -->
@@ -188,7 +228,7 @@ tbody tr:hover td { background: var(--bg2); }
         <input type="text" id="pull-model-input" placeholder="Model name (e.g. ai/llama3.2:3b-Q4_K_M)">
         <button class="primary" onclick="pullModel()">Pull</button>
       </div>
-      <div id="pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:200px;overflow:auto"></div>
+      <div id="pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:300px;overflow:auto"></div>
     </div>
 
     <div class="section-wrap">
@@ -262,6 +302,8 @@ document.querySelectorAll('.tab[data-tab]').forEach(function(tab) {
     if (tab.dataset.tab === 'config') loadConfigEditor();
     if (tab.dataset.tab === 'secrets') loadSecrets();
     if (tab.dataset.tab === 'models') { loadLocalModels(); loadLlmfitRecommendations(); }
+    if (tab.dataset.tab === 'status') startStatusRefresh();
+    else stopStatusRefresh();
   });
 });
 
@@ -379,6 +421,10 @@ async function refreshDashboard() {
   wCard.appendChild(wActions);
   container.appendChild(wCard);
 
+  // Whisper transcription section visibility
+  document.getElementById('whisper-transcribe-section').style.display =
+    whisperState === 'running' ? '' : 'none';
+
   // Memory
   var mem = data.memory;
   if (mem) {
@@ -469,26 +515,78 @@ async function removeModel(name) {
   }
 }
 
-// Pull model
-async function pullModel() {
+// Pull model (SSE streaming)
+var pullEventSource = null;
+
+function pullModel() {
   var input = document.getElementById('pull-model-input');
   var model = input.value.trim();
   if (!model) { toast('Enter a model name', 'error'); return; }
   var output = document.getElementById('pull-output');
+  var pullBtn = document.querySelector('.pull-form button');
   output.style.display = 'block';
-  output.textContent = 'Pulling ' + model + '... (this may take several minutes)';
-  var r = await api('/ui/models/pull', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: model }),
-  });
-  if (r && r.status === 'success') {
-    output.textContent = r.output || 'Pull complete';
-    toast('Model pulled: ' + model, 'success');
-    loadLocalModels();
-  } else {
-    output.textContent = (r && r.output) || 'Pull failed';
-    toast('Pull failed', 'error');
+  output.textContent = '';
+  pullBtn.disabled = true;
+  pullBtn.textContent = 'Pulling...';
+
+  pullEventSource = new EventSource('/ui/models/pull/stream?model=' + encodeURIComponent(model));
+  pullEventSource.onmessage = function(e) {
+    try {
+      var data = JSON.parse(e.data);
+      if (data.line) {
+        output.textContent += data.line + '\n';
+        output.scrollTop = output.scrollHeight;
+      }
+      if (data.done) {
+        pullEventSource.close();
+        pullEventSource = null;
+        pullBtn.disabled = false;
+        pullBtn.textContent = 'Pull';
+        if (data.success) {
+          toast('Model pulled: ' + model, 'success');
+          loadLocalModels();
+        } else {
+          toast('Pull failed', 'error');
+        }
+      }
+    } catch (err) {
+      output.textContent += e.data + '\n';
+    }
+  };
+  pullEventSource.onerror = function() {
+    pullEventSource.close();
+    pullEventSource = null;
+    pullBtn.disabled = false;
+    pullBtn.textContent = 'Pull';
+    if (!output.textContent.trim()) {
+      output.textContent = 'Connection lost';
+    }
+    toast('Pull connection lost', 'error');
+  };
+}
+
+// Whisper transcription
+async function transcribeAudio() {
+  var fileInput = document.getElementById('transcribe-file');
+  if (!fileInput.files.length) { toast('Select an audio file', 'error'); return; }
+  var output = document.getElementById('transcribe-output');
+  output.style.display = 'block';
+  output.textContent = 'Transcribing...';
+  var formData = new FormData();
+  formData.append('file', fileInput.files[0]);
+  try {
+    var r = await fetch('/ui/whisper/transcribe', { method: 'POST', body: formData });
+    var data = await r.json();
+    if (data.text != null) {
+      output.textContent = data.text || '(empty transcription)';
+      toast('Transcription complete', 'success');
+    } else {
+      output.textContent = data.error || 'Transcription failed';
+      toast('Transcription failed', 'error');
+    }
+  } catch (e) {
+    output.textContent = 'Error: ' + e.message;
+    toast('Transcription failed', 'error');
   }
 }
 
@@ -543,6 +641,100 @@ function queuePull(name) {
   document.getElementById('panel-models').classList.add('active');
   document.getElementById('pull-model-input').scrollIntoView({ behavior: 'smooth', block: 'center' });
   pullModel();
+}
+
+// Status page
+var statusTimer = null;
+
+function startStatusRefresh() {
+  loadFullStatus();
+  statusTimer = setInterval(loadFullStatus, 10000);
+}
+
+function stopStatusRefresh() {
+  if (statusTimer) { clearInterval(statusTimer); statusTimer = null; }
+}
+
+async function loadFullStatus() {
+  var data = await api('/api/status/full');
+  if (!data) return;
+
+  document.getElementById('status-timestamp').textContent =
+    data.timestamp ? data.timestamp.replace('T', ' ') : '--';
+
+  // Components
+  var tbody = document.getElementById('status-components-body');
+  while (tbody.firstChild) tbody.removeChild(tbody.firstChild);
+  (data.components || []).forEach(function(c) {
+    var row = tbody.insertRow();
+    var nameCell = row.insertCell();
+    var dot = document.createElement('span');
+    dot.className = 'dot ' + stateColor(c.state);
+    dot.style.marginRight = '8px';
+    nameCell.appendChild(dot);
+    nameCell.appendChild(document.createTextNode(c.name));
+    nameCell.style.fontFamily = 'var(--mono)';
+    nameCell.style.fontSize = '12px';
+
+    var stateCell = row.insertCell();
+    var badge = document.createElement('span');
+    badge.className = 'badge ' + (c.state === 'running' ? 'running' : c.state === 'failed' || c.state === 'unhealthy' || c.state === 'absent' ? 'failed' : 'stopped');
+    badge.textContent = c.state === 'absent' ? 'not found' : c.state;
+    stateCell.appendChild(badge);
+
+    var endpointCell = row.insertCell();
+    if (c.endpoint) {
+      var link = document.createElement('a');
+      link.href = c.endpoint;
+      link.target = '_blank';
+      link.textContent = c.endpoint;
+      endpointCell.appendChild(link);
+    }
+    endpointCell.style.fontSize = '12px';
+
+    row.insertCell().textContent = c.description || '';
+  });
+
+  // Service accounts
+  var acctBody = document.getElementById('status-accounts-body');
+  while (acctBody.firstChild) acctBody.removeChild(acctBody.firstChild);
+  (data.service_accounts || []).forEach(function(a) {
+    var row = acctBody.insertRow();
+    row.insertCell().textContent = a.role;
+    var userCell = row.insertCell();
+    userCell.textContent = a.user;
+    userCell.style.fontWeight = '600';
+    var descCell = row.insertCell();
+    descCell.textContent = a.description || '';
+    descCell.style.color = 'var(--fg2)';
+  });
+
+  // Paths
+  var pathBody = document.getElementById('status-paths-body');
+  while (pathBody.firstChild) pathBody.removeChild(pathBody.firstChild);
+  var groups = data.paths || {};
+  var order = ['config', 'logs', 'system', 'docker'];
+  order.forEach(function(group) {
+    if (!groups[group]) return;
+    groups[group].forEach(function(p) {
+      var row = pathBody.insertRow();
+      var labelCell = row.insertCell();
+      labelCell.textContent = p.label;
+      labelCell.style.color = 'var(--fg2)';
+      labelCell.style.fontSize = '12px';
+      var pathCell = row.insertCell();
+      pathCell.textContent = p.path;
+      pathCell.style.fontFamily = 'var(--mono)';
+      pathCell.style.fontSize = '12px';
+      var existsCell = row.insertCell();
+      existsCell.textContent = p.exists ? '+' : '.';
+      existsCell.style.color = p.exists ? 'var(--green)' : 'var(--fg3)';
+      existsCell.style.textAlign = 'center';
+      var descCell = row.insertCell();
+      descCell.textContent = p.description || '';
+      descCell.style.color = 'var(--fg2)';
+    });
+  });
 }
 
 // Secrets (.env)

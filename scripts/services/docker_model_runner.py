@@ -58,6 +58,36 @@ class DockerModelRunner:
             return False, err
         return True, stdout.decode().strip()
 
+    async def pull_model_stream(self, name: str):
+        """Async generator that yields (line, done, success) as docker model pull runs."""
+        proc = await asyncio.create_subprocess_exec(
+            "docker", "model", "pull", name,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            # Docker outputs pull progress to stderr
+            async def read_lines(stream):
+                while True:
+                    line = await asyncio.wait_for(stream.readline(), timeout=300)
+                    if not line:
+                        break
+                    yield line.decode(errors="replace").rstrip("\n\r")
+
+            async for line in read_lines(proc.stderr):
+                yield line, False, False
+            async for line in read_lines(proc.stdout):
+                yield line, False, False
+
+            await asyncio.wait_for(proc.wait(), timeout=30)
+            yield "", True, proc.returncode == 0
+        except asyncio.TimeoutError:
+            proc.kill()
+            yield "Timed out", True, False
+        except Exception as e:
+            proc.kill()
+            yield str(e), True, False
+
     async def remove_model(self, name: str) -> bool:
         """Remove a model via the Docker CLI."""
         rc, _, stderr = await self._run_docker("rm", name, timeout=60)
