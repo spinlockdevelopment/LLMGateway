@@ -40,7 +40,7 @@ sys.path.insert(0, str(_SCRIPT_DIR))
 from console import (
     info, success, warn, error, bold, dim, green, red, yellow, cyan,
     heading, separator, blank, banner,
-    is_interactive, prompt_yes_no, prompt_input, prompt_secret,
+    is_interactive, prompt_yes_no, prompt_input,
 )
 from data_dir import get_data_dir, ensure_data_dir, setup_config_path, env_path
 from setup_config import SetupConfig
@@ -330,15 +330,6 @@ def _report_ssh_status() -> None:
     )
 
 
-def _collect_secrets(existing: SetupConfig) -> SetupConfig:
-    """Skip interactive secret collection; secrets are managed via the admin UI."""
-    blank()
-    info("  Skipping API key and secret prompts.")
-    info(f"  {dim('Manage secrets later in the admin UI (gateway configuration).')}")
-    blank()
-    return existing
-
-
 def _collect_configuration() -> SetupConfig:
     """Phase 2: Collect all configuration upfront in one pass."""
     banner("Phase 2 — Configuration")
@@ -372,11 +363,7 @@ def _collect_configuration() -> SetupConfig:
     # 2c. SSH (report-only)
     _report_ssh_status()
 
-    # 2d. Secrets (managed via admin UI)
-    heading("API Keys & Secrets")
-    cfg = _collect_secrets(cfg)
-
-    # 2e. Write config
+    # 2d. Write config + ensure .env exists (secrets managed via admin UI)
     blank()
     separator(56)
     info("  Writing configuration...")
@@ -387,37 +374,13 @@ def _collect_configuration() -> SetupConfig:
     env_example = _REPO_DIR / ".env.example"
     env_output = env_path()
     if env_output.exists():
-        info(f"  {dim('.env already exists — updating with any new values')}")
-    cfg.generate_env_file(env_example, env_output)
-    success(f"Secrets: {env_output}")
+        info(f"  {dim('.env already exists — leaving in place (edit via Secrets UI)')}")
+    else:
+        cfg.generate_env_file(env_example, env_output)
+        success(f"Secrets template: {env_output}")
+    info(f"  {dim('Edit API keys via the admin UI Secrets tab.')}")
 
     return cfg
-
-
-def _migrate_old_env() -> None:
-    """If .env exists in the repo root (old layout), offer to migrate."""
-    old_env = _REPO_DIR / ".env"
-    new_env = env_path()
-
-    if not old_env.exists():
-        return
-    if new_env.exists():
-        return
-
-    info(f"  Found .env in repo root (old layout): {old_env}")
-    if prompt_yes_no("  Migrate to data directory?"):
-        shutil.copy2(old_env, new_env)
-        old_env.rename(old_env.with_suffix(".migrated"))
-        success(f"Migrated .env → {new_env}")
-    else:
-        info(f"  {dim('Skipping migration')}")
-
-    old_config = _REPO_DIR / "config" / "llmgateway.yaml"
-    new_config = get_data_dir() / "config" / "llmgateway.yaml"
-    if old_config.exists() and not new_config.exists():
-        new_config.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(old_config, new_config)
-        success(f"Migrated config → {new_config}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -459,7 +422,6 @@ def main() -> int:
 
     # ── Phase 2: Configuration ────────────────────────────────────────────
     if not dry_run:
-        _migrate_old_env()
         setup_cfg = _collect_configuration()
         data_dir = get_data_dir()
     else:

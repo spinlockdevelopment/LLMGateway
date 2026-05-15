@@ -33,7 +33,7 @@ import datetime
 import json
 import logging
 import os
-import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -369,6 +369,66 @@ def _resolve_compose_service(name: str) -> str:
     }.get(name, "")
 
 
+def _pgrep_pid_label(pattern: str, label: str) -> str:
+    """Return a 'label:pid' string for the first matching process, or empty."""
+    try:
+        result = subprocess.run(
+            ["pgrep", "-fl", pattern],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and result.stdout:
+            pid = result.stdout.splitlines()[0].strip().split()[0]
+            return f"{label}:{pid}"
+    except Exception:
+        pass
+    return ""
+
+
+def _spawn_detached(cmd: list[str]) -> None:
+    """Launch a long-running process detached from this terminal."""
+    subprocess.Popen(
+        cmd,
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+
+
+# Bare-metal services managed via shell commands (binary, install hint, launch argv).
+_BARE_METAL_SERVICES: dict[str, tuple[str, str, list[str]]] = {
+    "llama-server": (
+        "llama-server",
+        "brew install llama.cpp",
+        ["llama-server", "--host", "0.0.0.0", "--port", str(LLAMA_SERVER_DEFAULT_PORT)],
+    ),
+    "whisper-server": (
+        "whisper-server",
+        "brew install whisper-cpp",
+        ["whisper-server", "--host", "0.0.0.0", "--port", str(WHISPER_SERVER_DEFAULT_PORT)],
+    ),
+}
+
+
+def _start_bare_metal(name: str) -> bool:
+    """Start a bare-metal service (llama-server/whisper-server). Returns False if binary missing."""
+    binary, hint, argv = _BARE_METAL_SERVICES[name]
+    if not shutil.which(binary):
+        error(f"{binary} not found. Install: {hint}")
+        return False
+    _spawn_detached(argv)
+    return True
+
+
+def _brew_service_started(service: str) -> bool:
+    """Return True if `brew services list` knows about *service*."""
+    try:
+        result = subprocess.run(
+            ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
+        )
+        return result.returncode == 0 and service in (result.stdout or "")
+    except Exception:
+        return False
+
+
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 def cmd_status(show_more: bool = False) -> None:
@@ -404,83 +464,39 @@ def cmd_status(show_more: bool = False) -> None:
     internal_rows = []
 
     if "management" in enabled:
-        mgmt_pid = ""
-        try:
-            result = subprocess.run(
-                ["pgrep", "-fl", "llmgateway.py"],
-                capture_output=True, text=True, timeout=5,
-            )
-            if result.returncode == 0 and result.stdout:
-                pid = result.stdout.splitlines()[0].strip().split()[0]
-                mgmt_pid = f"llmgateway.py:{pid}"
-        except Exception:
-       	    pass
         public_rows.append((
             "management",
             management_state(),
             f"http://{public_host}:{MANAGEMENT_PORT}",
             "Gateway web UI + REST API",
-            mgmt_pid,
+            _pgrep_pid_label("llmgateway.py", "llmgateway.py"),
         ))
 
     if "ollama" in enabled:
-        ollama_pid = ""
-        try:
-            result = subprocess.run(
-                ["pgrep", "-fl", "ollama"],
-                capture_output=True, text=True, timeout=5,
-            )
-            if result.returncode == 0 and result.stdout:
-                pid = result.stdout.splitlines()[0].strip().split()[0]
-                ollama_pid = f"ollama:{pid}"
-        except Exception:
-            pass
         internal_rows.append((
             "ollama",
             ollama_state(),
             "http://0.0.0.0:11434",
             "Local LLM runtime (Metal GPU)",
-            ollama_pid,
+            _pgrep_pid_label("ollama", "ollama"),
         ))
 
     if "llama-server" in enabled:
-        llama_pid = ""
-        try:
-            result = subprocess.run(
-                ["pgrep", "-fl", "llama-server"],
-                capture_output=True, text=True, timeout=5,
-            )
-            if result.returncode == 0 and result.stdout:
-                pid = result.stdout.splitlines()[0].strip().split()[0]
-                llama_pid = f"llama-server:{pid}"
-        except Exception:
-            pass
         internal_rows.append((
             "llama-server",
             llama_server_state(),
             f"http://0.0.0.0:{LLAMA_SERVER_DEFAULT_PORT}",
             "llama.cpp GGUF server",
-            llama_pid,
+            _pgrep_pid_label("llama-server", "llama-server"),
         ))
 
     if "whisper-server" in enabled:
-        whisper_pid = ""
-        try:
-            result = subprocess.run(
-                ["pgrep", "-fl", "whisper-server"],
-                capture_output=True, text=True, timeout=5,
-            )
-            if result.returncode == 0 and result.stdout:
-                pid = result.stdout.splitlines()[0].strip().split()[0]
-                whisper_pid = f"whisper-server:{pid}"
-        except Exception:
-            pass
         internal_rows.append((
             "whisper-server",
             whisper_server_state(),
             f"http://0.0.0.0:{WHISPER_SERVER_DEFAULT_PORT}",
             "Speech-to-text (whisper.cpp)",
-            whisper_pid,
+            _pgrep_pid_label("whisper-server", "whisper-server"),
         ))
 
     blank()
@@ -652,67 +668,26 @@ def cmd_start(name: str) -> None:
             warn("Launchd plist not installed — starting directly.")
             info(f"  {dim('Install with: python3 scripts/llmgateway.py --install')}")
             python_bin = _venv_python_for_repo(REPO_DIR) or sys.executable
-            subprocess.Popen(
-                [python_bin, str(MANAGEMENT_SCRIPT)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
+            _spawn_detached([python_bin, str(MANAGEMENT_SCRIPT)])
     elif name == "ollama":
         info(f"  Starting Ollama...")
-        import shutil
         if not shutil.which("ollama"):
             error("Ollama binary not found. Install from https://ollama.com/download or via Homebrew: brew install ollama")
             return
-        try:
-            result = subprocess.run(
-                ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
+        if _brew_service_started("ollama"):
+            r = subprocess.run(
+                ["brew", "services", "start", "ollama"],
+                capture_output=True, text=True, timeout=60,
             )
-            started_via_brew = False
-            if result.returncode == 0 and "ollama" in (result.stdout or ""):
-                start_result = subprocess.run(
-                    ["brew", "services", "start", "ollama"],
-                    capture_output=True,
-                    text=True,
-                    timeout=60,
-                )
-                if start_result.returncode == 0:
-                    started_via_brew = True
-                else:
-                    warn("brew services could not start Ollama; falling back to direct ollama serve")
-            if not started_via_brew:
-                subprocess.Popen(
-                    ["ollama", "serve"],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    start_new_session=True,
-                )
-        except Exception:
-            subprocess.Popen(
-                ["ollama", "serve"],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-    elif name == "llama-server":
-        info(f"  Starting llama-server...")
-        import shutil
-        if not shutil.which("llama-server"):
-            error("llama-server not found. Install: brew install llama.cpp")
+            if r.returncode != 0:
+                warn("brew services could not start Ollama; falling back to direct ollama serve")
+                _spawn_detached(["ollama", "serve"])
+        else:
+            _spawn_detached(["ollama", "serve"])
+    elif name in _BARE_METAL_SERVICES:
+        info(f"  Starting {name}...")
+        if not _start_bare_metal(name):
             return
-        subprocess.Popen(
-            ["llama-server", "--host", "0.0.0.0", "--port", str(LLAMA_SERVER_DEFAULT_PORT)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-    elif name == "whisper-server":
-        info(f"  Starting whisper-server...")
-        import shutil
-        if not shutil.which("whisper-server"):
-            error("whisper-server not found. Install: brew install whisper-cpp")
-            return
-        subprocess.Popen(
-            ["whisper-server", "--host", "0.0.0.0", "--port", str(WHISPER_SERVER_DEFAULT_PORT)],
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
     elif name == "docker":
         info(f"  Starting Docker Compose stack...")
         subprocess.run(_compose_cmd("up", "-d"))
@@ -739,22 +714,13 @@ def cmd_stop(name: str) -> None:
         subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
     elif name == "ollama":
         info(f"  Stopping Ollama...")
-        try:
-            result = subprocess.run(
-                ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
-            )
-            if result.returncode == 0 and "ollama" in result.stdout:
-                subprocess.run(["brew", "services", "stop", "ollama"])
-            else:
-                subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
-        except Exception:
+        if _brew_service_started("ollama"):
+            subprocess.run(["brew", "services", "stop", "ollama"])
+        else:
             subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
-    elif name == "llama-server":
-        info(f"  Stopping llama-server...")
-        subprocess.run(["pkill", "-f", "llama-server"], capture_output=True)
-    elif name == "whisper-server":
-        info(f"  Stopping whisper-server...")
-        subprocess.run(["pkill", "-f", "whisper-server"], capture_output=True)
+    elif name in _BARE_METAL_SERVICES:
+        info(f"  Stopping {name}...")
+        subprocess.run(["pkill", "-f", name], capture_output=True)
     elif name == "docker":
         info(f"  Stopping Docker Compose stack...")
         subprocess.run(_compose_cmd("down"))
@@ -783,51 +749,21 @@ def cmd_restart(name: str) -> None:
         else:
             subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
             time.sleep(1)
-            subprocess.Popen(
-                [sys.executable, str(MANAGEMENT_SCRIPT)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
+            python_bin = _venv_python_for_repo(REPO_DIR) or sys.executable
+            _spawn_detached([python_bin, str(MANAGEMENT_SCRIPT)])
     elif name == "ollama":
         info(f"  Restarting Ollama...")
-        try:
-            result = subprocess.run(
-                ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
-            )
-            if result.returncode == 0 and "ollama" in result.stdout:
-                subprocess.run(["brew", "services", "restart", "ollama"])
-            else:
-                subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
-                time.sleep(1)
-                subprocess.Popen(
-                    ["ollama", "serve"],
-                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                    start_new_session=True,
-                )
-        except Exception:
-            pass
-    elif name == "llama-server":
-        info(f"  Restarting llama-server...")
-        subprocess.run(["pkill", "-f", "llama-server"], capture_output=True)
+        if _brew_service_started("ollama"):
+            subprocess.run(["brew", "services", "restart", "ollama"])
+        else:
+            subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
+            time.sleep(1)
+            _spawn_detached(["ollama", "serve"])
+    elif name in _BARE_METAL_SERVICES:
+        info(f"  Restarting {name}...")
+        subprocess.run(["pkill", "-f", name], capture_output=True)
         time.sleep(1)
-        import shutil
-        if shutil.which("llama-server"):
-            subprocess.Popen(
-                ["llama-server", "--host", "0.0.0.0", "--port", str(LLAMA_SERVER_DEFAULT_PORT)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
-    elif name == "whisper-server":
-        info(f"  Restarting whisper-server...")
-        subprocess.run(["pkill", "-f", "whisper-server"], capture_output=True)
-        time.sleep(1)
-        import shutil
-        if shutil.which("whisper-server"):
-            subprocess.Popen(
-                ["whisper-server", "--host", "0.0.0.0", "--port", str(WHISPER_SERVER_DEFAULT_PORT)],
-                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                start_new_session=True,
-            )
+        _start_bare_metal(name)
     elif name == "docker":
         info(f"  Restarting Docker Compose stack...")
         subprocess.run(_compose_cmd("restart"))
@@ -907,16 +843,18 @@ def cmd_uninstall() -> None:
         subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
         success("done")
 
-    # 2. Ollama
+    # 2. Ollama (only stop the brew service if it's actually started)
     try:
         result = subprocess.run(
             ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
         )
-        if result.returncode == 0 and "ollama" in result.stdout:
-            if "started" in result.stdout.split("ollama")[1][:50]:
+        for line in (result.stdout or "").splitlines():
+            parts = line.split()
+            if len(parts) >= 2 and parts[0] == "ollama" and parts[1] == "started":
                 info(f"  Removing Ollama from brew services autostart...")
                 subprocess.run(["brew", "services", "stop", "ollama"])
                 success("done")
+                break
     except Exception:
         pass
 
@@ -928,17 +866,13 @@ def cmd_uninstall() -> None:
             success("done")
 
     # 4. Setup configuration (safe to remove; does not contain secrets)
-    try:
-        from data_dir import setup_config_path as _scp
-        setup_cfg = _scp()
-        if setup_cfg.exists():
-            info(f"  Removing setup config: {setup_cfg}")
-            setup_cfg.unlink(missing_ok=True)
-            success("done")
-        else:
-            info(f"  {dim('Setup config: not found — skipping')}")
-    except Exception:
-        info(f"  {dim('Setup config: could not be removed (non-fatal)')}")
+    setup_cfg = setup_config_path()
+    if setup_cfg.exists():
+        info(f"  Removing setup config: {setup_cfg}")
+        setup_cfg.unlink(missing_ok=True)
+        success("done")
+    else:
+        info(f"  {dim('Setup config: not found — skipping')}")
 
     # 5. Docker
     if docker_available():

@@ -150,22 +150,3 @@ def prompt_input(label: str, default: str = "") -> str:
         print()
         return default
     return value if value else default
-
-
-def prompt_secret(label: str, default: str = "") -> str:
-    """
-    Prompt for a secret value (API key, password). Shows masked default if present.
-    """
-    if default:
-        masked = default[:4] + "..." + default[-4:] if len(default) > 8 else "****"
-        display = f"  {label} [{masked}]: "
-    else:
-        display = f"  {label}: "
-    if not is_interactive():
-        return default
-    try:
-        value = input(display).strip()
-    except (EOFError, KeyboardInterrupt):
-        print()
-        return default
-    return value if value else default

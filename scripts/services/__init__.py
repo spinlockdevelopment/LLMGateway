@@ -162,16 +162,17 @@ class BaseService:
             svc_log_dir = _gateway_log_dir()
             svc_log_dir.mkdir(parents=True, exist_ok=True)
             log_path = svc_log_dir / f"{self.name}.log"
-            log_file = open(log_path, "ab", buffering=0)
-
-            self._process = subprocess.Popen(
-                cmd,
-                stdout=log_file,
-                stderr=log_file,
-                start_new_session=True,    # detach from our process group
-                env=env,
-                cwd=work_dir,
-            )
+            # Open, hand FD to subprocess, then close our copy — the child has
+            # already dup'd the FD so writes still land in the file.
+            with open(log_path, "ab", buffering=0) as log_file:
+                self._process = subprocess.Popen(
+                    cmd,
+                    stdout=log_file,
+                    stderr=log_file,
+                    start_new_session=True,    # detach from our process group
+                    env=env,
+                    cwd=work_dir,
+                )
             self._pid = self._process.pid
             self._started_at = time.time()
 
@@ -206,7 +207,7 @@ class BaseService:
         try:
             await self._pre_stop()
 
-            if self._process and self._is_process_alive():
+            if self._pid is not None and self._is_process_alive():
                 # SIGTERM for graceful shutdown
                 os.kill(self._pid, signal.SIGTERM)
 

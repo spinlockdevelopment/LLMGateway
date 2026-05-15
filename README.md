@@ -229,7 +229,7 @@ Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) ch
 | What | Where |
 |------|--------|
 | Gateway (dashboard port, services, health, Docker) | `config/llmgateway.defaults.yaml` (defaults) and `config/llmgateway.yaml` (your overrides). Edit in dashboard or on disk. |
-| LiteLLM (models, routing, fallbacks) | `litellm-config.yaml` at repo root. |
+| LiteLLM (models, routing, fallbacks) | `config/litellm-config.yaml` in the repo. |
 | API keys, provider base URLs, OAuth | `.env` (from `.env.example`). Edit in dashboard **Secrets** or on disk. |
 
 ---
@@ -241,9 +241,9 @@ LLMGateway/
 ├── bootstrap-llmgateway.sh      # OS prerequisites (sudo only if needed), venv, then hands off to setup; supports curl | bash
 ├── requirements.txt             # Python deps for management app
 ├── .env.example                 # Template for API keys, base URLs, OAuth (Secrets UI)
-├── litellm-config.yaml          # LiteLLM Proxy: routing, models, providers
 ├── config/
-│   └── llmgateway.defaults.yaml # Gateway defaults (do not edit; override in llmgateway.yaml)
+│   ├── llmgateway.defaults.yaml # Gateway defaults (do not edit; override in llmgateway.yaml)
+│   └── litellm-config.yaml      # LiteLLM Proxy: routing, models, providers
 ├── scripts/
 │   ├── llmgateway.py            # Management app: web UI, service manager, launchd
 │   ├── setup-llmgateway.py      # Provisioning: Git, Node, Docker, Ollama, .env, Docker stack

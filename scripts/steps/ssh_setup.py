@@ -1,17 +1,14 @@
 """
-SSH remote access setup step.
+SSH remote access helpers + provisioning step.
 
-Two-step flow (both optional, driven by SetupConfig):
-  1. Enable Remote Login (macOS sshd) via: sudo systemsetup -setremotelogin on
-  2. Add an authorized public key to ~/.ssh/authorized_keys
-
-This replaces the old ssh_config.py which was report-only.
+Exposes utility functions used by both the setup script (for status reporting)
+and ssh-remote-setup.py (for interactive enable/key-add). The SSHSetup
+ProvisioningStep wraps both into a non-interactive flow driven by config.
 """
 
 from __future__ import annotations
 
 import os
-import re
 import subprocess
 from pathlib import Path
 
