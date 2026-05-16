@@ -323,10 +323,10 @@ async function refreshDashboard() {
             return '<span style="color:var(--fg3);font-size:12px">disabled in config</span>';
           }
           let buttons = '';
-          if (canStart) buttons += '<button type="button" onclick="svcAction(\\'' + s.name + '\\', \\'start\\')">Start</button>';
+          if (canStart) buttons += `<button type="button" onclick="svcAction('${s.name}', 'start')">Start</button>`;
           if (canStop) {
-            buttons += '<button type="button" onclick="svcAction(\\'' + s.name + '\\', \\'stop\\')">Stop</button>';
-            buttons += '<button type="button" onclick="svcAction(\\'' + s.name + '\\', \\'restart\\')">Restart</button>';
+            buttons += `<button type="button" onclick="svcAction('${s.name}', 'stop')">Stop</button>`;
+            buttons += `<button type="button" onclick="svcAction('${s.name}', 'restart')">Restart</button>`;
           }
           return buttons || '<span style="color:var(--fg3);font-size:12px">no actions</span>';
         })()}
@@ -373,7 +373,7 @@ async function viewServiceLogs(name) {
   }
 
   const lines = data.lines || [];
-  contentEl.textContent = lines.length ? lines.join('\\n') : (data.message || 'No log output yet.');
+  contentEl.textContent = lines.length ? lines.join('\n') : (data.message || 'No log output yet.');
   let metaText = 'Logs for ' + name;
   if (data.truncated) {
     metaText += ' (showing last 200 lines)';
