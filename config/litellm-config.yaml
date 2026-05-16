@@ -131,6 +131,16 @@ model_list:
       order: 1
       rpm: 60
 
+  # ── coder_model ─────────────────────────────────────────────
+  # Qwen3-Coder-30B-A3B-Instruct (Q4_K_M) via Docker Model Runner.
+  # 30.5B params MoE (3B active) — fits in ~16 GB RAM, ~37 tok/s on M4.
+  - model_name: coder_model
+    litellm_params:
+      model: openai/huggingface.co/unsloth/qwen3-coder-30b-a3b-instruct-gguf
+      api_base: http://model-runner.docker.internal/engines/v1
+      api_key: not-needed
+      rpm: 60
+
   # ── llama-local ─────────────────────────────────────────────
   # Direct llama.cpp server (start separately on host).
   # Uses OpenAI-compatible endpoint that llama-server exposes.
