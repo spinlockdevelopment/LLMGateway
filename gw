@@ -533,36 +533,35 @@ def cmd_status(show_more: bool = False) -> None:
                             proc = f"docker:{container}:{pid}"
                 except Exception:
                     pass
-                # Public endpoints first, then internal
                 row = (display, state, endpoint, desc, proc)
                 if endpoint.startswith(f"http://{public_host}"):
                     public_rows.append(row)
                 else:
                     internal_rows.append(row)
 
-        # Sort and print rows: public endpoints first, then internal/none.
-        def _endpoint_key(row: tuple[str, str, str, str, str]) -> tuple[int, str]:
-            _, _, ep, _, _ = row
-            if ep.startswith(f"http://{public_host}"):
-                group = 0
-            elif ep:
-                group = 1
-            else:
-                group = 2
-            return (group, ep)
+    # Sort and print rows: public endpoints first, then internal/none.
+    def _endpoint_key(row: tuple[str, str, str, str, str]) -> tuple[int, str]:
+        _, _, ep, _, _ = row
+        if ep.startswith(f"http://{public_host}"):
+            group = 0
+        elif ep:
+            group = 1
+        else:
+            group = 2
+        return (group, ep)
 
-        public_rows_sorted = sorted(public_rows, key=_endpoint_key)
-        internal_rows_sorted = sorted(internal_rows, key=_endpoint_key)
+    public_rows_sorted = sorted(public_rows, key=_endpoint_key)
+    internal_rows_sorted = sorted(internal_rows, key=_endpoint_key)
 
-        for name, state, ep, desc, proc in public_rows_sorted:
+    for name, state, ep, desc, proc in public_rows_sorted:
+        print_row(name, state, ep, desc, proc)
+
+    if internal_rows_sorted:
+        blank()
+        for name, state, ep, desc, proc in internal_rows_sorted:
             print_row(name, state, ep, desc, proc)
 
-        if internal_rows_sorted:
-            blank()
-            for name, state, ep, desc, proc in internal_rows_sorted:
-                print_row(name, state, ep, desc, proc)
-
-        blank()
+    blank()
 
     # Service accounts
     info(f"\n  {dim('Service accounts')}")
