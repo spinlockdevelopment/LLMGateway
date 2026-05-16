@@ -126,6 +126,7 @@ textarea { font-family: var(--mono); resize: vertical; }
 <div class="tabs" id="tab-bar">
   <div class="tab active" data-tab="dashboard">Dashboard</div>
   <div class="tab" data-tab="services">Services</div>
+  <div class="tab" data-tab="models">Models</div>
   <div class="tab" data-tab="config">Config</div>
   <div class="tab" data-tab="secrets">Secrets</div>
   <div class="tab external" onclick="window.open('http://localhost:4000/ui','_blank')">LiteLLM</div>
@@ -171,6 +172,55 @@ textarea { font-family: var(--mono); resize: vertical; }
       <pre id="service-log-content" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--mono);font-size:12px;max-height:260px;overflow:auto;white-space:pre-wrap"></pre>
     </div>
 
+  </div>
+
+  <!-- ══════════ Models (Docker Model Runner) ══════════ -->
+  <div class="panel" id="panel-models">
+    <h2 style="margin-bottom:8px">Local Models (Docker Model Runner)</h2>
+    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">
+      Docker Model Runner is bundled with Docker Desktop and runs models on Apple Metal via llama.cpp.
+      LiteLLM reaches it at <code>http://model-runner.docker.internal/engines/v1</code>.
+    </p>
+
+    <div id="llmfit-banner" style="display:none"></div>
+
+    <h3 style="margin:24px 0 8px;font-size:14px">Recommended for this Mac</h3>
+    <div id="llmfit-controls" style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:12px">
+      <label>Use case:
+        <select id="llmfit-use-case">
+          <option value="">Any</option>
+          <option value="general">General</option>
+          <option value="coding" selected>Coding</option>
+          <option value="reasoning">Reasoning</option>
+          <option value="chat">Chat</option>
+          <option value="multimodal">Multimodal</option>
+        </select>
+      </label>
+      <label>Min fit:
+        <select id="llmfit-min-fit">
+          <option value="perfect">Perfect</option>
+          <option value="good" selected>Good</option>
+          <option value="marginal">Marginal</option>
+        </select>
+      </label>
+      <button onclick="loadLlmfitRecommendations()">Refresh</button>
+      <span id="llmfit-system-meta" style="color:var(--fg2);font-size:12px;margin-left:auto"></span>
+    </div>
+    <div id="llmfit-recommendations">
+      <div class="card-meta">Loading recommendations...</div>
+    </div>
+
+    <h3 style="margin:32px 0 8px;font-size:14px">Pulled models</h3>
+    <div id="dmr-models">
+      <div class="card-meta">Loading...</div>
+    </div>
+
+    <h3 style="margin:24px 0 8px;font-size:14px">Pull by name</h3>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+      <input type="text" id="dmr-pull-input" placeholder="ai/smollm2 or hf.co/&lt;repo&gt;" style="flex:1;max-width:480px">
+      <button class="primary" onclick="dmrPullManual()">Pull</button>
+    </div>
+    <div id="dmr-pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
   </div>
 
   <!-- ══════════ Secrets ══════════ -->
@@ -225,6 +275,7 @@ document.querySelectorAll('.tab[data-tab]').forEach(tab => {
     if (tab.dataset.tab === 'config') loadConfigEditor();
     if (tab.dataset.tab === 'secrets') loadSecrets();
     if (tab.dataset.tab === 'services') { refreshDockerServices(); }
+    if (tab.dataset.tab === 'models') { loadModelsTab(); }
   });
 });
 
@@ -366,6 +417,154 @@ async function viewServiceLogs(name) {
     metaText += ' (showing last 200 lines)';
   }
   metaEl.textContent = metaText;
+}
+
+// ── Models tab (Docker Model Runner + llmfit) ──────────────────────────────
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function fmtSize(s) {
+  if (!s) return '';
+  if (typeof s === 'string') return s;  // e.g. "256.35 MiB"
+  if (s > 1e9) return (s / 1e9).toFixed(1) + ' GB';
+  if (s > 1e6) return (s / 1e6).toFixed(0) + ' MB';
+  return s + ' B';
+}
+
+async function loadModelsTab() {
+  loadDmrModels();
+  await refreshLlmfitBanner();
+  loadLlmfitRecommendations();
+}
+
+async function refreshLlmfitBanner() {
+  const banner = document.getElementById('llmfit-banner');
+  const r = await api('/ui/dmr/llmfit/status');
+  if (r && r.installed) {
+    banner.style.display = 'none';
+    return;
+  }
+  banner.style.display = 'block';
+  banner.style.cssText = 'display:block;background:var(--bg2);border:1px solid var(--border);border-left:3px solid var(--accent);padding:12px;border-radius:var(--radius);margin-bottom:16px;font-size:13px';
+  banner.innerHTML =
+    '<strong>llmfit</strong> isn\'t installed. It picks the best local models for your hardware. ' +
+    'Install with <code>brew install llmfit</code> · ' +
+    '<a href="https://github.com/AlexsJones/llmfit" target="_blank" rel="noopener">project page</a>';
+}
+
+async function loadLlmfitRecommendations() {
+  const el = document.getElementById('llmfit-recommendations');
+  const meta = document.getElementById('llmfit-system-meta');
+  el.innerHTML = '<div class="card-meta">Scanning hardware and ranking models...</div>';
+  meta.textContent = '';
+
+  const useCase = document.getElementById('llmfit-use-case').value;
+  const minFit = document.getElementById('llmfit-min-fit').value;
+  const params = new URLSearchParams({ limit: '8', min_fit: minFit });
+  if (useCase) params.set('use_case', useCase);
+
+  const r = await api('/ui/dmr/llmfit/recommend?' + params.toString());
+  if (!r) {
+    el.innerHTML = '<div class="card-meta">Request failed.</div>';
+    return;
+  }
+  if (r.error) {
+    if (r.install_hint) {
+      el.innerHTML = '<div class="card-meta">llmfit is not installed — install it to see recommendations.</div>';
+    } else {
+      el.innerHTML = '<div class="card-meta">llmfit error: ' + escapeHtml(r.error) + '</div>';
+    }
+    return;
+  }
+  if (r.system) {
+    const s = r.system;
+    meta.textContent = `${s.cpu_name || '?'} · ${s.gpu_name || ''} · ${s.total_ram_gb} GB RAM (${s.backend})`;
+  }
+  const models = r.models || [];
+  if (models.length === 0) {
+    el.innerHTML = '<div class="card-meta">No models matched the current filter.</div>';
+    return;
+  }
+  el.innerHTML = models.map(m => {
+    const gguf = (m.gguf_sources && m.gguf_sources[0]) ? m.gguf_sources[0] : null;
+    const pullTarget = gguf ? `hf.co/${gguf.repo}` : null;
+    const fit = m.fit_level || '?';
+    const score = (m.score != null) ? m.score.toFixed(1) : '?';
+    const tps = (m.estimated_tps != null) ? m.estimated_tps.toFixed(0) + ' tok/s' : '';
+    const mem = (m.memory_required_gb != null) ? m.memory_required_gb.toFixed(1) + ' GB' : '';
+    const params = m.parameter_count || '';
+    const pullBtn = pullTarget
+      ? `<button class="primary" onclick="dmrPull('${escapeAttr(pullTarget)}')">Pull</button>`
+      : `<span style="color:var(--fg3);font-size:12px">no GGUF source</span>`;
+    return `
+      <div class="svc-row" style="align-items:flex-start">
+        <div class="svc-info">
+          <div class="svc-name">${escapeHtml(m.name)} <span style="color:var(--fg3);font-weight:400;font-size:12px">· score ${score}</span></div>
+          <div class="svc-desc">${escapeHtml(m.provider || '')} · ${escapeHtml(params)} · ${escapeHtml(m.use_case || m.category || '')}</div>
+          <div class="svc-desc" style="margin-top:2px">
+            ${escapeHtml(fit)} fit · ${escapeHtml(mem)}${tps ? ' · ~' + escapeHtml(tps) : ''}
+            ${pullTarget ? ' · <code>' + escapeHtml(pullTarget) + '</code>' : ''}
+          </div>
+        </div>
+        <div class="svc-actions">${pullBtn}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadDmrModels() {
+  const el = document.getElementById('dmr-models');
+  const r = await api('/ui/dmr/models');
+  if (!r) { el.innerHTML = '<div class="card-meta">Request failed.</div>'; return; }
+  if (r.error) { el.innerHTML = '<div class="card-meta">' + escapeHtml(r.error) + '</div>'; return; }
+  const models = r.models || [];
+  if (models.length === 0) {
+    el.innerHTML = '<div class="card-meta">No models pulled yet. Pick one above or pull by name below.</div>';
+    return;
+  }
+  el.innerHTML = models.map(m => {
+    const tag = (m.tags && m.tags[0]) || m.id || '?';
+    const cfg = m.config || {};
+    return `
+      <div class="svc-row">
+        <div class="svc-info">
+          <div class="svc-name">${escapeHtml(tag)}</div>
+          <div class="svc-desc">
+            ${escapeHtml(cfg.parameters || '')} · ${escapeHtml(cfg.quantization || '')} ·
+            ${escapeHtml(cfg.architecture || '')} · ${escapeHtml(fmtSize(cfg.size))}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function dmrPull(model) {
+  const out = document.getElementById('dmr-pull-output');
+  out.style.display = 'block';
+  out.textContent = 'Pulling ' + model + '... (this may take several minutes)';
+  toast('Pulling ' + model, 'success');
+  const r = await api('/ui/dmr/pull', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model }),
+  });
+  if (r && r.status === 'success') {
+    out.textContent = r.output || 'Pull complete';
+    toast('Pulled: ' + model, 'success');
+    loadDmrModels();
+  } else {
+    out.textContent = (r && (r.output || r.error)) || 'Pull failed';
+    toast('Pull failed', 'error');
+  }
+}
+
+function dmrPullManual() {
+  const input = document.getElementById('dmr-pull-input');
+  const model = input.value.trim();
+  if (!model) { toast('Enter a model name', 'error'); return; }
+  dmrPull(model);
 }
 
 // ── Secrets (.env) ──────────────────────────────────────────────────────────

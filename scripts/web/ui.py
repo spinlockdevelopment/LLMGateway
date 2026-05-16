@@ -12,12 +12,18 @@ Routes:
     POST /ui/services/{name}/start — start a service
     POST /ui/services/{name}/stop — stop a service
     POST /ui/services/{name}/restart — restart a service
+    GET  /ui/dmr/models — list models pulled to Docker Model Runner
+    POST /ui/dmr/pull — pull a model via `docker model pull`
+    GET  /ui/dmr/llmfit/status — is llmfit installed; version
+    GET  /ui/dmr/llmfit/recommend — hardware-matched model recommendations
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
+import re
 import shutil
 from datetime import datetime
 from pathlib import Path
@@ -425,5 +431,178 @@ def create_ui_router() -> APIRouter:
 
         log_lines, truncated = _tail(log_path, max_lines)
         return {"lines": log_lines, "truncated": truncated}
+
+    # ── Docker Model Runner + llmfit ──────────────────────────────────────────
+
+    _DMR_MODEL_NAME_RE = re.compile(r"^[A-Za-z0-9._:/@-]{1,256}$")
+    _DMR_PULL_TIMEOUT_SEC = 1800   # 30 min — large models can take a while
+    _LLMFIT_TIMEOUT_SEC = 60
+
+    async def _run_cmd(cmd: list[str], timeout: float) -> tuple[int, str, str]:
+        """Run a subprocess, return (rc, stdout, stderr). No shell."""
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.wait()
+            raise
+        return (
+            proc.returncode or 0,
+            stdout.decode("utf-8", errors="replace"),
+            stderr.decode("utf-8", errors="replace"),
+        )
+
+    @router.get("/ui/dmr/llmfit/status")
+    async def llmfit_status():
+        """Report whether llmfit is installed and its version."""
+        binary = shutil.which("llmfit")
+        if not binary:
+            return {
+                "installed": False,
+                "version": None,
+                "install_hint": "brew install llmfit",
+                "homepage": "https://github.com/AlexsJones/llmfit",
+            }
+        try:
+            rc, out, _ = await _run_cmd([binary, "--version"], timeout=5)
+            version = out.strip() if rc == 0 else None
+        except Exception:
+            version = None
+        return {
+            "installed": True,
+            "version": version,
+            "install_hint": None,
+            "homepage": "https://github.com/AlexsJones/llmfit",
+        }
+
+    @router.get("/ui/dmr/llmfit/recommend")
+    async def llmfit_recommend(request: Request):
+        """
+        Run `llmfit recommend` and filter to entries that have a GGUF source
+        (DMR pulls GGUF via Docker Model Runner / llama.cpp). On Apple Silicon
+        llmfit ranks by MLX runtime; rather than force llamacpp (which drops
+        Metal accounting and yields no results in 0.9.x), we keep the default
+        ranking and trim to GGUF-available entries client-side here.
+        """
+        binary = shutil.which("llmfit")
+        if not binary:
+            return JSONResponse(
+                status_code=404,
+                content={"error": "llmfit not installed", "install_hint": "brew install llmfit"},
+            )
+
+        params = request.query_params
+        try:
+            limit = max(1, min(int(params.get("limit", "8")), 25))
+        except ValueError:
+            limit = 8
+        use_case = params.get("use_case", "").strip().lower()
+        min_fit = params.get("min_fit", "good").strip().lower()
+
+        # Apple Silicon: launchd-spawned processes can't always reach
+        # system_profiler for GPU detection (TCC sandbox). Pass --memory so
+        # at least VRAM size is correct; psutil gives us total system RAM,
+        # and on unified-memory Macs llmfit treats --memory as both VRAM
+        # and the effective memory budget.
+        global_flags: list[str] = []
+        try:
+            import psutil
+            total_gb = int(psutil.virtual_memory().total / (1024**3))
+            if total_gb > 0:
+                global_flags = ["--memory", f"{total_gb}G"]
+        except Exception:
+            pass
+
+        # Over-request so the GGUF filter has room to keep `limit` results.
+        cmd = [
+            binary, *global_flags, "recommend",
+            "--json",
+            "--min-fit", min_fit if min_fit in {"perfect", "good", "marginal"} else "good",
+            "-n", str(min(limit * 4, 50)),
+        ]
+        if use_case in {"general", "coding", "reasoning", "chat", "multimodal", "embedding"}:
+            cmd += ["--use-case", use_case]
+
+        try:
+            rc, out, err = await _run_cmd(cmd, timeout=_LLMFIT_TIMEOUT_SEC)
+        except asyncio.TimeoutError:
+            return JSONResponse(status_code=504, content={"error": "llmfit timed out"})
+
+        if rc != 0:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "llmfit failed", "stderr": err[:2000]},
+            )
+        try:
+            data = json.loads(out)
+        except json.JSONDecodeError as e:
+            return JSONResponse(
+                status_code=500,
+                content={"error": f"llmfit returned non-JSON: {e}", "raw": out[:2000]},
+            )
+
+        all_models = data.get("models", [])
+        gguf_models = [m for m in all_models if m.get("gguf_sources")]
+        data["models"] = gguf_models[:limit]
+        data["filtered_out"] = len(all_models) - len(gguf_models)
+        return data
+
+    @router.get("/ui/dmr/models")
+    async def dmr_models():
+        """List models pulled to Docker Model Runner."""
+        if not shutil.which("docker"):
+            return JSONResponse(
+                status_code=404,
+                content={"error": "docker CLI not found"},
+            )
+        try:
+            rc, out, err = await _run_cmd(
+                ["docker", "model", "list", "--json"], timeout=10,
+            )
+        except asyncio.TimeoutError:
+            return JSONResponse(status_code=504, content={"error": "docker timed out"})
+        if rc != 0:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "docker model list failed", "stderr": err[:2000]},
+            )
+        try:
+            models = json.loads(out) if out.strip() else []
+        except json.JSONDecodeError:
+            models = []
+        return {"models": models}
+
+    @router.post("/ui/dmr/pull")
+    async def dmr_pull(request: Request):
+        """Pull a model via Docker Model Runner."""
+        body = await request.json()
+        model = (body.get("model") or "").strip()
+        if not model:
+            return JSONResponse(status_code=400, content={"error": "model is required"})
+        if not _DMR_MODEL_NAME_RE.match(model):
+            return JSONResponse(status_code=400, content={"error": "invalid model name"})
+        if not shutil.which("docker"):
+            return JSONResponse(status_code=404, content={"error": "docker CLI not found"})
+
+        try:
+            rc, out, err = await _run_cmd(
+                ["docker", "model", "pull", model], timeout=_DMR_PULL_TIMEOUT_SEC,
+            )
+        except asyncio.TimeoutError:
+            return JSONResponse(
+                status_code=504,
+                content={"error": f"pull timed out after {_DMR_PULL_TIMEOUT_SEC}s"},
+            )
+        combined = (out + ("\n" + err if err else ""))[-4000:]
+        return {
+            "status": "success" if rc == 0 else "failed",
+            "model": model,
+            "output": combined,
+        }
 
     return router
