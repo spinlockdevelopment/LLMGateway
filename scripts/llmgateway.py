@@ -5,9 +5,9 @@ LLM Gateway — Management Service
 Central management daemon for the LLM Gateway stack on macOS.
 
 Responsibilities:
-  - Web UI dashboard (config editor, service status, Ollama model management)
+  - Web UI dashboard (config editor, service status)
   - Read-only REST API for programmatic status queries
-  - Lifecycle management for local inference services (Ollama, llama-server,
+  - Lifecycle management for local inference services (llama-server,
     whisper-server) with health monitoring and automatic restart
   - launchd self-registration for auto-start at login
 
@@ -120,15 +120,12 @@ def _setup_logging(level: str = "INFO") -> logging.Logger:
 
 def _create_service(name: str, svc_config: dict):
     """Instantiate the correct service manager based on config type."""
-    from services.ollama import OllamaService
     from services.llamacpp import LlamaCppService
     from services.whisper import WhisperService
 
     svc_type = svc_config.get("type", "").lower()
 
-    if svc_type == "ollama":
-        return OllamaService(name, svc_config)
-    elif svc_type == "llamacpp":
+    if svc_type == "llamacpp":
         return LlamaCppService(name, svc_config)
     elif svc_type == "whisper":
         return WhisperService(name, svc_config)

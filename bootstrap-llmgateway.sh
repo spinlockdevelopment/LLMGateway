@@ -469,8 +469,8 @@ fi
 # Phase 6 — Hand off to the Python setup script
 # =============================================================================
 # Bootstrap's job is done (OS tools + venv). The setup script handles all
-# application-level provisioning: Docker stack, Node/Claude Code, Ollama,
-# and installing + starting the management console.
+# application-level provisioning: Docker stack, Node/Claude Code, and
+# installing + starting the management console.
 
 SETUP_SCRIPT="$REPO_DIR/scripts/setup-llmgateway.py"
 [[ -f "$SETUP_SCRIPT" ]] \
@@ -487,7 +487,7 @@ if [[ "$AUTO_LAUNCH" == "false" ]]; then
   info "  Ready to launch the Python setup script."
   info ""
   info "  The setup script provisions application components"
-  info "  (Node.js, Claude Code, Docker stack, Ollama, etc.)"
+  info "  (Node.js, Claude Code, Docker stack, etc.)"
   info "  and installs the management console."
   info ""
   info "  It should be run as a STANDARD user account."

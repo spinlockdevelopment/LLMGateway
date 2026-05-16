@@ -19,17 +19,11 @@ gateway:
 # Set enabled: false to skip (the service entry is preserved for later use).
 # ---------------------------------------------------------------------------
 services:
-  ollama:
-    enabled: true
-    type: "ollama"
-    description: "Ollama — Local LLM runtime (Apple Metal GPU)"
-    binary: "ollama"
-    host: "localhost"
-    port: 11434
-    health_check_url: "http://localhost:11434/api/tags"
-    auto_start: true
-    models_dir: "~/.ollama/models"
-    expected_memory_gb: 0      # varies by loaded model
+  # Local inference is provided by Docker Model Runner (bundled with Docker
+  # Desktop). Pull models with `docker model pull <name>` and route to them
+  # from litellm-config.yaml via http://model-runner.docker.internal/engines/v1.
+  # The optional services below are for running additional bare-metal inference
+  # processes (e.g. specialized llama-server configurations or Whisper).
 
   # Example llama-server instance (disabled by default).
   # Duplicate and rename this block to run multiple llama-server instances.

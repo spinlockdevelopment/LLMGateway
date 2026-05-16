@@ -129,46 +129,6 @@ def _install_brew_formula(formula: str, binary_name: str = "") -> bool:
     return False
 
 
-def _start_ollama_if_installed() -> None:
-    """Start the Ollama server if installed and not already running."""
-    if not shutil.which("ollama"):
-        return
-    try:
-        result = subprocess.run(
-            ["curl", "-sf", "http://localhost:11434/api/tags"],
-            capture_output=True, timeout=5,
-        )
-        if result.returncode == 0:
-            success("Ollama server already running")
-            return
-    except Exception:
-        pass
-    if shutil.which("brew"):
-        list_result = subprocess.run(
-            ["brew", "services", "list"],
-            capture_output=True, text=True, timeout=15,
-        )
-        if list_result.returncode == 0 and "ollama" in (list_result.stdout or ""):
-            info("  Starting Ollama via brew services...")
-            subprocess.run(
-                ["brew", "services", "start", "ollama"],
-                capture_output=True, timeout=30,
-            )
-            time.sleep(2)
-            return
-    info("  Starting Ollama server in background...")
-    try:
-        subprocess.Popen(
-            ["ollama", "serve"],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-        )
-        time.sleep(2)
-    except Exception:
-        pass
-
-
 def _install_management_console(data_dir: Path) -> bool:
     """Register the management console as a launchd agent and start it."""
     try:
@@ -268,41 +228,37 @@ def _collect_data_dir(existing: SetupConfig) -> str:
     return prompt_input("Data directory", default)
 
 
-def _collect_components(existing: SetupConfig) -> tuple[bool, bool, bool]:
+def _collect_components(existing: SetupConfig) -> tuple[bool, bool]:
     """Toggle menu for optional local components."""
-    ollama = existing.install_ollama
     llama = existing.install_llama_cpp
     whisper = existing.install_whisper
 
     if not is_interactive():
-        return (ollama, llama, whisper)
+        return (llama, whisper)
 
     blank()
-    info("  Select optional local components (toggle numbers, then 4 to proceed):")
+    info("  Select optional local components (toggle numbers, then 3 to proceed):")
     while True:
         def mark(on: bool) -> str:
             return green("[x]") if on else dim("[ ]")
 
-        fourth = "Continue" if (ollama or llama or whisper) else "Skip"
+        third = "Continue" if (llama or whisper) else "Skip"
         blank()
-        info(f"    1) Ollama (local LLM, Metal GPU)        {mark(ollama)}")
-        info(f"    2) llama-server (llama.cpp, GGUF)       {mark(llama)}")
-        info(f"    3) whisper-server (speech-to-text)      {mark(whisper)}")
-        info(f"    4) {fourth}")
+        info(f"    1) llama-server (llama.cpp, GGUF)       {mark(llama)}")
+        info(f"    2) whisper-server (speech-to-text)      {mark(whisper)}")
+        info(f"    3) {third}")
         try:
-            raw = input("  Choice (1-4): ").strip()
+            raw = input("  Choice (1-3): ").strip()
         except (EOFError, KeyboardInterrupt):
             break
         if raw == "1":
-            ollama = not ollama
-        elif raw == "2":
             llama = not llama
-        elif raw == "3":
+        elif raw == "2":
             whisper = not whisper
-        elif raw == "4":
+        elif raw == "3":
             break
 
-    return (ollama, llama, whisper)
+    return (llama, whisper)
 
 
 def _report_ssh_status() -> None:
@@ -351,9 +307,7 @@ def _collect_configuration() -> SetupConfig:
 
     # 2b. Components
     heading("Optional Components")
-    cfg.install_ollama, cfg.install_llama_cpp, cfg.install_whisper = (
-        _collect_components(cfg)
-    )
+    cfg.install_llama_cpp, cfg.install_whisper = _collect_components(cfg)
     selected = cfg.selected_components()
     if selected:
         success(f"Selected: {', '.join(selected)}")
@@ -440,7 +394,6 @@ def main() -> int:
         from steps.claude_code import ClaudeCode
         from steps.docker import DockerDesktop
         from steps.docker_stack import DockerStack
-        from steps.ollama import Ollama
         from steps.env_file import EnvFile
     except ImportError as e:
         error(f"Failed to import provisioning steps: {e}")
@@ -467,17 +420,6 @@ def main() -> int:
         heading("Optional Components")
         blank()
 
-        if setup_cfg.install_ollama:
-            ok = Ollama().provision(dry_run=False)
-            blank()
-            if not ok:
-                failures.append("Ollama")
-            else:
-                _start_ollama_if_installed()
-        else:
-            info(f"  {dim('Ollama: not selected  (install later: brew install ollama)')}")
-            blank()
-
         if setup_cfg.install_llama_cpp:
             info("  Checking llama-server...")
             if not _install_brew_formula("llama.cpp", binary_name="llama-server"):
@@ -494,12 +436,6 @@ def main() -> int:
             blank()
         else:
             info(f"  {dim('whisper-server: not selected  (install later: brew install whisper-cpp)')}")
-            blank()
-
-    else:
-        optional_status_steps = [Ollama()]
-        for step in optional_status_steps:
-            step.provision(dry_run=True)
             blank()
 
     # Management Console

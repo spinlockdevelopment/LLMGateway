@@ -12,7 +12,6 @@ Routes:
     POST /ui/services/{name}/start — start a service
     POST /ui/services/{name}/stop — stop a service
     POST /ui/services/{name}/restart — restart a service
-    POST /ui/ollama/pull — pull an Ollama model
 """
 
 from __future__ import annotations
@@ -426,46 +425,5 @@ def create_ui_router() -> APIRouter:
 
         log_lines, truncated = _tail(log_path, max_lines)
         return {"lines": log_lines, "truncated": truncated}
-
-    # ── Ollama model management ───────────────────────────────────────────────
-
-    @router.post("/ui/ollama/pull")
-    async def pull_ollama_model(request: Request):
-        """Pull a model via Ollama."""
-        body = await request.json()
-        model_name = body.get("model", "").strip()
-        if not model_name:
-            return JSONResponse(status_code=400, content={"error": "Model name is required"})
-
-        registry = request.app.state.service_registry
-        ollama = registry.get("ollama")
-        if ollama is None:
-            return JSONResponse(status_code=404, content={"error": "Ollama service not configured"})
-
-        from services.ollama import OllamaService
-        if not isinstance(ollama, OllamaService):
-            return JSONResponse(status_code=400, content={"error": "Service is not an Ollama instance"})
-
-        ok, output = await ollama.pull_model(model_name)
-        return {
-            "status": "success" if ok else "failed",
-            "model": model_name,
-            "output": output[:2000],
-        }
-
-    @router.get("/ui/ollama/models")
-    async def list_ollama_models(request: Request):
-        """List models available in Ollama."""
-        registry = request.app.state.service_registry
-        ollama = registry.get("ollama")
-        if ollama is None:
-            return {"models": []}
-
-        from services.ollama import OllamaService
-        if not isinstance(ollama, OllamaService):
-            return {"models": []}
-
-        models = await ollama.list_models()
-        return {"models": models}
 
     return router

@@ -3,7 +3,7 @@ Initial setup choices for LLM Gateway.
 
 Captures structural choices made during setup:
   - Data directory path
-  - Which optional components to install (Ollama, llama.cpp, whisper)
+  - Which optional components to install (llama.cpp, whisper)
 
 Stored at: <data_dir>/setup-config.yaml
 Read by: setup script (to provision), gw script (to filter components shown).
@@ -27,7 +27,6 @@ class SetupConfig:
     """Structural setup choices (no secrets)."""
 
     data_dir: str = "~/.llm-gateway"
-    install_ollama: bool = False
     install_llama_cpp: bool = False
     install_whisper: bool = False
 
@@ -50,7 +49,6 @@ class SetupConfig:
         path.parent.mkdir(parents=True, exist_ok=True)
         data = {
             "data_dir": self.data_dir,
-            "install_ollama": self.install_ollama,
             "install_llama_cpp": self.install_llama_cpp,
             "install_whisper": self.install_whisper,
         }
@@ -68,8 +66,6 @@ class SetupConfig:
     def selected_components(self) -> list[str]:
         """Return list of selected optional component names."""
         result: list[str] = []
-        if self.install_ollama:
-            result.append("ollama")
         if self.install_llama_cpp:
             result.append("llama-server")
         if self.install_whisper:

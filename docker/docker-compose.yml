@@ -6,8 +6,8 @@
 # Usage:
 #   docker compose -f docker/docker-compose.yml up -d
 #
-# Ollama runs on bare metal (not Docker) for Apple Metal GPU.
-# LiteLLM reaches Ollama via host.docker.internal.
+# Local inference is provided by Docker Model Runner (bundled with Docker
+# Desktop). LiteLLM reaches it at http://model-runner.docker.internal/engines/v1.
 #
 # After startup:
 #   LiteLLM Proxy:  http://localhost:4000

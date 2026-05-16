@@ -15,38 +15,20 @@ from pathlib import Path
 from typing import Optional
 
 from . import ProvisioningStep, log, run
-from data_dir import setup_config_path, litellm_config_path
-from setup_config import SetupConfig
-
-
-def _ollama_selected() -> bool:
-    """
-    Return True if Ollama was selected during setup.
-
-    When there is no setup-config.yaml (older installs), default to True
-    to preserve existing behavior.
-    """
-    try:
-        cfg = SetupConfig.load(setup_config_path())
-        return bool(getattr(cfg, "install_ollama", False))
-    except Exception:
-        return True
+from data_dir import litellm_config_path
 
 
 def _health_checks() -> list[tuple[str, str, bool]]:
     """
-    Build the list of HTTP health checks based on setup configuration.
+    Build the list of HTTP health checks for the Docker Compose stack.
 
     Returns a list of (label, url, expect_http_2xx) tuples.
     """
-    checks: list[tuple[str, str, bool]] = [
+    return [
         ("LiteLLM Proxy", "http://localhost:4000/health/liveliness", False),
         ("Grafana", "http://localhost:3000/api/health", True),
         ("Prometheus", "http://localhost:9090/-/healthy", False),
     ]
-    if _ollama_selected():
-        checks.append(("Ollama (host)", "http://localhost:11434/api/tags", False))
-    return checks
 
 _STABILIZE_WAIT = 30  # seconds to wait after `docker compose up -d`
 _LITELLM_HEALTH_RETRIES = 6   # retries for LiteLLM endpoint (15s apart → up to ~90s extra)
@@ -282,11 +264,8 @@ class DockerStack(ProvisioningStep):
         # HTTP endpoint checks
         for svc_name, url, expect_2xx in _health_checks():
             ok = self._check_http(url, expect_2xx)
-            is_optional = "Ollama" in svc_name
             if ok:
                 log.info(f"    ✓ {svc_name}: healthy")
-            elif is_optional:
-                log.warning(f"    ⚠ {svc_name}: not responding (optional — run: ollama serve)")
             else:
                 log.warning(f"    ⚠ {svc_name}: not responding (may still be starting)")
 

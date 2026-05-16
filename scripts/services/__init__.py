@@ -1,7 +1,7 @@
 """
 Service lifecycle management for local inference processes.
 
-Each service type (Ollama, llama-server, whisper-server) extends the
+Each service type (llama-server, whisper-server) extends the
 BaseService class and provides its own start/stop/health-check logic.
 
 Services are launched as independent processes (not children of the gateway).

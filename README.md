@@ -1,6 +1,6 @@
 # LLM Gateway
 
-A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM Proxy** does the routing, auth, and spend tracking; a small **management interface** gives you a local dashboard with config editor and control over local services (Ollama, llama.cpp, Whisper). Point Claude Code, Cursor, Agents or any compatible client at one endpoint to route to local models or your subscriptions (e.g. Claude, OpenAI, Gemini, OpenRouter).
+A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM Proxy** does the routing, auth, and spend tracking; a small **management interface** gives you a local dashboard with config editor and control over optional local services (llama.cpp, Whisper). Local inference is provided by **Docker Model Runner** (bundled with Docker Desktop, running llama.cpp on Apple Metal). Point Claude Code, Cursor, Agents or any compatible client at one endpoint to route to local models or your subscriptions (e.g. Claude, OpenAI, Gemini, OpenRouter).
 
 ---
 
@@ -22,12 +22,13 @@ A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM P
 │             └────────────────────────┼────────────────────────┘             │
 │                                                                             │
 │                              Docker stack                                   │
-│         LiteLLM · PostgreSQL · Grafana · Prometheus · Loki · Alloy          │
+│  LiteLLM · Docker Model Runner · PostgreSQL · Grafana · Prometheus · Loki   │
 │                                       │                                     │
 │                                       │               ┌──────────────────┐  │
 │             LiteLLM Proxy ────────────┼────────────▶ │ Local inference  │  │
-│                 │                     │               │ · Ollama         │  │
-│                 │                     ▼               │ · llama-server   │  │
+│                 │                     │               │ · Docker Model   │  │
+│                 │                     ▼               │   Runner (Metal) │  │
+│                 │                                     │ · llama-server   │  │
 │                 │                                     │ · whisper-server │  │
 │                 │                                     └──────────────────┘  │
 └─────────────────┼───────────────────────────────────────────────────────────┘
@@ -41,7 +42,7 @@ A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM P
 
 - **Tools/agents** (e.g. Claude Code, Cursor, OpenClaw) send requests to **LiteLLM Proxy** at `http://<this-mac>:4000`.
 - **Your machine** runs the **management app** (port 8080), **LiteLLM Proxy** (port 4000), and **observability** (Grafana), linked to the **Docker stack** (LiteLLM, PostgreSQL, Grafana, Prometheus, Loki, Alloy).
-- **LiteLLM** routes traffic **out** to **cloud services** (OpenRouter, Anthropic, etc.) and **down** to **local inference** (Ollama, llama-server, Whisper).
+- **LiteLLM** routes traffic **out** to **cloud services** (OpenRouter, Anthropic, etc.) and **down** to **local inference** (Docker Model Runner; optionally llama-server or Whisper).
 
 ---
 
@@ -50,9 +51,9 @@ A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM P
 | Piece | Purpose |
 |-------|--------|
 | **LiteLLM Proxy** (Docker) | One API endpoint; routes requests to local models, Anthropic, OpenAI, OpenRouter, etc; virtual keys, spend tracking, dashboard at `/ui`. |
-| **Management app** (Python) | Web UI + REST API; config editor; starts/monitors local models (Ollama / llama.cpp / Whisper). |
+| **Management app** (Python) | Web UI + REST API; config editor; starts/monitors optional local models (llama.cpp / Whisper). |
 | **Bootstrap** (`bootstrap-llmgateway.sh`) | Ensures OS-level prerequisites (Xcode CLT, Homebrew, Git, Python 3.11+, Docker Desktop) are installed, creates a Python venv, then hands off to the setup script. Only requests `sudo` when a missing dependency requires it. Can clone the repo into `~/src/LLMGateway` when run via curl. |
-| **Setup** (`scripts/setup-llmgateway.py`) | Application-level provisioning: Git repo, Node.js, Claude Code CLI, Docker stack, `.env`, optional components (Ollama, llama-server, whisper-server, SSH), and installs the management console as a launchd agent. Runs as a standard user — no admin required. |
+| **Setup** (`scripts/setup-llmgateway.py`) | Application-level provisioning: Git repo, Node.js, Claude Code CLI, Docker stack, `.env`, optional components (llama-server, whisper-server, SSH), and installs the management console as a launchd agent. Runs as a standard user — no admin required. |
 
 This repo is config, Docker stack, and the management tooling for running LiteLLM which handles routing, auth, and usage. 
 
@@ -90,7 +91,7 @@ curl -fsSL https://raw.githubusercontent.com/spinlockdevelopment/LLMGateway/main
 
 ### 2. Setup (application provisioning)
 
-The setup script is launched automatically at the end of bootstrap. It provisions application-level components: Git repo sync, Node.js, Claude Code CLI, Docker stack, `.env` from template, and optional components (Ollama, llama-server, whisper-server, SSH). It also installs the management console as a launchd agent.
+The setup script is launched automatically at the end of bootstrap. It provisions application-level components: Git repo sync, Node.js, Claude Code CLI, Docker stack, `.env` from template, and optional components (llama-server, whisper-server, SSH). It also installs the management console as a launchd agent.
 
 > **The setup script should be run as a standard user account, not an administrator.** It does not require `sudo` or elevated privileges. If run as root, it will warn you and ask for confirmation before continuing. Running as root can cause file ownership issues with the venv and launchd agent.
 
@@ -120,16 +121,16 @@ cp .env.example .env
 
 `.env.example` is the template: it lists API keys and base URLs (with defaults) for OpenRouter, Anthropic, OpenAI, Google, xAI, Azure, Perplexity, and others, plus optional LiteLLM OAuth 2.0 variables. Everything is optional. Base URL vars are only written to `.env` when their associated API key is set. Blank entries are not written when saving from the UI.
 
-### 4. Start local models (optional)
+### 4. Pull local models (optional)
 
-If you use local models (e.g. `heartbeat` → Ollama):
+Local inference uses Docker Model Runner, bundled with Docker Desktop. The `heartbeat` and `local-only` routes ship pointing at `ai/smollm2`; pull it (or any other model) with:
 
 ```bash
-ollama serve
-ollama pull llama3.2:3b
+docker model pull ai/smollm2
+docker model list
 ```
 
-The management dashboard can also start and monitor Ollama if it’s enabled in `config/llmgateway.yaml`.
+Browse the catalog with `docker model search <query>` (e.g. `docker model search qwen`). DMR exposes an OpenAI-compatible API; LiteLLM reaches it at `http://model-runner.docker.internal/engines/v1` from inside its container.
 
 ### 5. Verify
 
@@ -171,8 +172,7 @@ Open **http://localhost:8080**.
 
 - **Config** — Edit gateway settings (ports, which services are enabled, health check intervals). Stored in `config/llmgateway.yaml` (overrides `config/llmgateway.defaults.yaml`).
 - **Secrets** — Edit `.env`: API keys, provider base URLs (OpenRouter, OpenAI, Anthropic, etc.), optional OAuth 2.0 vars. Template is `.env.example`; blank entries are not saved. Saving automatically restarts the LiteLLM container if any relevant keys changed.
-- **Services** — See status of Ollama, llama-server, Whisper; start/stop/restart.
-- **Ollama** — Pull models from the UI.
+- **Services** — See status of llama-server, Whisper; start/stop/restart.
 - **REST API** — Read-only: `GET /api/status`, `GET /api/services`, `GET /api/config`, `GET /api/health`.
 
 LiteLLM’s own UI (keys, spend, models) is at **http://localhost:4000/ui** (use `LITELLM_MASTER_KEY`).
@@ -214,8 +214,8 @@ Clients send requests to LiteLLM with a **model name**. LiteLLM maps that to rea
 | `deep-reasoning` | Claude Sonnet 4 (OpenRouter or direct Anthropic) |
 | `coding` | Claude Sonnet 4 (OpenRouter or direct Anthropic) |
 | `vision` | Claude Sonnet 4 (OpenRouter) |
-| `heartbeat` | Ollama (e.g. llama3.2:1b) — local |
-| `local-only` | Ollama (e.g. llama3.2:3b) — local |
+| `heartbeat` | Docker Model Runner (e.g. `ai/smollm2`) — local |
+| `local-only` | Docker Model Runner (e.g. `ai/smollm2`) — local |
 | Others | See `litellm-config.yaml` (e.g. `cheap-research`, `budget`, aliases) |
 
 Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) changes routing. You can also add models at runtime via the LiteLLM UI or API.
@@ -246,11 +246,11 @@ LLMGateway/
 │   └── litellm-config.yaml      # LiteLLM Proxy: routing, models, providers
 ├── scripts/
 │   ├── llmgateway.py            # Management app: web UI, service manager, launchd
-│   ├── setup-llmgateway.py      # Provisioning: Git, Node, Docker, Ollama, .env, Docker stack
+│   ├── setup-llmgateway.py      # Provisioning: Git, Node, Docker, .env, Docker stack
 │   ├── config/                  # Config load/save/validate
 │   ├── launchd/                 # macOS launchd install/uninstall
-│   ├── services/                # Ollama, llama.cpp, Whisper service managers
-│   ├── steps/                   # Provisioning steps (Docker, Ollama, etc.)
+│   ├── services/                # llama.cpp, Whisper service managers
+│   ├── steps/                   # Provisioning steps (Docker, llama.cpp, etc.)
 │   └── web/                     # Dashboard HTML, API, UI routes
 └── docker/
     ├── docker-compose.yml       # LiteLLM, PostgreSQL, Grafana, Prometheus, Loki, Alloy
@@ -273,4 +273,4 @@ LLMGateway/
 
 In `config/llmgateway.yaml` (or the dashboard) you can enable `fast_model` / `deep_model` (llama-server) or `whisper`. Set `enabled: true` and fill in paths (e.g. `--model` for the GGUF file). The gateway will start and monitor them. LiteLLM can route to these via `litellm-config.yaml` (e.g. `openai/`-compatible endpoint on the port you set).
 
-Ollama runs on the host (not in Docker) so it can use Apple Metal. The Docker stack reaches it via `host.docker.internal:11434`.
+Docker Model Runner (DMR) runs as part of Docker Desktop and uses Apple Metal via llama.cpp. The LiteLLM container reaches it at `http://model-runner.docker.internal/engines/v1`. Manage models with `docker model pull`, `docker model list`, and `docker model search`.

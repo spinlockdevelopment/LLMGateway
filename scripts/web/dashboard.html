@@ -95,12 +95,6 @@ textarea { font-family: var(--mono); resize: vertical; }
 .svc-row .svc-state { font-size: 13px; display: flex; align-items: center; gap: 6px; min-width: 100px; }
 .svc-row .svc-actions { display: flex; gap: 6px; }
 
-/* Ollama section */
-.pull-form { display: flex; gap: 8px; align-items: center; margin: 16px 0; }
-.pull-form input { flex: 1; max-width: 400px; }
-.model-list { margin-top: 12px; }
-.model-item { padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--fg2); }
-
 /* Secrets key-value rows */
 .secret-row { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
 .secret-row .secret-key { min-width: 220px; flex-shrink: 0; }
@@ -177,13 +171,6 @@ textarea { font-family: var(--mono); resize: vertical; }
       <pre id="service-log-content" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--mono);font-size:12px;max-height:260px;overflow:auto;white-space:pre-wrap"></pre>
     </div>
 
-    <h3 style="margin:24px 0 8px;font-size:14px">Ollama Model Management</h3>
-    <div class="pull-form">
-      <input type="text" id="pull-model-input" placeholder="Model name (e.g. llama3.2:3b)">
-      <button class="primary" onclick="pullModel()">Pull Model</button>
-    </div>
-    <div id="pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:200px;overflow:auto;margin-bottom:12px"></div>
-    <div class="model-list" id="ollama-models"></div>
   </div>
 
   <!-- ══════════ Secrets ══════════ -->
@@ -237,7 +224,7 @@ document.querySelectorAll('.tab[data-tab]').forEach(tab => {
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'config') loadConfigEditor();
     if (tab.dataset.tab === 'secrets') loadSecrets();
-    if (tab.dataset.tab === 'services') { refreshDockerServices(); loadOllamaModels(); }
+    if (tab.dataset.tab === 'services') { refreshDockerServices(); }
   });
 });
 
@@ -379,47 +366,6 @@ async function viewServiceLogs(name) {
     metaText += ' (showing last 200 lines)';
   }
   metaEl.textContent = metaText;
-}
-
-// ── Ollama models ──────────────────────────────────────────────────────────
-async function loadOllamaModels() {
-  const data = await api('/ui/ollama/models');
-  const el = document.getElementById('ollama-models');
-  if (!data || !data.models || data.models.length === 0) {
-    el.innerHTML = '<div class="model-item">No models loaded (pull one above)</div>';
-    return;
-  }
-  el.innerHTML = '<div style="font-size:13px;color:var(--fg2);margin-bottom:4px">Available models:</div>' +
-    data.models.map(m => {
-      const name = m.name || m;
-      const size = m.size ? ' (' + (m.size / 1e9).toFixed(1) + ' GB)' : '';
-      return `<div class="model-item">${name}${size}</div>`;
-    }).join('');
-}
-
-async function pullModel() {
-  const input = document.getElementById('pull-model-input');
-  const model = input.value.trim();
-  if (!model) { toast('Enter a model name', 'error'); return; }
-
-  const output = document.getElementById('pull-output');
-  output.style.display = 'block';
-  output.textContent = 'Pulling ' + model + '... (this may take several minutes)';
-
-  const r = await api('/ui/ollama/pull', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model }),
-  });
-
-  if (r && r.status === 'success') {
-    output.textContent = r.output || 'Pull complete';
-    toast('Model pulled: ' + model, 'success');
-    loadOllamaModels();
-  } else {
-    output.textContent = (r && r.output) || 'Pull failed';
-    toast('Pull failed', 'error');
-  }
 }
 
 // ── Secrets (.env) ──────────────────────────────────────────────────────────
