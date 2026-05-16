@@ -203,6 +203,10 @@ textarea { font-family: var(--mono); resize: vertical; }
           <option value="marginal">Marginal</option>
         </select>
       </label>
+      <label title="Show only models with a GGUF published by the upstream model maker (e.g. Qwen, Meta, Google). Most upstreams ship only safetensors; community quantizers like unsloth and bartowski produce the GGUFs.">
+        <input type="checkbox" id="llmfit-official-only" onchange="loadLlmfitRecommendations()">
+        Official only
+      </label>
       <button onclick="loadLlmfitRecommendations()">Refresh</button>
       <span id="llmfit-system-meta" style="color:var(--fg2);font-size:12px;margin-left:auto"></span>
     </div>
@@ -461,8 +465,10 @@ async function loadLlmfitRecommendations() {
 
   const useCase = document.getElementById('llmfit-use-case').value;
   const minFit = document.getElementById('llmfit-min-fit').value;
+  const officialOnly = document.getElementById('llmfit-official-only').checked;
   const params = new URLSearchParams({ limit: '8', min_fit: minFit });
   if (useCase) params.set('use_case', useCase);
+  if (officialOnly) params.set('official_only', '1');
 
   const r = await api('/ui/dmr/llmfit/recommend?' + params.toString());
   if (!r) {
@@ -483,7 +489,11 @@ async function loadLlmfitRecommendations() {
   }
   const models = r.models || [];
   if (models.length === 0) {
-    el.innerHTML = '<div class="card-meta">No models matched the current filter.</div>';
+    if (officialOnly) {
+      el.innerHTML = '<div class="card-meta">No officially-released GGUFs match. Most upstream orgs (Qwen, Meta, Google) publish only safetensors; community quantizers like <code>unsloth</code> and <code>bartowski</code> produce the GGUFs. Uncheck "Official only" to see those.</div>';
+    } else {
+      el.innerHTML = '<div class="card-meta">No models matched the current filter.</div>';
+    }
     return;
   }
   el.innerHTML = models.map(m => {
@@ -492,15 +502,19 @@ async function loadLlmfitRecommendations() {
     const fit = m.fit_level || '?';
     const score = (m.score != null) ? m.score.toFixed(1) : '?';
     const tps = (m.estimated_tps != null) ? m.estimated_tps.toFixed(0) + ' tok/s' : '';
-    const mem = (m.memory_required_gb != null) ? m.memory_required_gb.toFixed(1) + ' GB' : '';
+    // memory_required_gb is RAM at inference (8K ctx default), not GGUF disk size
+    const mem = (m.memory_required_gb != null) ? 'fits in ' + m.memory_required_gb.toFixed(1) + ' GB RAM' : '';
     const params = m.parameter_count || '';
+    const officialBadge = (gguf && gguf.is_official)
+      ? ' <span style="color:var(--accent);font-size:11px;font-weight:600">OFFICIAL</span>'
+      : '';
     const pullBtn = pullTarget
       ? `<button class="primary" onclick="dmrPull('${escapeAttr(pullTarget)}')">Pull</button>`
       : `<span style="color:var(--fg3);font-size:12px">no GGUF source</span>`;
     return `
       <div class="svc-row" style="align-items:flex-start">
         <div class="svc-info">
-          <div class="svc-name">${escapeHtml(m.name)} <span style="color:var(--fg3);font-weight:400;font-size:12px">· score ${score}</span></div>
+          <div class="svc-name">${escapeHtml(m.name)} <span style="color:var(--fg3);font-weight:400;font-size:12px">· score ${score}</span>${officialBadge}</div>
           <div class="svc-desc">${escapeHtml(m.provider || '')} · ${escapeHtml(params)} · ${escapeHtml(m.use_case || m.category || '')}</div>
           <div class="svc-desc" style="margin-top:2px">
             ${escapeHtml(fit)} fit · ${escapeHtml(mem)}${tps ? ' · ~' + escapeHtml(tps) : ''}
@@ -540,24 +554,91 @@ async function loadDmrModels() {
   }).join('');
 }
 
-async function dmrPull(model) {
+// Track active pull SSE so we don't overlap.
+let _activePullStream = null;
+
+async function ensureNotificationPermission() {
+  if (typeof Notification === 'undefined') return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  try {
+    const result = await Notification.requestPermission();
+    return result === 'granted';
+  } catch (_) {
+    return false;
+  }
+}
+
+function notifyDone(model, success) {
+  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+  try {
+    new Notification(success ? 'Model pulled' : 'Pull failed', {
+      body: model,
+      tag: 'dmr-pull-' + model,
+    });
+  } catch (_) {}
+}
+
+function dmrPull(model) {
+  if (_activePullStream) {
+    toast('Another pull is in progress', 'error');
+    return;
+  }
+  ensureNotificationPermission();
+
   const out = document.getElementById('dmr-pull-output');
   out.style.display = 'block';
-  out.textContent = 'Pulling ' + model + '... (this may take several minutes)';
+  out.textContent = 'Pulling ' + model + '...\n';
   toast('Pulling ' + model, 'success');
-  const r = await api('/ui/dmr/pull', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model }),
+
+  const url = '/ui/dmr/pull/stream?model=' + encodeURIComponent(model);
+  const es = new EventSource(url);
+  _activePullStream = es;
+
+  let lastProgress = '';
+
+  es.addEventListener('start', (e) => {
+    out.textContent = e.data + '\n';
   });
-  if (r && r.status === 'success') {
-    out.textContent = r.output || 'Pull complete';
-    toast('Pulled: ' + model, 'success');
-    loadDmrModels();
-  } else {
-    out.textContent = (r && (r.output || r.error)) || 'Pull failed';
-    toast('Pull failed', 'error');
-  }
+
+  es.addEventListener('progress', (e) => {
+    // docker model pull spams "Downloaded X of Y" lines; show last as a live
+    // status line plus keep a scrollback of meaningful events.
+    const line = e.data;
+    if (line.startsWith('Downloaded ')) {
+      // Replace the previous "Downloaded" line in place.
+      if (lastProgress.startsWith('Downloaded ')) {
+        out.textContent = out.textContent.slice(0, -lastProgress.length - 1);
+      }
+      out.textContent += line + '\n';
+    } else {
+      out.textContent += line + '\n';
+    }
+    lastProgress = line;
+    out.scrollTop = out.scrollHeight;
+  });
+
+  es.addEventListener('done', (e) => {
+    let payload = {};
+    try { payload = JSON.parse(e.data); } catch (_) {}
+    es.close();
+    _activePullStream = null;
+    const success = payload.status === 'success';
+    out.textContent += '\n' + (success ? '✓ pulled ' + model : '✗ pull failed (rc=' + payload.returncode + ')') + '\n';
+    out.scrollTop = out.scrollHeight;
+    toast(success ? 'Pulled: ' + model : 'Pull failed: ' + model, success ? 'success' : 'error');
+    notifyDone(model, success);
+    if (success) loadDmrModels();
+  });
+
+  es.onerror = () => {
+    if (_activePullStream === es) {
+      _activePullStream = null;
+      out.textContent += '\n[stream interrupted — the pull may still be running in Docker]\n';
+      toast('Pull stream interrupted', 'error');
+      es.close();
+    }
+  };
 }
 
 function dmrPullManual() {

@@ -13,7 +13,8 @@ Routes:
     POST /ui/services/{name}/stop — stop a service
     POST /ui/services/{name}/restart — restart a service
     GET  /ui/dmr/models — list models pulled to Docker Model Runner
-    POST /ui/dmr/pull — pull a model via `docker model pull`
+    POST /ui/dmr/pull — pull a model via `docker model pull` (blocking)
+    GET  /ui/dmr/pull/stream?model=X — same pull, streamed as SSE
     GET  /ui/dmr/llmfit/status — is llmfit installed; version
     GET  /ui/dmr/llmfit/recommend — hardware-matched model recommendations
 """
@@ -29,7 +30,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
 log = logging.getLogger("llm-gateway")
 
@@ -546,10 +547,33 @@ def create_ui_router() -> APIRouter:
                 content={"error": f"llmfit returned non-JSON: {e}", "raw": out[:2000]},
             )
 
-        all_models = data.get("models", [])
+        official_only = params.get("official_only", "").strip().lower() in {"1", "true", "yes"}
+
+        def _upstream_org(model_name: str) -> str:
+            return (model_name or "").split("/", 1)[0].lower()
+
+        def _annotate(m: dict) -> dict:
+            """Tag each gguf_source with whether it's from the model's upstream org."""
+            org = _upstream_org(m.get("name", ""))
+            sources = list(m.get("gguf_sources") or [])
+            for s in sources:
+                repo = s.get("repo", "")
+                source_org = repo.split("/", 1)[0].lower()
+                s["is_official"] = bool(org) and source_org == org
+            # Reorder so official source (if any) is first → frontend uses index 0.
+            sources.sort(key=lambda s: not s.get("is_official"))
+            m["gguf_sources"] = sources
+            m["has_official_gguf"] = any(s.get("is_official") for s in sources)
+            return m
+
+        all_models = [_annotate(m) for m in data.get("models", [])]
         gguf_models = [m for m in all_models if m.get("gguf_sources")]
+        if official_only:
+            gguf_models = [m for m in gguf_models if m.get("has_official_gguf")]
+
         data["models"] = gguf_models[:limit]
         data["filtered_out"] = len(all_models) - len(gguf_models)
+        data["official_only"] = official_only
         return data
 
     @router.get("/ui/dmr/models")
@@ -604,5 +628,68 @@ def create_ui_router() -> APIRouter:
             "model": model,
             "output": combined,
         }
+
+    @router.get("/ui/dmr/pull/stream")
+    async def dmr_pull_stream(request: Request):
+        """
+        Stream `docker model pull <model>` as server-sent events.
+
+        Each progress line on stdout/stderr becomes one `progress` event;
+        a final `done` event carries the exit status. Clients consume with
+        EventSource() in the browser.
+        """
+        model = (request.query_params.get("model") or "").strip()
+        if not model:
+            return JSONResponse(status_code=400, content={"error": "model is required"})
+        if not _DMR_MODEL_NAME_RE.match(model):
+            return JSONResponse(status_code=400, content={"error": "invalid model name"})
+        if not shutil.which("docker"):
+            return JSONResponse(status_code=404, content={"error": "docker CLI not found"})
+
+        def _sse(event: str, data: str) -> bytes:
+            # SSE: data lines may not contain raw newlines; split if any sneak through.
+            lines = data.splitlines() or [""]
+            payload = "".join(f"data: {line}\n" for line in lines)
+            return f"event: {event}\n{payload}\n".encode("utf-8")
+
+        async def _gen():
+            yield _sse("start", f"Pulling {model}...")
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "docker", "model", "pull", model,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.STDOUT,
+                )
+            except Exception as e:
+                yield _sse("done", json.dumps({"status": "failed", "error": str(e)}))
+                return
+
+            assert proc.stdout is not None
+            try:
+                async for raw in proc.stdout:
+                    line = raw.decode("utf-8", errors="replace").rstrip("\r\n")
+                    if line:
+                        yield _sse("progress", line)
+            except asyncio.CancelledError:
+                # Client disconnected. Don't kill the subprocess — Docker's daemon
+                # is doing the real work and abandoning the CLI mid-pull leaves
+                # things in a weird state. Just stop streaming.
+                raise
+
+            rc = await proc.wait()
+            yield _sse("done", json.dumps({
+                "status": "success" if rc == 0 else "failed",
+                "model": model,
+                "returncode": rc,
+            }))
+
+        return StreamingResponse(
+            _gen(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",  # disable proxy buffering if any
+            },
+        )
 
     return router
