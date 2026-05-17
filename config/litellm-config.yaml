@@ -4,9 +4,16 @@
 # Default stack: Anthropic Claude via OpenRouter + native llama-server locals
 # Clients: Claude Code, Cursor IDE, any OpenAI/Anthropic SDK
 #
-# Local routes call native llama-server instances managed by the gateway
-# (services: local-fast on :8081, local-coding on :8082). Docker Model
-# Runner is used only for model downloads, not for serving.
+# Local routes call native llama-server instances managed by the gateway.
+# The gateway exposes five service slots (see config/llmgateway.defaults.yaml):
+#
+#   local-fast    on :8081  (small fast model, e.g. SmolLM2)
+#   local-coding  on :8082  (coder, e.g. Qwen3-Coder-30B)
+#   local-reason  on :8084  (general reasoning, e.g. Qwen3-30B-A3B)
+#   whisper-large on :8083  (primary STT)
+#   whisper-fast  on :8086  (low-latency STT)
+#
+# Docker Model Runner is used only for model downloads, not for serving.
 # ============================================================
 
 # ── Model Deployments ─────────────────────────────────────────
@@ -71,7 +78,6 @@ model_list:
 
   # ── cheap-research ──────────────────────────────────────────
   # Affordable models for bulk research, summarization, triage.
-  # Round-robin across cheap providers via equal rpm weights.
   - model_name: cheap-research
     litellm_params:
       model: openrouter/deepseek/deepseek-chat
@@ -106,57 +112,32 @@ model_list:
       rpm: 200
       tpm: 1000000
 
-  # ── local-triage ────────────────────────────────────────────
-  # SmolLM2 — always-on small model for triage / heartbeat / classification.
-  # Native llama-server (`local-triage` service on host port 8081).
-  # Legacy aliases: `local-fast`, `heartbeat` (see model_group_alias below).
-  - model_name: local-triage
+  # ── local-fast ──────────────────────────────────────────────
+  # Small always-on model — heartbeat / triage / smoke tests.
+  # Backed by the gateway's `local-fast` llama-server on host port 8081.
+  - model_name: local-fast
     litellm_params:
-      model: openai/local-triage
+      model: openai/local-fast
       api_base: http://host.docker.internal:8081/v1
       api_key: not-needed
-      order: 1
       rpm: 300
 
-  # ── local-only ──────────────────────────────────────────────
-  # Never leaves the machine. Points at the general-purpose reasoning
-  # backend (`local-think` service on port 8084, /no_think prefix).
-  - model_name: local-only
+  # ── local-coding ────────────────────────────────────────────
+  # Qwen3-Coder-30B (or similar coder GGUF). Backed by the gateway's
+  # `local-coding` llama-server on host port 8082.
+  # MUTEX with local-reason on hosts ≤32 GB.
+  - model_name: local-coding
     litellm_params:
-      model: openai/local-reason
-      api_base: http://host.docker.internal:8084/v1
-      api_key: not-needed
-      system_prompt_prefix: "/no_think\n"
-      order: 1
-      rpm: 60
-
-  # ── local-code ──────────────────────────────────────────────
-  # Qwen3.6-35B-A3B agentic coder. Backed by gateway's `local-code`
-  # llama-server on host port 8082. MUTEX with local-think, local-fallback.
-  # Legacy alias: `local-coding` (see model_group_alias below).
-  - model_name: local-code
-    litellm_params:
-      model: openai/local-code
+      model: openai/local-coding
       api_base: http://host.docker.internal:8082/v1
       api_key: not-needed
       rpm: 60
 
-  # ── local-think ─────────────────────────────────────────────
-  # Qwen3-30B-A3B with reasoning enabled. Same backend as `local-reason`
-  # (gateway's `local-think` llama-server on host port 8084); `/think`
-  # prefix flips the model into thinking mode.
-  - model_name: local-think
-    litellm_params:
-      model: openai/local-think
-      api_base: http://host.docker.internal:8084/v1
-      api_key: not-needed
-      system_prompt_prefix: "/think\n"
-      rpm: 60
-
   # ── local-reason ────────────────────────────────────────────
-  # Same backend as `local-think`; `/no_think` prefix disables reasoning
-  # blocks. General chat, research, summarization — the default local model.
-  # Legacy alias: `local-qwen` (see model_group_alias below).
+  # General reasoning. Qwen3-30B-A3B with /no_think prefix (thinking blocks
+  # suppressed for fast chat-style responses). Backed by the gateway's
+  # `local-reason` llama-server on host port 8084.
+  # MUTEX with local-coding on hosts ≤32 GB.
   - model_name: local-reason
     litellm_params:
       model: openai/local-reason
@@ -165,16 +146,17 @@ model_list:
       system_prompt_prefix: "/no_think\n"
       rpm: 60
 
-  # ── local-fallback ──────────────────────────────────────────
-  # Qwen3-14B (dense Q4_K_M). Memory-constrained fallback when Whisper Large
-  # is loaded and the larger MoE models won't fit. Backed by gateway's
-  # `local-fallback` llama-server on host port 8085.
-  # MUTEX with local-code, local-think.
-  - model_name: local-fallback
+  # ── local-only ──────────────────────────────────────────────
+  # Never leaves the machine. Routes to local-reason; if that's unavailable
+  # (mutex-displaced or not loaded), falls back to local-coding via the
+  # litellm_settings.fallbacks chain below. Clients should use this route
+  # (or the `local` alias) when they need a guaranteed on-device response.
+  - model_name: local-only
     litellm_params:
-      model: openai/local-fallback
-      api_base: http://host.docker.internal:8085/v1
+      model: openai/local-reason
+      api_base: http://host.docker.internal:8084/v1
       api_key: not-needed
+      system_prompt_prefix: "/no_think\n"
       rpm: 60
 
   # ── Direct pass-through models ──────────────────────────────
@@ -211,38 +193,26 @@ model_list:
 # ── LiteLLM SDK Settings ─────────────────────────────────────
 
 litellm_settings:
-  # Telemetry + web-search interception.
-  #
-  # `websearch_interception` lets clients send a tool named `litellm_web_search`
-  # and the proxy executes it server-side against the first entry in
-  # `search_tools` below (omit `search_tool_name:` to use the first entry; set
-  # it explicitly to pin a different one).
-  #
-  # `enabled_providers` lists the underlying LLM providers whose tool calls
-  # are intercepted. NOTE: openrouter is NOT in LiteLLM's supported list —
-  # for interception to fire on Claude/GPT routes you need direct provider
-  # keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) and a route that uses them.
+  # Callbacks — must be flat strings recognized by the installed LiteLLM
+  # version. Dict-style nested-config callback entries are not supported
+  # by the proxy's get_instance_fn and crash startup with
+  # `'dict' object has no attribute 'startswith'`.
+  # Web search providers are declared in the top-level `search_tools:`
+  # section near the bottom of this file instead.
   callbacks:
     - prometheus
-    - websearch_interception:
-        search_tool_name: tavily-search   # default — clients hitting litellm_web_search land here
-        enabled_providers:
-          - anthropic
-          - openai
-          - azure
-          - deepseek
-          - xai
-          - vertex_ai
 
   # Drop unsupported params instead of erroring
   drop_params: true
 
-  # Fallback chains: if primary pseudo-model fails entirely,
-  # try these alternatives
+  # Fallback chains: if the primary pseudo-model fails entirely, try these
+  # alternatives. local-only → local-coding keeps on-device responses when
+  # local-reason is mutex-displaced or otherwise unavailable.
   fallbacks:
     - {"deep-reasoning": ["coding"]}
     - {"coding": ["deep-reasoning"]}
     - {"vision": ["deep-reasoning"]}
+    - {"local-only": ["local-coding"]}
 
   # Context window fallbacks: auto-switch to larger context model
   context_window_fallbacks:
@@ -280,16 +250,11 @@ router_settings:
   retry_after: 5
   num_retries: 2
 
-  # Model aliases — semantic shortcuts and backward-compat.
+  # Model aliases — semantic shortcuts.
   model_group_alias:
     "reasoning": "deep-reasoning"
     "code": "coding"
     "local": "local-only"
-    "heartbeat": "local-triage"
-    # Backward-compat for renamed local routes:
-    "local-fast": "local-triage"
-    "local-coding": "local-code"
-    "local-qwen": "local-reason"
 
 
 # ── Proxy Server Settings ────────────────────────────────────
@@ -317,8 +282,7 @@ general_settings:
 # Keys live in .env; clients never see them. Clients invoke web search
 # by including a tool named `litellm_web_search` in their request — the
 # proxy intercepts it and runs the call against the first entry below.
-# Reorder to swap the default, or set `search_tool_name:` under the
-# `websearch_interception` callback in `litellm_settings` to pin one.
+# Reorder to swap the default.
 
 search_tools:
   - search_tool_name: tavily-search
@@ -349,4 +313,3 @@ search_tools:
 #   TAVILY_API_KEY        — Tavily web search (used by websearch_interception)
 #   EXA_API_KEY           — Exa neural search (used by websearch_interception)
 #   OAUTH_*               — OAuth 2.0 token validation (optional, enterprise)
-

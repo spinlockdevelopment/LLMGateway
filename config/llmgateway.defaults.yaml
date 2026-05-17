@@ -19,21 +19,33 @@ gateway:
 # Set enabled: false to skip (the service entry is preserved for later use).
 # These are native llama-server / whisper-server processes — Docker Model
 # Runner is no longer used for serving; it is kept only for model downloads.
+#
+# Five service slots, matching the LiteLLM route names in litellm-config.yaml:
+#
+#   local-fast      → fast small-context model (heartbeat / triage / smoke tests)
+#   local-coding    → coder model (backs `local-coding` and `local-only` fallback)
+#   local-reason    → general reasoning (backs `local-reason` and `local-only`)
+#   whisper-large   → primary STT (high quality)
+#   whisper-fast    → low-latency STT
+#
+# local-coding and local-reason share a mutex group: only one of the two can
+# load at a time on memory-constrained hosts (≤32 GB unified memory).
+# whisper-large and whisper-fast share a mutex group for the same reason.
 # ---------------------------------------------------------------------------
 services:
 
-  # Triage / heartbeat. SmolLM2 — always-on small model. Backs `local-triage`
-  # (and legacy `local-fast` / `heartbeat` aliases) in litellm-config.yaml.
-  local-triage:
+  # Fast small-context model — heartbeat, smoke tests, local-only routes.
+  # SmolLM2 or any similarly small llama-server-compatible GGUF.
+  local-fast:
     enabled: false
     type: "llamacpp"
     model: "smollm2"
-    description: "SmolLM2 triage — llama-server"
+    description: "Fast model — llama-server"
     binary: "llama-server"
     args:
       --host: "0.0.0.0"
       --port: "8081"
-      --model: ""              # REQUIRED: path to SmolLM2 .gguf (Q8 recommended)
+      --model: ""              # REQUIRED: path to SmolLM2 (or similar small) GGUF
       --n-gpu-layers: "99"
       --ctx-size: "8192"
       --threads: "4"
@@ -46,59 +58,46 @@ services:
     health_check_url: "http://localhost:8081/health"
     expected_memory_gb: 1.5
 
-  # Agentic coder. Qwen3.6-35B-A3B (MoE, 3B active, April 2026, ~73 SWE-Bench
-  # Verified). Backs `local-code` in litellm-config.yaml.
-  # MUTEX `local-large`: one of {local-code, local-think, local-fallback} runs.
-  local-code:
+  # Local coding model — backs LiteLLM's `local-coding` route and is the
+  # fallback for `local-only`. Qwen3-Coder-30B-A3B (or any coder GGUF).
+  # MUTEX `local-large`: only one of {local-coding, local-reason} runs.
+  local-coding:
     enabled: false
     type: "llamacpp"
-    model: "qwen3.6-35b-a3b"
-    description: "Qwen3.6-35B-A3B (agentic coder) — llama-server"
+    model: "qwen3-coder-30b-a3b-instruct"
+    description: "Local coding model — llama-server"
     mutex_group: "local-large"
     binary: "llama-server"
     args:
       --host: "0.0.0.0"
       --port: "8082"
-      --model: ""              # REQUIRED: path to Qwen3.6-35B-A3B UD-Q4_K_XL GGUF
-      --ctx-size: "65536"
+      --model: ""              # REQUIRED: path to coder GGUF
       --n-gpu-layers: "99"
+      --ctx-size: "16384"
+      --threads: "6"
       --parallel: "2"
-      --temp: "0.7"
-      --top-p: "0.8"
-      --top-k: "20"
-      --min-p: "0"
-      --repeat-penalty: "1.05"
     extra_args:
-      - "--jinja"
-      - "--reasoning-format"
-      - "deepseek"             # 3.6 supports thinking; surface as reasoning_content
-      - "--flash-attn"
-      - "on"
-      - "--cache-type-k"
-      - "q8_0"
-      - "--cache-type-v"
-      - "q8_0"
       - "--cont-batching"
       - "--mlock"
-      - "--no-context-shift"
+      - "--flash-attn"
+      - "on"
     health_check_url: "http://localhost:8082/health"
-    expected_memory_gb: 25.0
+    expected_memory_gb: 18.0
 
-  # General reasoning + thinking. Qwen3-30B-A3B (MoE). Same llama-server backs
-  # both `local-think` (/think prefix) and `local-reason` (/no_think prefix)
-  # routes in litellm-config.yaml — LiteLLM injects the system_prompt_prefix.
-  # MUTEX `local-large`: one of {local-code, local-think, local-fallback} runs.
-  local-think:
+  # General reasoning. Qwen3-30B-A3B (MoE) or similar. Backs LiteLLM's
+  # `local-reason` route and is the primary backend for `local-only`.
+  # MUTEX `local-large`: only one of {local-coding, local-reason} runs.
+  local-reason:
     enabled: false
     type: "llamacpp"
     model: "qwen3-30b-a3b"
-    description: "Qwen3-30B-A3B (thinking) — llama-server"
+    description: "Qwen3-30B-A3B (general reasoning) — llama-server"
     mutex_group: "local-large"
     binary: "llama-server"
     args:
       --host: "0.0.0.0"
       --port: "8084"
-      --model: ""              # REQUIRED: path to Qwen3-30B-A3B-Q4_K_M.gguf
+      --model: ""              # REQUIRED: path to Qwen3-30B-A3B GGUF
       --ctx-size: "65536"
       --n-gpu-layers: "99"
       --parallel: "2"
@@ -122,46 +121,8 @@ services:
     health_check_url: "http://localhost:8084/health"
     expected_memory_gb: 22.0
 
-  # Memory-constrained fallback. Qwen3-14B (dense Q4_K_M, ~9 GB weights). Use
-  # when Whisper Large is loaded and the bigger MoE models won't fit. Backs
-  # `local-fallback` in litellm-config.yaml.
-  # MUTEX `local-large`: one of {local-code, local-think, local-fallback} runs.
-  local-fallback:
-    enabled: false
-    type: "llamacpp"
-    model: "qwen3-14b"
-    description: "Qwen3-14B (fallback / memory-constrained) — llama-server"
-    mutex_group: "local-large"
-    binary: "llama-server"
-    args:
-      --host: "0.0.0.0"
-      --port: "8085"
-      --model: ""              # REQUIRED: path to Qwen3-14B-Q4_K_M.gguf
-      --ctx-size: "32768"
-      --n-gpu-layers: "99"
-      --parallel: "2"
-      --temp: "0.6"
-      --top-p: "0.95"
-      --top-k: "20"
-      --min-p: "0"
-    extra_args:
-      - "--jinja"
-      - "--reasoning-format"
-      - "deepseek"
-      - "--flash-attn"
-      - "on"
-      - "--cache-type-k"
-      - "q8_0"
-      - "--cache-type-v"
-      - "q8_0"
-      - "--cont-batching"
-      - "--mlock"
-      - "--no-context-shift"
-    health_check_url: "http://localhost:8085/health"
-    expected_memory_gb: 12.0
-
   # Primary STT. Whisper Large-v3.
-  # MUTEX `whisper`: one of {whisper-large, whisper-fast} runs.
+  # MUTEX `whisper`: only one of {whisper-large, whisper-fast} runs.
   whisper-large:
     enabled: false
     type: "whisper"
@@ -179,7 +140,7 @@ services:
     expected_memory_gb: 3.0
 
   # Fast STT (Whisper Small or Distil). Lower latency / quality.
-  # MUTEX `whisper`: one of {whisper-large, whisper-fast} runs.
+  # MUTEX `whisper`: only one of {whisper-large, whisper-fast} runs.
   whisper-fast:
     enabled: false
     type: "whisper"
