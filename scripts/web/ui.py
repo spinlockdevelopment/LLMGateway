@@ -620,17 +620,27 @@ def create_ui_router() -> APIRouter:
 
     @router.post("/ui/services/{name}/start")
     async def start_service(name: str, request: Request):
-        """Start a managed service asynchronously."""
-        svc = request.app.state.service_registry.get(name)
+        """Start a managed service asynchronously. Auto-stops mutex-group siblings."""
+        from services import ServiceState
+
+        registry = request.app.state.service_registry
+        svc = registry.get(name)
         if svc is None:
             raise HTTPException(404, f"Service not found: {name}")
 
-        task = asyncio.create_task(svc.start())
+        active = (ServiceState.RUNNING, ServiceState.STARTING, ServiceState.UNHEALTHY)
+        swapped = [s.name for s in registry.siblings_in_group(name) if s.state in active]
+
+        task = asyncio.create_task(registry.start_with_mutex(name))
         _background_tasks.add(task)
         task.add_done_callback(_background_tasks.discard)
 
         # Return immediately; clients should poll /api/services for updated state.
-        return {"status": "starting", "service": svc.status().to_dict()}
+        return {
+            "status": "starting",
+            "service": svc.status().to_dict(),
+            "swapped_out": swapped,
+        }
 
     @router.post("/ui/services/{name}/stop")
     async def stop_service(name: str, request: Request):

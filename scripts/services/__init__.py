@@ -90,6 +90,7 @@ class BaseService:
         self.model: str = svc_config.get("model", "")
         self.health_url: Optional[str] = svc_config.get("health_check_url")
         self.expected_memory_gb: float = svc_config.get("expected_memory_gb", 0.0)
+        self.mutex_group: Optional[str] = svc_config.get("mutex_group")
 
         self._process: Optional[subprocess.Popen] = None
         self._pid: Optional[int] = None
@@ -338,11 +339,47 @@ class ServiceRegistry:
     def get(self, name: str) -> Optional[BaseService]:
         return self._services.get(name)
 
+    def siblings_in_group(self, name: str) -> list[BaseService]:
+        """Return other services sharing this service's mutex_group."""
+        svc = self._services.get(name)
+        if svc is None or not svc.mutex_group:
+            return []
+        return [
+            s for s in self._services.values()
+            if s.name != name and s.mutex_group == svc.mutex_group
+        ]
+
+    async def start_with_mutex(self, name: str) -> bool:
+        """
+        Start a service, first stopping any active siblings in its mutex group.
+        Returns False if the service is unknown or disabled.
+        """
+        svc = self._services.get(name)
+        if svc is None or not svc.enabled:
+            return False
+        for sib in self.siblings_in_group(name):
+            if sib.state in (ServiceState.RUNNING, ServiceState.STARTING, ServiceState.UNHEALTHY):
+                log.info(
+                    f"  [mutex:{svc.mutex_group}] Stopping {sib.name} before starting {name}"
+                )
+                await sib.stop()
+        return await svc.start()
+
     async def start_all(self) -> None:
-        """Start all enabled services."""
+        """Start all enabled services, respecting mutex_group (first-wins)."""
+        started_groups: set[str] = set()
         for svc in self._services.values():
-            if svc.enabled and svc.svc_config.get("auto_start", True):
-                await svc.start()
+            if not (svc.enabled and svc.svc_config.get("auto_start", True)):
+                continue
+            if svc.mutex_group and svc.mutex_group in started_groups:
+                log.info(
+                    f"  [{svc.name}] Skipping auto-start — mutex group "
+                    f"'{svc.mutex_group}' already has a running member"
+                )
+                continue
+            ok = await svc.start()
+            if ok and svc.mutex_group:
+                started_groups.add(svc.mutex_group)
 
     async def stop_all(self) -> None:
         """Stop all running services (reverse order)."""

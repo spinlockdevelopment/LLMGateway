@@ -106,35 +106,74 @@ model_list:
       rpm: 200
       tpm: 1000000
 
-  # ── local-fast ──────────────────────────────────────────────
-  # Small fast local model. Native llama-server (`local-fast` service on host
-  # port 8081). Aliased as `heartbeat` for health checks / smoke tests.
-  - model_name: local-fast
+  # ── local-triage ────────────────────────────────────────────
+  # SmolLM2 — always-on small model for triage / heartbeat / classification.
+  # Native llama-server (`local-triage` service on host port 8081).
+  # Legacy aliases: `local-fast`, `heartbeat` (see model_group_alias below).
+  - model_name: local-triage
     litellm_params:
-      model: openai/local-fast
+      model: openai/local-triage
       api_base: http://host.docker.internal:8081/v1
       api_key: not-needed
       order: 1
       rpm: 300
 
   # ── local-only ──────────────────────────────────────────────
-  # Never leaves the machine. Routes to the `local-coding` llama-server
-  # instance on host port 8082.
+  # Never leaves the machine. Points at the general-purpose reasoning
+  # backend (`local-think` service on port 8084, /no_think prefix).
   - model_name: local-only
     litellm_params:
-      model: openai/local-coding
-      api_base: http://host.docker.internal:8082/v1
+      model: openai/local-reason
+      api_base: http://host.docker.internal:8084/v1
       api_key: not-needed
+      system_prompt_prefix: "/no_think\n"
       order: 1
       rpm: 60
 
-  # ── local-coding ────────────────────────────────────────────
-  # Qwen3-Coder-30B served by the gateway's `local-coding` llama-server
-  # instance on host port 8082.
-  - model_name: local-coding
+  # ── local-code ──────────────────────────────────────────────
+  # Qwen3.6-35B-A3B agentic coder. Backed by gateway's `local-code`
+  # llama-server on host port 8082. MUTEX with local-think, local-fallback.
+  # Legacy alias: `local-coding` (see model_group_alias below).
+  - model_name: local-code
     litellm_params:
-      model: openai/local-coding
+      model: openai/local-code
       api_base: http://host.docker.internal:8082/v1
+      api_key: not-needed
+      rpm: 60
+
+  # ── local-think ─────────────────────────────────────────────
+  # Qwen3-30B-A3B with reasoning enabled. Same backend as `local-reason`
+  # (gateway's `local-think` llama-server on host port 8084); `/think`
+  # prefix flips the model into thinking mode.
+  - model_name: local-think
+    litellm_params:
+      model: openai/local-think
+      api_base: http://host.docker.internal:8084/v1
+      api_key: not-needed
+      system_prompt_prefix: "/think\n"
+      rpm: 60
+
+  # ── local-reason ────────────────────────────────────────────
+  # Same backend as `local-think`; `/no_think` prefix disables reasoning
+  # blocks. General chat, research, summarization — the default local model.
+  # Legacy alias: `local-qwen` (see model_group_alias below).
+  - model_name: local-reason
+    litellm_params:
+      model: openai/local-reason
+      api_base: http://host.docker.internal:8084/v1
+      api_key: not-needed
+      system_prompt_prefix: "/no_think\n"
+      rpm: 60
+
+  # ── local-fallback ──────────────────────────────────────────
+  # Qwen3-14B (dense Q4_K_M). Memory-constrained fallback when Whisper Large
+  # is loaded and the larger MoE models won't fit. Backed by gateway's
+  # `local-fallback` llama-server on host port 8085.
+  # MUTEX with local-code, local-think.
+  - model_name: local-fallback
+    litellm_params:
+      model: openai/local-fallback
+      api_base: http://host.docker.internal:8085/v1
       api_key: not-needed
       rpm: 60
 
@@ -241,12 +280,16 @@ router_settings:
   retry_after: 5
   num_retries: 2
 
-  # Model aliases for backward compatibility
+  # Model aliases — semantic shortcuts and backward-compat.
   model_group_alias:
     "reasoning": "deep-reasoning"
     "code": "coding"
     "local": "local-only"
-    "heartbeat": "local-fast"
+    "heartbeat": "local-triage"
+    # Backward-compat for renamed local routes:
+    "local-fast": "local-triage"
+    "local-coding": "local-code"
+    "local-qwen": "local-reason"
 
 
 # ── Proxy Server Settings ────────────────────────────────────
