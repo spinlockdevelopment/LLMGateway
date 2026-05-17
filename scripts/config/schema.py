@@ -49,6 +49,10 @@ def validate_config(config: dict) -> tuple[list[str], list[str]]:
         if not isinstance(services, dict):
             errors.append("'services' must be a mapping")
         else:
+            # Port conflict checks only apply to enabled services. Disabled
+            # entries are placeholders kept in the file for later use and are
+            # not actually bound, so duplicate port numbers between an enabled
+            # and a disabled service are not a real conflict.
             seen_ports: dict[int, str] = {}
             for svc_name, svc in services.items():
                 if not isinstance(svc, dict):
@@ -60,12 +64,13 @@ def validate_config(config: dict) -> tuple[list[str], list[str]]:
                 if port is not None:
                     _check_port(port, f"services.{svc_name}.port", errors)
                     if isinstance(port, int) and 1 <= port <= 65535:
-                        if port in seen_ports:
-                            errors.append(
-                                f"Port conflict: services.{svc_name}.port ({port}) "
-                                f"is already used by services.{seen_ports[port]}"
-                            )
-                        seen_ports[port] = svc_name
+                        if svc.get("enabled"):
+                            if port in seen_ports:
+                                errors.append(
+                                    f"Port conflict: services.{svc_name}.port ({port}) "
+                                    f"is already used by services.{seen_ports[port]}"
+                                )
+                            seen_ports[port] = svc_name
 
                 # Port in args dict (llama-server style)
                 args = svc.get("args")
@@ -79,13 +84,14 @@ def validate_config(config: dict) -> tuple[list[str], list[str]]:
                                 f"services.{svc_name}.args.--port",
                                 errors,
                             )
-                            if arg_port_int in seen_ports:
-                                errors.append(
-                                    f"Port conflict: services.{svc_name}.args.--port "
-                                    f"({arg_port_int}) is already used by "
-                                    f"services.{seen_ports[arg_port_int]}"
-                                )
-                            seen_ports[arg_port_int] = svc_name
+                            if svc.get("enabled"):
+                                if arg_port_int in seen_ports:
+                                    errors.append(
+                                        f"Port conflict: services.{svc_name}.args.--port "
+                                        f"({arg_port_int}) is already used by "
+                                        f"services.{seen_ports[arg_port_int]}"
+                                    )
+                                seen_ports[arg_port_int] = svc_name
                         except (ValueError, TypeError):
                             errors.append(
                                 f"services.{svc_name}.args.--port must be a number"

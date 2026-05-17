@@ -43,7 +43,10 @@ import urllib.request
 from pathlib import Path
 
 # ── Path setup ────────────────────────────────────────────────────────────────
-REPO_DIR = Path(__file__).parent.resolve()
+# Use resolve() FIRST so a PATH symlink (/opt/homebrew/bin/gw) is followed to
+# the real repo before taking .parent. The reverse order keeps REPO_DIR at the
+# symlink dir and breaks docker-compose / venv path resolution.
+REPO_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO_DIR / "scripts"))
 
 # Import shared modules — graceful fallback if something is broken
