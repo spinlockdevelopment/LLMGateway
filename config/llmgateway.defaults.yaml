@@ -17,61 +17,61 @@ gateway:
 # Local inference services managed by the gateway.
 # Set enabled: true to have the gateway start and monitor the service.
 # Set enabled: false to skip (the service entry is preserved for later use).
+# These are native llama-server / whisper-server processes — Docker Model
+# Runner is no longer used for serving; it is kept only for model downloads.
 # ---------------------------------------------------------------------------
 services:
-  # Local inference is provided by Docker Model Runner (bundled with Docker
-  # Desktop). Pull models with `docker model pull <name>` and route to them
-  # from litellm-config.yaml via http://model-runner.docker.internal/engines/v1.
-  # The optional services below are for running additional bare-metal inference
-  # processes (e.g. specialized llama-server configurations or Whisper).
 
-  # Example llama-server instance (disabled by default).
-  # Duplicate and rename this block to run multiple llama-server instances.
-  fast_model:
+  # Fast small-context model — handles heartbeat, smoke tests, local-only routes.
+  local-fast:
     enabled: false
     type: "llamacpp"
+    model: "smollm2"
     description: "Fast model — llama-server"
     binary: "llama-server"
     args:
       --host: "0.0.0.0"
       --port: "8081"
-      --model: ""              # REQUIRED: path to .gguf file
+      --model: ""              # REQUIRED: path to .gguf file (smollm2)
       --n-gpu-layers: "99"
       --ctx-size: "8192"
       --threads: "4"
       --parallel: "3"
     extra_args:
       - "--cont-batching"
-      - "--flash-attn"
       - "--mlock"
+      - "--flash-attn"
+      - "on"
     health_check_url: "http://localhost:8081/health"
-    expected_memory_gb: 3.0
+    expected_memory_gb: 1.5
 
-  deep_model:
+  # Local coding model — backs the `local-coding` route in litellm-config.yaml.
+  local-coding:
     enabled: false
     type: "llamacpp"
-    description: "Deep reasoner — llama-server with speculative decoding"
+    model: "qwen3-coder-30b-a3b-instruct"
+    description: "Local coding model — llama-server"
     binary: "llama-server"
     args:
       --host: "0.0.0.0"
       --port: "8082"
-      --model: ""              # REQUIRED: path to main .gguf file
-      --model-draft: ""        # path to draft model .gguf
+      --model: ""              # REQUIRED: path to Qwen3-Coder-30B GGUF
       --n-gpu-layers: "99"
       --ctx-size: "16384"
       --threads: "6"
       --parallel: "2"
-      --draft-max: "8"
     extra_args:
       - "--cont-batching"
-      - "--flash-attn"
       - "--mlock"
+      - "--flash-attn"
+      - "on"
     health_check_url: "http://localhost:8082/health"
-    expected_memory_gb: 21.0
+    expected_memory_gb: 18.0
 
-  whisper:
+  local-whispr:
     enabled: false
     type: "whisper"
+    model: "whisper-large-v3-turbo"
     description: "Whisper — Speech-to-text (whisper-server or mlx-whisper)"
     binary: "whisper-server"
     args:

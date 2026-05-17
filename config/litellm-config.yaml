@@ -1,11 +1,12 @@
 # ============================================================
 # LLM Gateway — LiteLLM Proxy Configuration
 # ============================================================
-# Default stack: Anthropic Claude via OpenRouter + local Docker Model Runner
+# Default stack: Anthropic Claude via OpenRouter + native llama-server locals
 # Clients: Claude Code, Cursor IDE, any OpenAI/Anthropic SDK
 #
-# This single file replaces all custom routing, auth, and
-# provider configuration. LiteLLM Proxy handles everything.
+# Local routes call native llama-server instances managed by the gateway
+# (services: local-fast on :8081, local-coding on :8082). Docker Model
+# Runner is used only for model downloads, not for serving.
 # ============================================================
 
 # ── Model Deployments ─────────────────────────────────────────
@@ -105,51 +106,37 @@ model_list:
       rpm: 200
       tpm: 1000000
 
-  # ── heartbeat ───────────────────────────────────────────────
-  # Fast health-check / smoke-test model. Docker Model Runner preferred.
-  - model_name: heartbeat
+  # ── local-fast ──────────────────────────────────────────────
+  # Small fast local model. Native llama-server (`local-fast` service on host
+  # port 8081). Aliased as `heartbeat` for health checks / smoke tests.
+  - model_name: local-fast
     litellm_params:
-      model: openai/ai/smollm2
-      api_base: http://model-runner.docker.internal/engines/v1
+      model: openai/local-fast
+      api_base: http://host.docker.internal:8081/v1
       api_key: not-needed
       order: 1
       rpm: 300
-  - model_name: heartbeat
-    litellm_params:
-      model: openrouter/meta-llama/llama-3-8b-instruct
-      api_key: os.environ/OPENROUTER_API_KEY
-      order: 2
-      rpm: 60
 
   # ── local-only ──────────────────────────────────────────────
-  # Never leaves the machine. Docker Model Runner (Metal GPU via llama.cpp).
+  # Never leaves the machine. Routes to the `local-coding` llama-server
+  # instance on host port 8082.
   - model_name: local-only
     litellm_params:
-      model: openai/ai/smollm2
-      api_base: http://model-runner.docker.internal/engines/v1
+      model: openai/local-coding
+      api_base: http://host.docker.internal:8082/v1
       api_key: not-needed
       order: 1
       rpm: 60
 
-  # ── coder_model ─────────────────────────────────────────────
-  # Qwen3-Coder-30B-A3B-Instruct (Q4_K_M) via Docker Model Runner.
-  # 30.5B params MoE (3B active) — fits in ~16 GB RAM, ~37 tok/s on M4.
-  - model_name: coder_model
+  # ── local-coding ────────────────────────────────────────────
+  # Qwen3-Coder-30B served by the gateway's `local-coding` llama-server
+  # instance on host port 8082.
+  - model_name: local-coding
     litellm_params:
-      model: openai/huggingface.co/unsloth/qwen3-coder-30b-a3b-instruct-gguf
-      api_base: http://model-runner.docker.internal/engines/v1
+      model: openai/local-coding
+      api_base: http://host.docker.internal:8082/v1
       api_key: not-needed
       rpm: 60
-
-  # ── llama-local ─────────────────────────────────────────────
-  # Direct llama.cpp server (start separately on host).
-  # Uses OpenAI-compatible endpoint that llama-server exposes.
-  - model_name: llama-local
-    litellm_params:
-      model: openai/local-model
-      api_base: http://host.docker.internal:8081/v1
-      api_key: not-needed
-      rpm: 30
 
   # ── Direct pass-through models ──────────────────────────────
   # Clients can also request specific models directly using
@@ -185,8 +172,28 @@ model_list:
 # ── LiteLLM SDK Settings ─────────────────────────────────────
 
 litellm_settings:
-  # Telemetry: Prometheus metrics (scraped by Grafana via /metrics)
-  callbacks: ["prometheus"]
+  # Telemetry + web-search interception.
+  #
+  # `websearch_interception` lets clients send a tool named `litellm_web_search`
+  # and the proxy executes it server-side against the first entry in
+  # `search_tools` below (omit `search_tool_name:` to use the first entry; set
+  # it explicitly to pin a different one).
+  #
+  # `enabled_providers` lists the underlying LLM providers whose tool calls
+  # are intercepted. NOTE: openrouter is NOT in LiteLLM's supported list —
+  # for interception to fire on Claude/GPT routes you need direct provider
+  # keys (ANTHROPIC_API_KEY, OPENAI_API_KEY) and a route that uses them.
+  callbacks:
+    - prometheus
+    - websearch_interception:
+        search_tool_name: tavily-search   # default — clients hitting litellm_web_search land here
+        enabled_providers:
+          - anthropic
+          - openai
+          - azure
+          - deepseek
+          - xai
+          - vertex_ai
 
   # Drop unsupported params instead of erroring
   drop_params: true
@@ -239,6 +246,7 @@ router_settings:
     "reasoning": "deep-reasoning"
     "code": "coding"
     "local": "local-only"
+    "heartbeat": "local-fast"
 
 
 # ── Proxy Server Settings ────────────────────────────────────
@@ -262,6 +270,25 @@ general_settings:
   # enable_all_model_access: true
 
 
+# ── Web Search Tools (managed by the proxy) ───────────────────
+# Keys live in .env; clients never see them. Clients invoke web search
+# by including a tool named `litellm_web_search` in their request — the
+# proxy intercepts it and runs the call against the first entry below.
+# Reorder to swap the default, or set `search_tool_name:` under the
+# `websearch_interception` callback in `litellm_settings` to pin one.
+
+search_tools:
+  - search_tool_name: tavily-search
+    litellm_params:
+      search_provider: tavily
+      api_key: os.environ/TAVILY_API_KEY
+
+  - search_tool_name: exa-search
+    litellm_params:
+      search_provider: exa_ai
+      api_key: os.environ/EXA_API_KEY
+
+
 # ── Environment Variables Reference ──────────────────────────
 # These are read from the container environment (.env file).
 # See .env.example for the full template (and dashboard Secrets UI).
@@ -276,5 +303,7 @@ general_settings:
 #   XAI_API_KEY           — xAI / Grok (optional)
 #   AZURE_API_KEY, AZURE_API_BASE, AZURE_API_VERSION — Azure OpenAI (optional)
 #   PERPLEXITY_API_KEY    — Perplexity (optional)
+#   TAVILY_API_KEY        — Tavily web search (used by websearch_interception)
+#   EXA_API_KEY           — Exa neural search (used by websearch_interception)
 #   OAUTH_*               — OAuth 2.0 token validation (optional, enterprise)
 

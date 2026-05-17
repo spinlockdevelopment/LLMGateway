@@ -49,18 +49,180 @@ _BASE_URL_OR_VERSION_TO_API_KEY = {
     "AZURE_API_VERSION": "AZURE_API_KEY",
 }
 
+# Web-search providers managed via .env. When the dashboard saves a non-empty
+# value for one of these env vars, the corresponding search_tools entry is
+# auto-added to litellm-config.yaml (idempotent — existing entries are left
+# alone). Clearing the key does not remove the entry; users can drop it
+# manually from the Config tab if they want.
+_SEARCH_PROVIDERS: dict[str, tuple[str, str]] = {
+    # env var → (search_tool_name, search_provider)
+    "TAVILY_API_KEY": ("tavily-search", "tavily"),
+    "EXA_API_KEY": ("exa-search", "exa_ai"),
+    "BRAVE_SEARCH_API_KEY": ("brave-search", "brave"),
+    "SERPER_API_KEY": ("serper-search", "serper"),
+}
+
+
+def _build_search_tool_block(env_key: str, tool_name: str, provider: str) -> str:
+    """Render one search_tools list entry as YAML text (leading newline, 2-space indent)."""
+    return (
+        f"\n  - search_tool_name: {tool_name}\n"
+        f"    litellm_params:\n"
+        f"      search_provider: {provider}\n"
+        f"      api_key: os.environ/{env_key}\n"
+    )
+
+
+def _existing_search_tool_env_keys(yaml_text: str) -> set[str]:
+    """Set of env var names already referenced by search_tools[*].litellm_params.api_key."""
+    import yaml as pyyaml
+    try:
+        parsed = pyyaml.safe_load(yaml_text) or {}
+    except pyyaml.YAMLError:
+        return set()
+    tools = parsed.get("search_tools") or []
+    env_keys: set[str] = set()
+    for entry in tools:
+        if not isinstance(entry, dict):
+            continue
+        params = entry.get("litellm_params") or {}
+        api_key = params.get("api_key", "")
+        if isinstance(api_key, str) and api_key.startswith("os.environ/"):
+            env_keys.add(api_key.split("/", 1)[1])
+    return env_keys
+
+
+def _present_env_keys(env_path: Path) -> set[str]:
+    """Parse a .env file and return keys whose value is non-empty."""
+    if not env_path.exists():
+        return set()
+    keys: set[str] = set()
+    for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, val = line.partition("=")
+        if val.strip():
+            keys.add(key.strip())
+    return keys
+
+
+def sync_search_tools_with_env(repo_dir: Path, data_dir: Path) -> list[str]:
+    """
+    Idempotent sync: for each web-search env var present in .env, ensure the
+    matching search_tools entry exists in litellm-config.yaml. Returns the
+    list of tool_names that were added (empty if nothing changed or no env).
+
+    Caller decides whether to restart the LiteLLM container.
+    """
+    env_path = data_dir / ".env"
+    present = _present_env_keys(env_path) & _SEARCH_PROVIDERS.keys()
+    if not present:
+        return []
+
+    data_cfg = data_dir / "litellm-config.yaml"
+    repo_cfg = repo_dir / "config" / "litellm-config.yaml"
+    if data_cfg.exists():
+        cfg_text = data_cfg.read_text(encoding="utf-8")
+    elif repo_cfg.exists():
+        cfg_text = repo_cfg.read_text(encoding="utf-8")
+    else:
+        return []
+
+    already = _existing_search_tool_env_keys(cfg_text)
+    to_add: list[tuple[str, str, str]] = []
+    for env_key in sorted(present):
+        if env_key in already:
+            continue
+        tool_name, provider = _SEARCH_PROVIDERS[env_key]
+        to_add.append((env_key, tool_name, provider))
+
+    if not to_add:
+        return []
+
+    new_text = _insert_search_tool_entries(cfg_text, to_add)
+    try:
+        if data_cfg.exists():
+            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+            shutil.copy2(data_cfg, data_cfg.parent / f"litellm-config.{ts}.yaml.bak")
+        data_cfg.parent.mkdir(parents=True, exist_ok=True)
+        data_cfg.write_text(new_text, encoding="utf-8")
+        repo_cfg.parent.mkdir(parents=True, exist_ok=True)
+        repo_cfg.write_text(new_text, encoding="utf-8")
+    except OSError:
+        log.warning(
+            "  Failed to write litellm-config.yaml during search-tools sync",
+            exc_info=True,
+        )
+        return []
+
+    return [tn for _, tn, _ in to_add]
+
+
+def _insert_search_tool_entries(yaml_text: str, entries: list[tuple[str, str, str]]) -> str:
+    """
+    Append entries (env_key, tool_name, provider) to the existing search_tools
+    block. Preserves comments and trailing top-level sections. If no
+    search_tools section exists yet, appends a new one at the end of the file.
+    """
+    if not entries:
+        return yaml_text
+
+    addition = "".join(
+        _build_search_tool_block(env_key, tool_name, provider)
+        for env_key, tool_name, provider in entries
+    )
+
+    m = re.search(r"(^search_tools:[ \t]*\n)", yaml_text, re.MULTILINE)
+    if not m:
+        sep = "" if yaml_text.endswith("\n") else "\n"
+        return yaml_text + sep + "\nsearch_tools:" + addition
+
+    # Find the end of the search_tools block — the next top-level (column-0
+    # non-whitespace) line, or EOF. Blank/comment lines are part of the block.
+    section_start = m.end()
+    rest = yaml_text[section_start:]
+    end_match = re.search(r"^(?=[^\s#])", rest, re.MULTILINE)
+    block_end = section_start + end_match.start() if end_match else len(yaml_text)
+
+    before = yaml_text[:section_start]
+    block = yaml_text[section_start:block_end]
+    after = yaml_text[block_end:]
+
+    # Preserve trailing blank lines after the block (they separate it from the
+    # next section visually).
+    block_lines = block.splitlines(keepends=True)
+    trailing_blanks: list[str] = []
+    while block_lines and not block_lines[-1].strip():
+        trailing_blanks.insert(0, block_lines.pop())
+
+    return before + "".join(block_lines) + addition + "".join(trailing_blanks) + after
+
+
 # Keys in .env that affect LiteLLM — changes to any of these require a container restart.
 _LITELLM_ENV_KEYS = frozenset({
     "LITELLM_MASTER_KEY",
+    "LITELLM_SALT_KEY",
+    # LLM provider auth
     "OPENROUTER_API_KEY", "OPENROUTER_API_BASE",
     "ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE",
-    "OPENAI_API_KEY", "OPENAI_BASE_URL",
+    "OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_ORGANIZATION",
     "GEMINI_API_KEY", "GEMINI_API_BASE",
     "XAI_API_KEY", "XAI_API_BASE",
     "AZURE_API_KEY", "AZURE_API_BASE", "AZURE_API_VERSION",
     "PERPLEXITY_API_KEY",
+    "DEEPSEEK_API_KEY", "MISTRAL_API_KEY", "TOGETHER_API_KEY",
+    "COHERE_API_KEY", "FIREWORKS_API_KEY", "REPLICATE_API_KEY",
+    # Web-search providers (consumed by websearch_interception callback)
+    "TAVILY_API_KEY", "EXA_API_KEY",
+    "BRAVE_SEARCH_API_KEY", "SERPER_API_KEY",
+    # OAuth + SSO
     "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
-    "LITELLM_SALT_KEY",
+    "OAUTH_TOKEN_INFO_ENDPOINT",
+    "OAUTH_USER_ID_FIELD_NAME", "OAUTH_USER_ROLE_FIELD_NAME", "OAUTH_USER_TEAM_ID_FIELD_NAME",
+    # Logging callbacks
+    "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_HOST",
+    "HELICONE_API_KEY",
 })
 
 # Strong references to fire-and-forget background tasks to prevent GC collection.
@@ -269,12 +431,24 @@ def create_ui_router() -> APIRouter:
             log.exception("Failed to write .env")
             return JSONResponse(status_code=500, content={"error": str(e)})
 
-        # Detect if any LiteLLM-relevant env vars changed and restart if needed
+        # Auto-add search_tools entries for any web-search API key that now has
+        # a value but isn't yet wired up in litellm-config.yaml. Idempotent.
+        repo_dir = getattr(request.app.state, "repo_dir", None)
+        data_dir = getattr(request.app.state, "data_dir", None) or repo_dir
+        search_tools_added: list[str] = []
+        if repo_dir is not None and data_dir is not None:
+            search_tools_added = sync_search_tools_with_env(repo_dir, data_dir)
+            if search_tools_added:
+                log.info("  Auto-added search_tools: %s", search_tools_added)
+
+        # Detect if any LiteLLM-relevant env vars changed and restart if needed.
+        # A search_tools edit also requires a restart even if the env keys
+        # themselves are unchanged (rare — would only happen if the user
+        # somehow saved without touching the search keys but the config file
+        # is missing entries).
         new_entries = _parse_env_file(env_path)
         litellm_restarting = False
-        if _litellm_keys_changed(old_entries, new_entries):
-            repo_dir = getattr(request.app.state, "repo_dir", None)
-            data_dir = getattr(request.app.state, "data_dir", None)
+        if _litellm_keys_changed(old_entries, new_entries) or search_tools_added:
             if repo_dir is not None:
                 log.info("  LiteLLM-relevant env vars changed — restarting container...")
                 task = asyncio.create_task(_restart_litellm_container(repo_dir, data_dir))
@@ -282,7 +456,11 @@ def create_ui_router() -> APIRouter:
                 task.add_done_callback(_background_tasks.discard)
                 litellm_restarting = True
 
-        return {"status": "saved", "litellm_restarting": litellm_restarting}
+        return {
+            "status": "saved",
+            "litellm_restarting": litellm_restarting,
+            "search_tools_added": search_tools_added,
+        }
 
     # ── Config actions ────────────────────────────────────────────────────────
 
@@ -347,6 +525,96 @@ def create_ui_router() -> APIRouter:
         """Get the current config as raw YAML text (for the editor)."""
         cm = request.app.state.config_manager
         return {"yaml": cm.get_yaml_text()}
+
+    # ── LiteLLM config (litellm-config.yaml) ──────────────────────────────────
+    # Edits the file mounted into the litellm Docker container. The data_dir
+    # copy is the source of truth at runtime; on save we also overwrite the
+    # repo copy that docker-compose actually mounts, then restart the container.
+
+    def _litellm_cfg_paths(request: Request) -> tuple[Path, Path]:
+        repo_dir = getattr(request.app.state, "repo_dir", None)
+        data_dir = getattr(request.app.state, "data_dir", None) or repo_dir
+        if repo_dir is None:
+            raise HTTPException(500, "Repository path not configured")
+        return data_dir / "litellm-config.yaml", repo_dir / "config" / "litellm-config.yaml"
+
+    def _read_litellm_yaml(request: Request) -> str:
+        data_cfg, repo_cfg = _litellm_cfg_paths(request)
+        if data_cfg.exists():
+            return data_cfg.read_text(encoding="utf-8")
+        if repo_cfg.exists():
+            return repo_cfg.read_text(encoding="utf-8")
+        return ""
+
+    def _validate_litellm_yaml(yaml_text: str) -> tuple[list[str], list[str], dict | None]:
+        import yaml as pyyaml
+        try:
+            parsed = pyyaml.safe_load(yaml_text)
+        except pyyaml.YAMLError as e:
+            return [f"YAML syntax error: {e}"], [], None
+        if not isinstance(parsed, dict):
+            return ["Config must be a YAML mapping"], [], None
+        warnings: list[str] = []
+        ml = parsed.get("model_list")
+        if ml is None:
+            warnings.append("model_list is missing — LiteLLM will start with no models")
+        elif not isinstance(ml, list):
+            return ["model_list must be a list"], warnings, None
+        return [], warnings, parsed
+
+    @router.get("/ui/litellm-config/yaml")
+    async def get_litellm_config_yaml(request: Request):
+        return {"yaml": _read_litellm_yaml(request)}
+
+    @router.post("/ui/litellm-config/validate")
+    async def validate_litellm_config(request: Request):
+        body = await request.json()
+        errors, warnings, _ = _validate_litellm_yaml(body.get("yaml", ""))
+        return {"valid": not errors, "errors": errors, "warnings": warnings}
+
+    @router.post("/ui/litellm-config/save")
+    async def save_litellm_config(request: Request):
+        body = await request.json()
+        yaml_text = body.get("yaml", "")
+        if not yaml_text.strip():
+            return JSONResponse(
+                status_code=400,
+                content={"errors": ["Empty config"], "warnings": []},
+            )
+        errors, warnings, _ = _validate_litellm_yaml(yaml_text)
+        if errors:
+            return JSONResponse(status_code=400, content={"errors": errors, "warnings": warnings})
+
+        data_cfg, repo_cfg = _litellm_cfg_paths(request)
+
+        if data_cfg.exists():
+            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+            backup = data_cfg.parent / f"litellm-config.{timestamp}.yaml.bak"
+            try:
+                shutil.copy2(data_cfg, backup)
+            except OSError:
+                log.warning("  Could not back up litellm-config.yaml", exc_info=True)
+
+        try:
+            data_cfg.parent.mkdir(parents=True, exist_ok=True)
+            data_cfg.write_text(yaml_text, encoding="utf-8")
+            repo_cfg.parent.mkdir(parents=True, exist_ok=True)
+            repo_cfg.write_text(yaml_text, encoding="utf-8")
+        except OSError as e:
+            log.exception("Failed to write litellm-config.yaml")
+            return JSONResponse(status_code=500, content={"errors": [str(e)], "warnings": warnings})
+
+        repo_dir = getattr(request.app.state, "repo_dir", None)
+        data_dir = getattr(request.app.state, "data_dir", None)
+        litellm_restarting = False
+        if repo_dir is not None:
+            log.info("  LiteLLM config edited — restarting container...")
+            task = asyncio.create_task(_restart_litellm_container(repo_dir, data_dir))
+            _background_tasks.add(task)
+            task.add_done_callback(_background_tasks.discard)
+            litellm_restarting = True
+
+        return {"status": "saved", "warnings": warnings, "litellm_restarting": litellm_restarting}
 
     # ── Service actions ───────────────────────────────────────────────────────
 
@@ -432,6 +700,71 @@ def create_ui_router() -> APIRouter:
 
         log_lines, truncated = _tail(log_path, max_lines)
         return {"lines": log_lines, "truncated": truncated}
+
+    # ── Docker compose stack actions ──────────────────────────────────────────
+
+    _DOCKER_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
+
+    def _compose_file_for(request: Request) -> Path:
+        repo_dir = getattr(request.app.state, "repo_dir", None)
+        if repo_dir is None:
+            raise HTTPException(500, "Repository path not configured")
+        return repo_dir / "docker" / "docker-compose.yml"
+
+    @router.post("/ui/docker/stack/restart")
+    async def docker_stack_restart(request: Request):
+        """Restart the entire docker-compose stack."""
+        compose_file = _compose_file_for(request)
+        if not compose_file.exists():
+            raise HTTPException(404, "docker-compose.yml not found")
+        data_dir = getattr(request.app.state, "data_dir", None)
+        repo_dir = getattr(request.app.state, "repo_dir", None)
+        env_file = (data_dir or repo_dir) / ".env" if (data_dir or repo_dir) else None
+
+        cmd = ["docker", "compose", "-f", str(compose_file)]
+        if env_file and env_file.exists():
+            cmd.extend(["--env-file", str(env_file)])
+        cmd.append("restart")
+
+        async def _run():
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                await asyncio.wait_for(proc.communicate(), timeout=120)
+            except Exception:
+                log.warning("docker compose restart failed", exc_info=True)
+
+        task = asyncio.create_task(_run())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+        return {"status": "restarting"}
+
+    @router.post("/ui/docker/container/{name}/restart")
+    async def docker_container_restart(name: str, request: Request):
+        """Restart a single container by container name."""
+        if not _DOCKER_NAME_RE.match(name):
+            raise HTTPException(400, "invalid container name")
+        if not shutil.which("docker"):
+            raise HTTPException(404, "docker CLI not found")
+
+        async def _run():
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "docker", "restart", name,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                await asyncio.wait_for(proc.communicate(), timeout=60)
+            except Exception:
+                log.warning("docker restart %s failed", name, exc_info=True)
+
+        task = asyncio.create_task(_run())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+        return {"status": "restarting", "container": name}
 
     # ── Docker Model Runner + llmfit ──────────────────────────────────────────
 
@@ -576,9 +909,92 @@ def create_ui_router() -> APIRouter:
         data["official_only"] = official_only
         return data
 
+    def _normalize_dmr_id(name: str) -> str:
+        """Normalize a DMR tag/name for matching across `list` and `ps`.
+
+        Strips `docker.io/ai/` and `docker.io/` prefixes but PRESERVES the
+        tag (e.g. `:latest`). Comparisons happen by splitting on the colon
+        in the caller.
+        """
+        name = (name or "").strip().lower()
+        for prefix in ("docker.io/ai/", "docker.io/"):
+            if name.startswith(prefix):
+                return name[len(prefix):]
+        return name
+
+    async def _dmr_running() -> list[dict]:
+        """Parse `docker model ps` output into [{name, backend, mode, until}].
+
+        `docker model ps` has no JSON mode in current CLI versions, so we
+        split each row on runs of 2+ spaces.
+        """
+        try:
+            rc, out, _ = await _run_cmd(["docker", "model", "ps"], timeout=5)
+        except (asyncio.TimeoutError, FileNotFoundError):
+            return []
+        if rc != 0 or not out.strip():
+            return []
+        lines = out.splitlines()
+        if len(lines) <= 1:
+            return []
+        running: list[dict] = []
+        for line in lines[1:]:
+            if not line.strip():
+                continue
+            parts = re.split(r"\s{2,}", line.strip())
+            if len(parts) < 1:
+                continue
+            running.append({
+                "name": parts[0],
+                "backend": parts[1] if len(parts) > 1 else "",
+                "mode": parts[2] if len(parts) > 2 else "",
+                "until": parts[3] if len(parts) > 3 else "",
+            })
+        return running
+
+    def _llama_server_active_sha256() -> set[str]:
+        """
+        Return the set of DMR model IDs (sha256:<64-hex>) currently being
+        served by a local llama-server process.
+
+        DMR is just a downloader for this gateway — actual serving is via
+        native llama-server, which is launched with `--model <bundle path>`
+        where the bundle path contains the model's sha256. By extracting
+        that sha and matching against `docker model list` IDs, we can flag
+        which pulled models are "online".
+        """
+        try:
+            import psutil
+        except ImportError:
+            return set()
+
+        sha_re = re.compile(r"sha256[/\\]([a-f0-9]{64})")
+        found: set[str] = set()
+        for p in psutil.process_iter(["name", "cmdline"]):
+            try:
+                info = p.info
+                name = (info.get("name") or "").lower()
+                cmdline = info.get("cmdline") or []
+                cl = " ".join(cmdline).lower() if cmdline else ""
+                if "llama-server" not in name and "llama-server" not in cl:
+                    continue
+                m = sha_re.search(cl)
+                if m:
+                    found.add("sha256:" + m.group(1))
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return found
+
+    @router.get("/ui/dmr/ps")
+    async def dmr_ps():
+        """List currently-running models in Docker Model Runner."""
+        if not shutil.which("docker"):
+            return {"running": []}
+        return {"running": await _dmr_running()}
+
     @router.get("/ui/dmr/models")
     async def dmr_models():
-        """List models pulled to Docker Model Runner."""
+        """List models pulled to Docker Model Runner, annotated with running state."""
         if not shutil.which("docker"):
             return JSONResponse(
                 status_code=404,
@@ -599,7 +1015,70 @@ def create_ui_router() -> APIRouter:
             models = json.loads(out) if out.strip() else []
         except json.JSONDecodeError:
             models = []
-        return {"models": models}
+
+        running = await _dmr_running()
+
+        # Two paths for "running" state:
+        # 1. Models served by a local llama-server (the common case here) —
+        #    matched by the sha256 in the --model bundle path against the
+        #    DMR model ID. This is exact and unambiguous.
+        # 2. Models loaded into DMR's own runtime via `docker model run`
+        #    (rare for this gateway). Reported by `docker model ps` and
+        #    matched by tag base/disambiguation as before.
+        served_shas = _llama_server_active_sha256()
+        for m in models:
+            m["running"] = m.get("id") in served_shas
+
+        base_to_pairs: dict[str, list[tuple[int, str, str]]] = {}
+        for idx, m in enumerate(models):
+            for t in m.get("tags") or []:
+                norm = _normalize_dmr_id(t)
+                base, _, tag = norm.partition(":")
+                base_to_pairs.setdefault(base, []).append((idx, norm, tag))
+
+        for r in running:
+            rn = _normalize_dmr_id(r["name"])
+            r_base, _, r_tag = rn.partition(":")
+            candidates = base_to_pairs.get(r_base, [])
+            if not candidates:
+                continue
+            if r_tag:
+                for idx, norm, _t in candidates:
+                    if norm == rn:
+                        models[idx]["running"] = True
+                        break
+            else:
+                latest = next((c for c in candidates if c[2] == "latest"), None)
+                if latest is not None:
+                    models[latest[0]]["running"] = True
+                elif len(candidates) == 1:
+                    models[candidates[0][0]]["running"] = True
+
+        return {"models": models, "running": running}
+
+    @router.post("/ui/dmr/rm")
+    async def dmr_rm(request: Request):
+        """Remove a downloaded model from Docker Model Runner."""
+        body = await request.json()
+        model = (body.get("model") or "").strip()
+        if not model:
+            return JSONResponse(status_code=400, content={"error": "model is required"})
+        if not _DMR_MODEL_NAME_RE.match(model):
+            return JSONResponse(status_code=400, content={"error": "invalid model name"})
+        if not shutil.which("docker"):
+            return JSONResponse(status_code=404, content={"error": "docker CLI not found"})
+        try:
+            rc, out, err = await _run_cmd(
+                ["docker", "model", "rm", "-f", model], timeout=30,
+            )
+        except asyncio.TimeoutError:
+            return JSONResponse(status_code=504, content={"error": "docker rm timed out"})
+        if rc != 0:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "docker model rm failed", "stderr": err[:2000] or out[:2000]},
+            )
+        return {"status": "removed", "model": model}
 
     @router.post("/ui/dmr/pull")
     async def dmr_pull(request: Request):

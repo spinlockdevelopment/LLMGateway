@@ -66,13 +66,32 @@ textarea { font-family: var(--mono); resize: vertical; }
 .card .card-meta { font-size: 12px; color: var(--fg2); }
 .card .card-actions { display: flex; gap: 8px; margin-top: 4px; }
 
-/* Memory bar */
-.mem-bar-wrap { background: var(--bg3); border-radius: 4px; height: 20px; overflow: hidden; position: relative; margin: 8px 0; }
-.mem-bar { height: 100%; border-radius: 4px; transition: width .3s; }
-.mem-bar.ok { background: var(--green); }
-.mem-bar.warn { background: var(--yellow); }
-.mem-bar.crit { background: var(--red); }
-.mem-label { position: absolute; top: 0; left: 0; right: 0; text-align: center; line-height: 20px; font-size: 12px; color: #fff; }
+/* Memory bar (stacked: system | services | models | free) */
+.mem-bar-wrap {
+  background: var(--bg3); border-radius: 4px; height: 20px;
+  overflow: hidden; position: relative; margin: 8px 0; display: flex;
+}
+.mem-bar-seg { height: 100%; transition: width .3s; }
+.mem-bar-seg.system   { background: var(--green); }
+.mem-bar-seg.services { background: var(--accent); }
+.mem-bar-seg.models   { background: #db6d28; }   /* orange — clearly distinct from yellow warning */
+.mem-label {
+  position: absolute; top: 0; left: 0; right: 0; text-align: center;
+  line-height: 20px; font-size: 12px; color: #fff; z-index: 1;
+  text-shadow: 0 0 4px rgba(0,0,0,.6);
+  pointer-events: none;
+}
+
+/* Legend */
+.mem-legend { display: flex; gap: 14px; font-size: 12px; color: var(--fg2); margin-top: 4px; flex-wrap: wrap; }
+.mem-legend .legend-swatch {
+  display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+  vertical-align: middle; margin-right: 5px;
+}
+.mem-legend .legend-swatch.system   { background: var(--green); }
+.mem-legend .legend-swatch.services { background: var(--accent); }
+.mem-legend .legend-swatch.models   { background: #db6d28; }
+.mem-legend .legend-swatch.free     { background: var(--bg3); border: 1px solid var(--border); }
 
 /* Config editor */
 .editor-wrap { display: flex; flex-direction: column; gap: 12px; }
@@ -95,12 +114,136 @@ textarea { font-family: var(--mono); resize: vertical; }
 .svc-row .svc-state { font-size: 13px; display: flex; align-items: center; gap: 6px; min-width: 100px; }
 .svc-row .svc-actions { display: flex; gap: 6px; }
 
+/* Sub-tabs (inside a panel) */
+.subtabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+.subtab {
+  padding: 6px 14px; cursor: pointer; color: var(--fg2);
+  font-size: 13px; border-bottom: 2px solid transparent;
+  margin-bottom: -1px; transition: all .15s;
+}
+.subtab:hover { color: var(--fg); }
+.subtab.active { color: var(--fg); border-bottom-color: var(--accent); }
+.subpanel { display: none; }
+.subpanel.active { display: block; }
+
+/* Backend chips (Routes table) */
+.chip {
+  display: inline-block; padding: 1px 8px; border-radius: 10px;
+  font-size: 11px; font-family: var(--mono); white-space: nowrap;
+  border: 1px solid var(--border);
+}
+.chip.openrouter        { background: rgba(88,166,255,.12); color: #58a6ff; border-color: rgba(88,166,255,.3); }
+.chip.anthropic         { background: rgba(210,153,34,.12); color: #d29922; border-color: rgba(210,153,34,.3); }
+.chip.openai            { background: rgba(63,185,80,.12);  color: #3fb950; border-color: rgba(63,185,80,.3); }
+.chip.gemini            { background: rgba(170,124,255,.12); color: #aa7cff; border-color: rgba(170,124,255,.3); }
+.chip.xai               { background: rgba(200,200,200,.12); color: #c9d1d9; border-color: rgba(200,200,200,.3); }
+.chip.azure             { background: rgba(0,160,220,.12); color: #00a0dc; border-color: rgba(0,160,220,.3); }
+.chip.deepseek          { background: rgba(120,160,255,.12); color: #78a0ff; border-color: rgba(120,160,255,.3); }
+.chip.docker-model-runner,
+.chip.local-llamacpp    { background: rgba(63,185,80,.12);  color: #3fb950; border-color: rgba(63,185,80,.3); }
+.chip.search-tool       { background: rgba(219,109,40,.14); color: #db6d28; border-color: rgba(219,109,40,.35); }
+.chip.other             { background: var(--bg3); color: var(--fg2); }
+.chip.local { background: rgba(63,185,80,.12); color: #3fb950; border-color: rgba(63,185,80,.3); }
+.chip.key-set { color: var(--green); border-color: rgba(63,185,80,.3); }
+.chip.key-missing { color: var(--red); border-color: rgba(248,81,73,.3); }
+.chip.key-none { color: var(--fg3); }
+
+/* Routes table */
+table.routes-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+table.routes-table th, table.routes-table td {
+  text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+table.routes-table th { font-weight: 600; color: var(--fg2); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+table.routes-table td.mono { font-family: var(--mono); font-size: 11.5px; word-break: break-all; }
+table.routes-table tr.dim td { opacity: .65; }  /* fallback rows */
+table.routes-table tr.section-row td {
+  background: var(--bg3); font-weight: 600; color: var(--fg2);
+  font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
+  padding: 6px 10px;
+}
+
+/* Docker container row */
+.docker-row {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 14px; margin-bottom: 8px;
+}
+.docker-row .docker-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.docker-row .docker-name { font-weight: 600; }
+.docker-row .docker-image { color: var(--fg2); font-size: 12px; font-family: var(--mono); }
+.docker-row .docker-meta { font-size: 12px; color: var(--fg2); margin-top: 4px; }
+.docker-row .docker-paths { margin-top: 6px; font-size: 11.5px; font-family: var(--mono); color: var(--fg2); }
+.docker-row .docker-paths .path-label { color: var(--fg3); margin-right: 6px; }
+
+/* Segmented control (Config file picker, etc.) */
+.seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.seg button {
+  background: var(--bg2); border: none; border-radius: 0; padding: 6px 14px;
+  color: var(--fg2); font-size: 13px; cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button:hover { background: var(--bg3); color: var(--fg); }
+.seg button.active { background: var(--bg3); color: var(--fg); }
+
+/* Disclosure (top processes) */
+details.disclosure { margin-top: 6px; }
+details.disclosure > summary {
+  cursor: pointer; font-size: 12px; color: var(--fg2);
+  padding: 4px 0; user-select: none; list-style: none;
+}
+details.disclosure > summary::-webkit-details-marker { display: none; }
+details.disclosure > summary::before { content: "▸ "; display: inline-block; transition: transform .15s; }
+details.disclosure[open] > summary::before { content: "▾ "; }
+details.disclosure > summary:hover { color: var(--fg); }
+table.proc-table {
+  width: 100%; border-collapse: collapse; margin-top: 4px;
+  font-family: var(--mono); font-size: 12px;
+}
+table.proc-table th, table.proc-table td {
+  text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border);
+}
+table.proc-table th { color: var(--fg2); font-weight: 500; }
+table.proc-table td.num { text-align: right; }
+table.proc-table tr:last-child td { border-bottom: none; }
+.proc-pill {
+  display: inline-block; padding: 1px 7px; margin-right: 8px;
+  border-radius: 10px; font-size: 10px; font-family: var(--font);
+  font-weight: 600; letter-spacing: .02em; vertical-align: middle;
+  border: 1px solid transparent;
+}
+.proc-pill.system   { background: rgba(63,185,80,.12);  color: var(--green);  border-color: rgba(63,185,80,.3); }
+.proc-pill.services { background: rgba(88,166,255,.12); color: var(--accent); border-color: rgba(88,166,255,.3); }
+.proc-pill.models   { background: rgba(219,109,40,.14); color: #db6d28;       border-color: rgba(219,109,40,.35); }
+
 /* Secrets key-value rows */
-.secret-row { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; }
-.secret-row .secret-key { min-width: 220px; flex-shrink: 0; }
+.secret-row { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
+.secret-row .secret-key { min-width: 240px; flex-shrink: 0; font-family: var(--mono); font-size: 13px; }
 .secret-row .secret-value { flex: 1; }
 .secret-row .secret-value.placeholder { color: var(--fg3); }
 .secret-row .secret-remove { flex-shrink: 0; }
+
+/* Secrets sections */
+.secrets-section { margin-bottom: 32px; }
+.secrets-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.secrets-section .section-desc { color: var(--fg2); font-size: 12.5px; margin-bottom: 12px; }
+.secret-group {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--bg2); padding: 10px 12px; margin-bottom: 8px;
+}
+.secret-group .secret-row { margin-bottom: 4px; }
+.secret-group .secret-row:last-child { margin-bottom: 0; }
+.secret-group .secret-row.secondary .secret-key {
+  color: var(--fg2); padding-left: 16px; font-size: 12px;
+}
+.section-add {
+  display: flex; gap: 8px; align-items: center; margin-top: 8px;
+  padding: 8px 12px; background: var(--bg2); border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+.section-add select, .section-add input { font-size: 13px; }
+.section-add select { min-width: 240px; }
+.section-add input { flex: 1; }
+.section-add .add-label { color: var(--fg3); font-size: 12px; margin-right: 4px; }
 
 /* Toast */
 .toast {
@@ -124,8 +267,7 @@ textarea { font-family: var(--mono); resize: vertical; }
 </div>
 
 <div class="tabs" id="tab-bar">
-  <div class="tab active" data-tab="dashboard">Dashboard</div>
-  <div class="tab" data-tab="services">Services</div>
+  <div class="tab active" data-tab="system">System</div>
   <div class="tab" data-tab="models">Models</div>
   <div class="tab" data-tab="config">Config</div>
   <div class="tab" data-tab="secrets">Secrets</div>
@@ -135,8 +277,8 @@ textarea { font-family: var(--mono); resize: vertical; }
 
 <div class="content">
 
-  <!-- ══════════ Dashboard ══════════ -->
-  <div class="panel active" id="panel-dashboard">
+  <!-- ══════════ System ══════════ -->
+  <div class="panel active" id="panel-system">
     <h2 style="margin-bottom:16px">System Overview</h2>
 
     <div id="mem-section" style="margin-bottom:24px">
@@ -145,116 +287,156 @@ textarea { font-family: var(--mono); resize: vertical; }
         <span id="mem-label-right">--</span>
       </div>
       <div class="mem-bar-wrap">
-        <div class="mem-bar ok" id="mem-bar" style="width:0%"></div>
+        <div class="mem-bar-seg system"   id="mem-seg-system"   style="width:0%"></div>
+        <div class="mem-bar-seg services" id="mem-seg-services" style="width:0%"></div>
+        <div class="mem-bar-seg models"   id="mem-seg-models"   style="width:0%"></div>
         <div class="mem-label" id="mem-bar-label">--</div>
       </div>
+      <div class="mem-legend">
+        <span><span class="legend-swatch system"></span>System <span id="mem-legend-system" style="color:var(--fg)">--</span></span>
+        <span><span class="legend-swatch services"></span>Services <span id="mem-legend-services" style="color:var(--fg)">--</span></span>
+        <span><span class="legend-swatch models"></span>Models <span id="mem-legend-models" style="color:var(--fg)">--</span></span>
+        <span><span class="legend-swatch free"></span>Free <span id="mem-legend-free" style="color:var(--fg)">--</span></span>
+      </div>
+      <details class="disclosure" id="top-procs-disclosure">
+        <summary>Top 10 processes by memory</summary>
+        <div id="top-procs-body"><div class="card-meta" style="font-size:12px">Loading...</div></div>
+      </details>
     </div>
 
-    <h3 style="margin-bottom:12px;font-size:14px;color:var(--fg2)">Services</h3>
-    <div class="cards" id="dashboard-cards">
-      <div class="card"><div class="card-meta">Loading...</div></div>
-    </div>
-  </div>
-
-  <!-- ══════════ Services ══════════ -->
-  <div class="panel" id="panel-services">
-    <h2 style="margin-bottom:8px">Docker Services</h2>
-    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">
-      These are Docker containers detected on this host. Entries that are part of the LLM Gateway stack are enriched
-      with config and data paths from <code>docker/docker-compose.yml</code>.
-    </p>
-    <div id="docker-service-list">
-      <div class="svc-row"><span class="svc-info">Loading...</span></div>
-    </div>
-    <div id="service-log-viewer" style="margin-top:16px;display:none">
-      <h3 style="margin:16px 0 8px;font-size:14px">Service Logs</h3>
-      <div id="service-log-meta" style="font-size:12px;color:var(--fg2);margin-bottom:4px"></div>
-      <pre id="service-log-content" style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:12px;font-family:var(--mono);font-size:12px;max-height:260px;overflow:auto;white-space:pre-wrap"></pre>
-    </div>
-
-  </div>
-
-  <!-- ══════════ Models (Docker Model Runner) ══════════ -->
-  <div class="panel" id="panel-models">
-    <h2 style="margin-bottom:8px">Local Models (Docker Model Runner)</h2>
-    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">
-      Docker Model Runner is bundled with Docker Desktop and runs models on Apple Metal via llama.cpp.
-      LiteLLM reaches it at <code>http://model-runner.docker.internal/engines/v1</code>.
-    </p>
-
-    <div id="llmfit-banner" style="display:none"></div>
-
-    <h3 style="margin:24px 0 8px;font-size:14px">Recommended for this Mac</h3>
-    <div id="llmfit-controls" style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:12px">
-      <label>Use case:
-        <select id="llmfit-use-case">
-          <option value="">Any</option>
-          <option value="general">General</option>
-          <option value="coding" selected>Coding</option>
-          <option value="reasoning">Reasoning</option>
-          <option value="chat">Chat</option>
-          <option value="multimodal">Multimodal</option>
-        </select>
-      </label>
-      <label>Min fit:
-        <select id="llmfit-min-fit">
-          <option value="perfect">Perfect</option>
-          <option value="good" selected>Good</option>
-          <option value="marginal">Marginal</option>
-        </select>
-      </label>
-      <label title="Show only models with a GGUF published by the upstream model maker (e.g. Qwen, Meta, Google). Most upstreams ship only safetensors; community quantizers like unsloth and bartowski produce the GGUFs.">
-        <input type="checkbox" id="llmfit-official-only" onchange="loadLlmfitRecommendations()">
-        Official only
-      </label>
-      <button onclick="loadLlmfitRecommendations()">Refresh</button>
-      <span id="llmfit-system-meta" style="color:var(--fg2);font-size:12px;margin-left:auto"></span>
-    </div>
-    <div id="llmfit-recommendations">
-      <div class="card-meta">Loading recommendations...</div>
-    </div>
-
-    <h3 style="margin:32px 0 8px;font-size:14px">Pulled models</h3>
-    <div id="dmr-models">
+    <h3 style="margin-bottom:12px;font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px">
+      Services
+      <button type="button" onclick="refreshDashboard()" style="font-size:11px;padding:2px 8px;font-weight:400">Refresh</button>
+    </h3>
+    <div id="dashboard-cards">
       <div class="card-meta">Loading...</div>
     </div>
 
-    <h3 style="margin:24px 0 8px;font-size:14px">Pull by name</h3>
-    <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
-      <input type="text" id="dmr-pull-input" placeholder="ai/smollm2 or hf.co/&lt;repo&gt;" style="flex:1;max-width:480px">
-      <button class="primary" onclick="dmrPullManual()">Pull</button>
+    <h3 style="margin:32px 0 8px;font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px">
+      Docker Services
+      <button type="button" onclick="refreshDockerServices()" style="font-size:11px;padding:2px 8px;font-weight:400">Refresh</button>
+      <button type="button" onclick="restartStack()" style="font-size:11px;padding:2px 8px;font-weight:400">Restart all</button>
+    </h3>
+    <p style="color:var(--fg2);margin-bottom:12px;font-size:13px">
+      Docker containers detected on this host. Entries that are part of the LLM Gateway stack are enriched
+      with config and data paths from <code>docker/docker-compose.yml</code>.
+    </p>
+    <div id="docker-service-list">
+      <div class="card-meta">Loading...</div>
     </div>
-    <div id="dmr-pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
+  </div>
+
+  <!-- ══════════ Models ══════════ -->
+  <div class="panel" id="panel-models">
+    <h2 style="margin-bottom:12px">Models</h2>
+
+    <div class="subtabs" id="models-subtabs">
+      <div class="subtab active" data-subtab="routes">Routes</div>
+      <div class="subtab" data-subtab="downloads">Downloads</div>
+      <div class="subtab" data-subtab="recommendations">Recommendations</div>
+    </div>
+
+    <!-- ── Routes ─────────────────────────────────────────────────────────── -->
+    <div class="subpanel active" id="subpanel-routes">
+      <h3 style="margin-bottom:8px;font-size:14px;display:flex;align-items:center;gap:8px">
+        Routes
+        <button type="button" onclick="loadLitellmRoutes()" style="font-size:11px;padding:2px 8px;font-weight:400">Refresh</button>
+      </h3>
+      <p style="color:var(--fg2);margin-bottom:12px;font-size:13px">
+        Pseudo-model routes to LiteLLM Proxy. Parsed from <code>litellm-config.yaml</code>.
+      </p>
+      <div id="routes-content">
+        <div class="card-meta">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── Downloads ──────────────────────────────────────────────────────── -->
+    <div class="subpanel" id="subpanel-downloads">
+      <p style="color:var(--fg2);margin-bottom:12px;font-size:13px">
+        Pulls models from the web using Docker Model Runner CLI.
+      </p>
+
+      <h3 style="margin:8px 0 8px;font-size:14px">Pull by name</h3>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
+        <input type="text" id="dmr-pull-input" placeholder="ai/smollm2 or hf.co/&lt;repo&gt;" style="flex:1;max-width:480px">
+        <button class="primary" onclick="dmrPullManual()">Pull</button>
+      </div>
+      <div id="dmr-pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
+
+      <h3 style="margin:24px 0 8px;font-size:14px">Pulled models
+        <button type="button" onclick="loadDmrModels()" style="margin-left:8px;font-size:12px;padding:2px 8px">Refresh</button>
+      </h3>
+      <div id="dmr-models">
+        <div class="card-meta">Loading...</div>
+      </div>
+    </div>
+
+    <!-- ── Recommendations ────────────────────────────────────────────────── -->
+    <div class="subpanel" id="subpanel-recommendations">
+      <h3 style="margin-bottom:8px;font-size:14px;display:flex;align-items:center;gap:8px">
+        Recommendations
+        <button type="button" onclick="loadLlmfitRecommendations()" style="font-size:11px;padding:2px 8px;font-weight:400">Refresh</button>
+      </h3>
+      <div id="llmfit-banner" style="display:none"></div>
+      <p style="color:var(--fg2);margin-bottom:12px;font-size:13px">
+        Hardware-matched ranking from <code>llmfit</code>. Pick one and pull it to Docker Model Runner.
+      </p>
+      <div id="llmfit-controls" style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:12px;flex-wrap:wrap">
+        <label>Use case:
+          <select id="llmfit-use-case">
+            <option value="">Any</option>
+            <option value="general">General</option>
+            <option value="coding" selected>Coding</option>
+            <option value="reasoning">Reasoning</option>
+            <option value="chat">Chat</option>
+            <option value="multimodal">Multimodal</option>
+          </select>
+        </label>
+        <label>Min fit:
+          <select id="llmfit-min-fit">
+            <option value="perfect">Perfect</option>
+            <option value="good" selected>Good</option>
+            <option value="marginal">Marginal</option>
+          </select>
+        </label>
+        <label title="Show only models with a GGUF published by the upstream model maker (e.g. Qwen, Meta, Google). Most upstreams ship only safetensors; community quantizers like unsloth and bartowski produce the GGUFs.">
+          <input type="checkbox" id="llmfit-official-only" onchange="loadLlmfitRecommendations()">
+          Official only
+        </label>
+        <span id="llmfit-system-meta" style="color:var(--fg2);font-size:12px;margin-left:auto"></span>
+      </div>
+      <div id="llmfit-recommendations">
+        <div class="card-meta">Loading recommendations...</div>
+      </div>
+    </div>
   </div>
 
   <!-- ══════════ Secrets ══════════ -->
   <div class="panel" id="panel-secrets">
-    <h2 style="margin-bottom:16px">Secrets</h2>
-    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">This is your .env file. Edit values below; blank entries are not saved. Base URL variables are only written when their associated API key is set. Saving creates or overwrites .env and backs up the previous file if it exists.</p>
-    <div class="editor-toolbar" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <h2 style="margin:0">Secrets</h2>
       <button class="primary" onclick="saveSecrets()">Save</button>
       <span id="secrets-status" class="validation-msg" style="display:none"></span>
     </div>
+    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">
+      Edits your <code>.env</code> with secrets used by the LLMGateway components. Saving overwrites <code>.env</code>, a backup is kept.
+    </p>
     <div id="secrets-entries"></div>
-    <div style="margin-top:16px">
-      <div style="font-size:13px;color:var(--fg2);margin-bottom:4px">Add or update a secret</div>
-      <div class="secret-row">
-        <input type="text" id="new-secret-key" class="secret-key" placeholder="ENV_VAR_NAME" list="secret-key-options" />
-        <input type="text" id="new-secret-value" class="secret-value" placeholder="Value" />
-        <button type="button" onclick="commitNewSecret()">Add</button>
-      </div>
-      <datalist id="secret-key-options"></datalist>
-    </div>
   </div>
 
   <!-- ══════════ Config ══════════ -->
   <div class="panel" id="panel-config">
     <h2 style="margin-bottom:16px">Configuration Editor</h2>
     <div class="editor-wrap">
-      <div class="editor-toolbar">
+      <div class="editor-toolbar" style="flex-wrap:wrap">
+        <div class="seg" id="config-file-seg">
+          <button type="button" data-file="gateway" class="active" onclick="switchConfigFile('gateway')">Gateway</button>
+          <button type="button" data-file="litellm" onclick="switchConfigFile('litellm')">LiteLLM</button>
+        </div>
         <button class="primary" onclick="saveConfig()">Save</button>
         <button onclick="validateConfig()">Validate</button>
-        <button class="danger" onclick="resetConfig()">Reset to Defaults</button>
+        <button class="danger" id="config-reset-btn" onclick="resetConfig()">Reset to Defaults</button>
+        <span id="config-file-hint" style="color:var(--fg3);font-size:12px;margin-left:4px"></span>
         <span id="config-status" class="validation-msg" style="display:none"></span>
       </div>
       <textarea id="config-editor" spellcheck="false" placeholder="Loading configuration..."></textarea>
@@ -278,7 +460,7 @@ document.querySelectorAll('.tab[data-tab]').forEach(tab => {
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'config') loadConfigEditor();
     if (tab.dataset.tab === 'secrets') loadSecrets();
-    if (tab.dataset.tab === 'services') { refreshDockerServices(); }
+    if (tab.dataset.tab === 'system') { refreshDashboard(); refreshDockerServices(); }
     if (tab.dataset.tab === 'models') { loadModelsTab(); }
   });
 });
@@ -328,60 +510,219 @@ async function refreshDashboard() {
   document.getElementById('gateway-uptime').textContent =
     'Up ' + fmtUptime(data.gateway.uptime_sec);
 
-  // Memory
+  // Memory — stacked bar: system | services | models | (free remainder)
   const mem = data.memory;
   const pct = mem.percent;
-  const bar = document.getElementById('mem-bar');
-  bar.style.width = pct + '%';
-  bar.className = 'mem-bar ' + (pct > 90 ? 'crit' : pct > 75 ? 'warn' : 'ok');
+  const total = mem.total_gb || 1;
+  const br = mem.breakdown_gb || { system: mem.used_gb, services: 0, models: 0 };
+  const freeGB = Math.max(0, total - (br.system + br.services + br.models));
+  const setSegWidth = (id, gb) => {
+    const el = document.getElementById(id);
+    if (el) el.style.width = (gb / total * 100).toFixed(2) + '%';
+  };
+  setSegWidth('mem-seg-system', br.system);
+  setSegWidth('mem-seg-services', br.services);
+  setSegWidth('mem-seg-models', br.models);
+  document.getElementById('mem-legend-system').textContent   = br.system.toFixed(1) + ' GB';
+  document.getElementById('mem-legend-services').textContent = br.services.toFixed(1) + ' GB';
+  document.getElementById('mem-legend-models').textContent   = br.models.toFixed(1) + ' GB';
+  document.getElementById('mem-legend-free').textContent     = freeGB.toFixed(1) + ' GB';
   document.getElementById('mem-bar-label').textContent =
     mem.used_gb + ' / ' + mem.total_gb + ' GB (' + pct + '%)';
   document.getElementById('mem-label-right').textContent =
     mem.available_gb + ' GB available';
 
-  // Service cards
+  // Pull DMR state alongside gateway services so we can render one combined
+  // service row list (the docker-compose stack is shown under Docker Services).
+  const dmr = await api('/ui/dmr/ps').catch(() => null);
+
   const container = document.getElementById('dashboard-cards');
-  if (!data.services || data.services.length === 0) {
-    container.innerHTML = '<div class="card"><div class="card-meta">No services configured</div></div>';
+  const gatewayRows = (data.services || []).map(renderGatewayCard).join('');
+  const dmrRows = renderDmrRunningCards(dmr && dmr.running ? dmr.running : []);
+
+  if (!gatewayRows && !dmrRows) {
+    container.innerHTML = '<div class="card-meta">No services configured</div>';
     return;
   }
-  container.innerHTML = data.services.map(s => `
-    <div class="card">
-      <div class="card-title">
-        <span class="dot ${stateColor(s.state)}"></span> ${s.name}
+  container.innerHTML = gatewayRows + dmrRows;
+}
+
+// Strip URL-path-style prefixes from a model identifier so a card shows e.g.
+// "qwen3-coder-30b-a3b-instruct-gguf" instead of the full HuggingFace URL.
+function shortName(name) {
+  if (!name) return '';
+  const stripped = String(name).replace(/:[^:/]*$/, '');
+  if (stripped.includes('/')) {
+    const parts = stripped.split('/').filter(Boolean);
+    return parts[parts.length - 1];
+  }
+  return stripped;
+}
+
+function renderGatewayCard(s) {
+  const modelSub = s.model
+    ? ` <span style="color:var(--fg3);font-family:var(--mono);font-size:12px;font-weight:400">${escapeHtml(shortName(s.model))}</span>`
+    : '';
+  const stateBits = [
+    `<strong>${escapeHtml(s.state)}</strong>`,
+    s.port ? `Port ${s.port}` : '',
+    s.uptime_sec ? `up ${fmtUptime(s.uptime_sec)}` : '',
+  ].filter(Boolean).join(' · ');
+  const canStart = ['stopped', 'failed'].includes(s.state);
+  const canStop = ['running', 'unhealthy', 'starting'].includes(s.state);
+  const disabled = s.state === 'disabled';
+  let actions;
+  if (disabled) {
+    actions = '<span style="color:var(--fg3);font-size:12px">disabled in config</span>';
+  } else {
+    let buttons = '';
+    if (canStart) buttons += `<button type="button" onclick="svcAction('${s.name}', 'start')">Start</button>`;
+    if (canStop) {
+      buttons += `<button type="button" onclick="svcAction('${s.name}', 'stop')">Stop</button>`;
+      buttons += `<button type="button" onclick="svcAction('${s.name}', 'restart')">Restart</button>`;
+    }
+    actions = buttons || '<span style="color:var(--fg3);font-size:12px">no actions</span>';
+  }
+  return `
+    <div class="svc-row">
+      <span class="dot ${stateColor(s.state)}"></span>
+      <div class="svc-info">
+        <div class="svc-name">${escapeHtml(s.name)}${modelSub}</div>
+        <div class="svc-desc">${escapeHtml(s.description || '')} · ${stateBits}</div>
       </div>
-      <div class="card-meta">${s.description || ''}</div>
-      <div class="card-meta">
-        State: <strong>${s.state}</strong>
-        ${s.port ? ' · Port ' + s.port : ''}
-        ${s.uptime_sec ? ' · Up ' + fmtUptime(s.uptime_sec) : ''}
-      </div>
-      <div class="card-actions">
-        ${(() => {
-          const canStart = ['stopped', 'failed'].includes(s.state);
-          const canStop = ['running', 'unhealthy', 'starting'].includes(s.state);
-          const disabled = s.state === 'disabled';
-          if (disabled) {
-            return '<span style="color:var(--fg3);font-size:12px">disabled in config</span>';
-          }
-          let buttons = '';
-          if (canStart) buttons += `<button type="button" onclick="svcAction('${s.name}', 'start')">Start</button>`;
-          if (canStop) {
-            buttons += `<button type="button" onclick="svcAction('${s.name}', 'stop')">Stop</button>`;
-            buttons += `<button type="button" onclick="svcAction('${s.name}', 'restart')">Restart</button>`;
-          }
-          return buttons || '<span style="color:var(--fg3);font-size:12px">no actions</span>';
-        })()}
-      </div>
-    </div>
-  `).join('');
+      <div class="svc-actions">${actions}</div>
+    </div>`;
+}
+
+function renderDmrRunningCards(running) {
+  if (!running || running.length === 0) return '';
+  return running.map(r => {
+    const until = r.until ? `expires ${r.until}` : '';
+    const display = shortName(r.name);
+    const fullTitle = display !== r.name ? ` title="${escapeAttr(r.name)}"` : '';
+    const meta = ['Docker Model Runner', r.backend, r.mode, until].filter(Boolean).map(escapeHtml).join(' · ');
+    return `
+      <div class="svc-row">
+        <span class="dot green"></span>
+        <div class="svc-info">
+          <div class="svc-name"${fullTitle}>${escapeHtml(display)}</div>
+          <div class="svc-desc">${meta}</div>
+        </div>
+        <div class="svc-actions"><span style="color:var(--fg3);font-size:12px">auto-unloads on idle</span></div>
+      </div>`;
+  }).join('');
+}
+
+async function restartStack() {
+  if (!confirm('Restart the entire docker-compose stack? Active requests will be dropped.')) return;
+  toast('Restarting stack...', 'success');
+  const r = await api('/ui/docker/stack/restart', { method: 'POST' });
+  if (r && r.status === 'restarting') {
+    toast('Stack restart initiated', 'success');
+  } else {
+    toast('Stack restart failed', 'error');
+  }
+  setTimeout(() => {
+    try { refreshDashboard(); } catch (_) {}
+    try { refreshDockerServices(); } catch (_) {}
+  }, 4000);
+}
+
+async function restartContainer(name) {
+  toast('Restarting ' + name + '...', 'success');
+  const r = await api('/ui/docker/container/' + encodeURIComponent(name) + '/restart', { method: 'POST' });
+  if (r && r.status === 'restarting') {
+    toast(name + ' restarting', 'success');
+  } else {
+    toast(name + ' restart failed', 'error');
+  }
+  setTimeout(() => {
+    try { refreshDashboard(); } catch (_) {}
+    try { refreshDockerServices(); } catch (_) {}
+  }, 3000);
 }
 
 // ── Services panel (Docker containers) ─────────────────────────────────────
+// Which compose service goes in which group. Anything not here falls into "Other".
+const LITELLM_STACK_SERVICES = new Set(['litellm', 'postgres']);
+const LOGGING_STACK_SERVICES = new Set(['grafana', 'loki', 'prometheus', 'alloy']);
+
+function renderDockerRow(c) {
+  const state = (c.state || '').toLowerCase();
+  const dot = state === 'running' ? 'green' : (state === 'exited' || state === 'dead') ? 'red'
+            : state ? 'yellow' : 'gray';
+  const ports = c.ports ? `<div class="docker-meta">Ports: <code>${escapeHtml(c.ports)}</code></div>` : '';
+  const status = c.status ? `<div class="docker-meta">${escapeHtml(c.status)}</div>` : '';
+  const stackBadge = c.compose_service
+    ? `<span class="chip local" title="Part of LLM Gateway docker-compose stack">stack</span>`
+    : '';
+  const configs = (c.config_paths || []).map(p => `<div><span class="path-label">cfg</span>${escapeHtml(p)}</div>`).join('');
+  const mounts  = (c.data_mounts || []).map(p => `<div><span class="path-label">data</span>${escapeHtml(p)}</div>`).join('');
+  const paths   = (configs || mounts) ? `<div class="docker-paths">${configs}${mounts}</div>` : '';
+  const restartBtn = c.name
+    ? `<button type="button" onclick="restartContainer('${escapeAttr(c.name)}')" style="font-size:12px;padding:4px 10px">Restart</button>`
+    : '';
+  return `
+    <div class="docker-row">
+      <div class="docker-head">
+        <span class="dot ${dot}"></span>
+        <span class="docker-name">${escapeHtml(c.name || '?')}</span>
+        ${stackBadge}
+        <span class="docker-image">${escapeHtml(c.image || '')}</span>
+        <span style="margin-left:auto">${restartBtn}</span>
+      </div>
+      ${status}
+      ${ports}
+      ${paths}
+    </div>`;
+}
+
+function renderDockerSection(title, hint, containers) {
+  if (containers.length === 0) return '';
+  const sub = hint ? `<div style="font-size:12px;color:var(--fg2);margin-bottom:8px">${hint}</div>` : '';
+  return `
+    <h3 style="margin:16px 0 8px;font-size:14px;color:var(--fg2)">${escapeHtml(title)}</h3>
+    ${sub}
+    ${containers.map(renderDockerRow).join('')}
+  `;
+}
+
 async function refreshDockerServices() {
   const container = document.getElementById('docker-service-list');
   if (!container) return;
-  container.innerHTML = '<div class="svc-row"><span class="svc-info">Docker service details will appear here in a future update.</span></div>';
+  const r = await api('/api/docker/containers');
+  if (!r) {
+    container.innerHTML = '<div class="card-meta">Failed to query Docker.</div>';
+    return;
+  }
+  if (r.error || r.detail) {
+    container.innerHTML = '<div class="card-meta">Docker error: ' + escapeHtml(r.detail || r.error) + '</div>';
+    return;
+  }
+  const containers = r.containers || [];
+  if (containers.length === 0) {
+    container.innerHTML = '<div class="card-meta">No Docker containers found. Is Docker Desktop running?</div>';
+    return;
+  }
+
+  const litellmGroup = [];
+  const loggingGroup = [];
+  const otherGroup = [];
+  for (const c of containers) {
+    const svc = (c.compose_service || '').toLowerCase();
+    if (LITELLM_STACK_SERVICES.has(svc)) litellmGroup.push(c);
+    else if (LOGGING_STACK_SERVICES.has(svc)) loggingGroup.push(c);
+    else otherGroup.push(c);
+  }
+  const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
+  litellmGroup.sort(byName);
+  loggingGroup.sort(byName);
+  otherGroup.sort(byName);
+
+  container.innerHTML =
+    renderDockerSection('LiteLLM', 'Proxy and its backing database.', litellmGroup) +
+    renderDockerSection('Logging (optional)', 'Observability stack — safe to stop if you don\'t need dashboards.', loggingGroup) +
+    renderDockerSection('Other', '', otherGroup);
 }
 
 async function svcAction(name, action) {
@@ -436,10 +777,241 @@ function fmtSize(s) {
   return s + ' B';
 }
 
+// Track which Models sub-tab is showing so we only re-fetch what's visible.
+let modelsSubtab = 'routes';
+
+function switchModelsSubtab(name) {
+  modelsSubtab = name;
+  document.querySelectorAll('#models-subtabs .subtab').forEach(t => {
+    t.classList.toggle('active', t.dataset.subtab === name);
+  });
+  document.querySelectorAll('#panel-models .subpanel').forEach(p => {
+    p.classList.toggle('active', p.id === 'subpanel-' + name);
+  });
+  if (name === 'routes') loadLitellmRoutes();
+  if (name === 'downloads') loadDmrModels();
+  if (name === 'recommendations') { refreshLlmfitBanner(); loadLlmfitRecommendations(); }
+}
+
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest && e.target.closest('#models-subtabs .subtab');
+  if (tab) switchModelsSubtab(tab.dataset.subtab);
+});
+
 async function loadModelsTab() {
-  loadDmrModels();
-  await refreshLlmfitBanner();
-  loadLlmfitRecommendations();
+  // Load whichever sub-tab is currently selected; default is Routes.
+  switchModelsSubtab(modelsSubtab);
+}
+
+// ── LiteLLM routes table ───────────────────────────────────────────────────
+const BACKEND_LABELS = {
+  'openrouter': 'OpenRouter',
+  'anthropic': 'Anthropic',
+  'openai': 'OpenAI',
+  'gemini': 'Gemini',
+  'xai': 'xAI',
+  'azure': 'Azure',
+  'deepseek': 'DeepSeek',
+  'docker-model-runner': 'Docker Model Runner (local)',
+  'local-llamacpp': 'llama.cpp (local)',
+  'other': 'Other',
+};
+
+// Display labels for the `search_provider` field (column 3 of the table).
+// All search tools render with a single orange "Search Tool" chip — the
+// provider name is shown as text rather than encoded in the chip color.
+const SEARCH_PROVIDER_LABELS = {
+  'tavily': 'tavily',
+  'exa_ai': 'exa_ai',
+  'brave': 'brave',
+  'serper': 'serper',
+};
+
+async function copyRouteName(name) {
+  try {
+    await navigator.clipboard.writeText(name);
+    toast('Copied: ' + name, 'success');
+  } catch (e) {
+    toast('Copy failed', 'error');
+  }
+}
+
+async function loadLitellmRoutes() {
+  const el = document.getElementById('routes-content');
+  const r = await api('/api/litellm/routes');
+  if (!r) { el.innerHTML = '<div class="card-meta">Failed to load routes.</div>'; return; }
+  const routes = r.routes || [];
+  if (routes.length === 0) {
+    el.innerHTML = '<div class="card-meta">No routes in litellm-config.yaml.</div>';
+    return;
+  }
+
+  // A route is "inactive" if it requires an env_key that's missing from .env.
+  // Local routes (docker-model-runner, llama.cpp) need no key and are active.
+  const active = [];
+  const inactive = [];
+  for (const rt of routes) {
+    const disabled = rt.env_key && rt.env_key_set === false;
+    (disabled ? inactive : active).push(rt);
+  }
+
+  // Hoist local-backend model groups to the top of the active section while
+  // keeping all entries of a single model_name contiguous (the renderer below
+  // relies on consecutive rows for the "first row bold, rest ↳" grouping).
+  const LOCAL_BACKENDS = new Set(['docker-model-runner', 'local-llamacpp']);
+  const groupOrder = [];
+  const groupRows = new Map();
+  for (const rt of active) {
+    if (!groupRows.has(rt.model_name)) {
+      groupRows.set(rt.model_name, []);
+      groupOrder.push(rt.model_name);
+    }
+    groupRows.get(rt.model_name).push(rt);
+  }
+  const isLocalGroup = name =>
+    groupRows.get(name).some(rt => LOCAL_BACKENDS.has(rt.backend));
+  const localGroups = groupOrder.filter(isLocalGroup);
+  const remoteGroups = groupOrder.filter(n => !isLocalGroup(n));
+  const activeReordered = [...localGroups, ...remoteGroups].flatMap(n => groupRows.get(n));
+
+  // Build lookup: target model_name → list of aliases pointing at it.
+  // e.g. {"local-only": ["local"], "deep-reasoning": ["reasoning"]}
+  const aliasesByTarget = {};
+  for (const [alias, target] of Object.entries(r.aliases || {})) {
+    if (!aliasesByTarget[target]) aliasesByTarget[target] = [];
+    aliasesByTarget[target].push(alias);
+  }
+  // Build lookup: model_name → list of fallback targets.
+  // e.g. {"deep-reasoning": ["coding"]}
+  const fallbacksBySource = {};
+  for (const fb of r.fallbacks || []) {
+    const [k, v] = Object.entries(fb)[0] || ['', []];
+    if (k) fallbacksBySource[k] = v || [];
+  }
+
+  // Group consecutive same-name rows within each section; first row gets the
+  // model name in bold (with aliases inline and fallback subtitle), subsequent
+  // rows are dimmed continuations. Active rows get a "Copy Route" button in
+  // the Reason column; inactive rows show the missing-API-key chip.
+  function renderRow(rt, seen, showReason) {
+    const isFirst = !seen.has(rt.model_name);
+    seen.add(rt.model_name);
+    const backend = rt.backend || 'other';
+    const backendLabel = BACKEND_LABELS[backend] || backend;
+    const apiBase = rt.api_base
+      ? `<div style="color:var(--fg3);font-size:11px;margin-top:2px">${escapeHtml(rt.api_base)}</div>`
+      : '';
+    let modelCell;
+    if (isFirst) {
+      const aliases = aliasesByTarget[rt.model_name] || [];
+      const aliasSuffix = aliases.length
+        ? ` <span style="color:var(--fg3);font-weight:400">&lt;- ${aliases.map(escapeHtml).join(', ')}</span>`
+        : '';
+      const fbTargets = fallbacksBySource[rt.model_name] || [];
+      const fallbackSub = fbTargets.length
+        ? `<div style="color:var(--fg3);font-size:11px;margin-top:2px">↳ fallback: ${fbTargets.map(escapeHtml).join(', ')}</div>`
+        : '';
+      modelCell = `<strong>${escapeHtml(rt.model_name)}</strong>${aliasSuffix}${fallbackSub}`;
+    } else {
+      modelCell = `<span style="color:var(--fg3)">↳</span>`;
+    }
+    const reasonCell = showReason
+      ? `<span class="chip key-missing" title="${escapeAttr(rt.env_key || '')} not set in .env">missing API key</span>
+         <div style="color:var(--fg3);font-size:11px;font-family:var(--mono);margin-top:2px">${escapeHtml(rt.env_key || '')}</div>`
+      : (isFirst
+          ? `<button type="button" onclick="copyRouteName('${escapeAttr(rt.model_name)}')" style="font-size:11px;padding:2px 8px">Copy Route</button>`
+          : '');
+    return `
+      <tr class="${isFirst ? '' : 'dim'}">
+        <td>${modelCell}</td>
+        <td><span class="chip ${backend}">${escapeHtml(backendLabel)}</span></td>
+        <td class="mono">${escapeHtml(rt.provider)}${apiBase}</td>
+        <td>${reasonCell}</td>
+      </tr>`;
+  }
+
+  // Search tools: rendered as plain rows interleaved into Active (between
+  // local models and remote routes) and Inactive (when key is missing).
+  // Always orange "Search Tool" chip regardless of which provider.
+  const searchTools = r.search_tools || [];
+  const activeSearchToolName = r.active_search_tool
+    || (searchTools.length ? searchTools[0].search_tool_name : null);
+  const searchActive = [];
+  const searchInactive = [];
+  for (const st of searchTools) {
+    if (st.env_key && st.env_key_set === false) searchInactive.push(st);
+    else searchActive.push(st);
+  }
+
+  function renderSearchToolRow(st, inactive) {
+    const provider = st.search_provider || 'other';
+    const providerLabel = SEARCH_PROVIDER_LABELS[provider] || provider;
+    const aliases = aliasesByTarget[st.search_tool_name] || [];
+    const aliasSuffix = aliases.length
+      ? ` <span style="color:var(--fg3);font-weight:400">&lt;- ${aliases.map(escapeHtml).join(', ')}</span>`
+      : '';
+    const isDefault = st.search_tool_name === activeSearchToolName;
+    const defaultBadge = isDefault
+      ? ` <span style="color:var(--accent);font-size:10px;font-weight:600;letter-spacing:.04em">DEFAULT</span>`
+      : '';
+    let reasonCell;
+    if (inactive) {
+      reasonCell = `<span class="chip key-missing" title="${escapeAttr(st.env_key)} not set in .env">missing API key</span>
+                    <div style="color:var(--fg3);font-size:11px;font-family:var(--mono);margin-top:2px">${escapeHtml(st.env_key)}</div>`;
+    } else {
+      reasonCell = `<button type="button" onclick="copyRouteName('${escapeAttr(st.search_tool_name)}')" style="font-size:11px;padding:2px 8px">Copy Route</button>`;
+    }
+    return `
+      <tr${inactive ? ' class="dim"' : ''}>
+        <td><strong>${escapeHtml(st.search_tool_name)}</strong>${aliasSuffix}${defaultBadge}</td>
+        <td><span class="chip search-tool">Search Tool</span></td>
+        <td class="mono">${escapeHtml(providerLabel)}<div style="color:var(--fg3);font-size:11px;margin-top:2px">via litellm_web_search</div></td>
+        <td>${reasonCell}</td>
+      </tr>`;
+  }
+
+  // Active section order: local model groups → active search tools → remote model groups.
+  const seenA = new Set();
+  const localRowsHTML = localGroups.flatMap(n => groupRows.get(n))
+    .map(rt => renderRow(rt, seenA, false)).join('');
+  const searchActiveHTML = searchActive.map(st => renderSearchToolRow(st, false)).join('');
+  const remoteRowsHTML = remoteGroups.flatMap(n => groupRows.get(n))
+    .map(rt => renderRow(rt, seenA, false)).join('');
+  const activeRows = (localRowsHTML + searchActiveHTML + remoteRowsHTML)
+    || `<tr><td colspan="4" style="color:var(--fg3);text-align:center;padding:8px">No active routes</td></tr>`;
+  const activeCount = active.length + searchActive.length;
+
+  // Inactive section: missing-key model routes + missing-key search tools.
+  const seenI = new Set();
+  const inactiveModelHTML = inactive.map(rt => renderRow(rt, seenI, true)).join('');
+  const inactiveSearchHTML = searchInactive.map(st => renderSearchToolRow(st, true)).join('');
+  const inactiveRows = (inactiveModelHTML + inactiveSearchHTML)
+    || `<tr><td colspan="4" style="color:var(--fg3);text-align:center;padding:8px">No inactive routes</td></tr>`;
+  const inactiveCount = inactive.length + searchInactive.length;
+
+  el.innerHTML = `
+    <table class="routes-table" style="table-layout:fixed">
+      <colgroup>
+        <col style="width:24%">
+        <col style="width:20%">
+        <col style="width:38%">
+        <col style="width:18%">
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Model</th>
+          <th>Backend</th>
+          <th>Provider call</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="section-row"><td colspan="4">Active (${activeCount})</td></tr>
+        ${activeRows}
+        <tr class="section-row"><td colspan="4">Inactive (${inactiveCount})</td></tr>
+        ${inactiveRows}
+      </tbody>
+    </table>`;
 }
 
 async function refreshLlmfitBanner() {
@@ -540,18 +1112,52 @@ async function loadDmrModels() {
   el.innerHTML = models.map(m => {
     const tag = (m.tags && m.tags[0]) || m.id || '?';
     const cfg = m.config || {};
+    const runningBadge = m.running
+      ? ' <span class="chip local" title="currently loaded in Docker Model Runner">● running</span>'
+      : ' <span class="chip key-none">idle</span>';
+    const descParts = [
+      cfg.parameters || '',
+      cfg.quantization || '',
+      cfg.architecture || '',
+      fmtSize(cfg.size),
+      fmtDownloaded(m.created),
+    ].filter(s => s && String(s).trim()).map(escapeHtml).join(' · ');
     return `
       <div class="svc-row">
         <div class="svc-info">
-          <div class="svc-name">${escapeHtml(tag)}</div>
-          <div class="svc-desc">
-            ${escapeHtml(cfg.parameters || '')} · ${escapeHtml(cfg.quantization || '')} ·
-            ${escapeHtml(cfg.architecture || '')} · ${escapeHtml(fmtSize(cfg.size))}
-          </div>
+          <div class="svc-name">${escapeHtml(tag)}${runningBadge}</div>
+          <div class="svc-desc">${descParts}</div>
+        </div>
+        <div class="svc-actions">
+          <button type="button" class="danger" onclick="dmrRm('${escapeAttr(tag)}')">Delete</button>
         </div>
       </div>
     `;
   }).join('');
+}
+
+function fmtDownloaded(unixSec) {
+  if (!unixSec) return '';
+  const d = new Date(unixSec * 1000);
+  if (isNaN(d.getTime())) return '';
+  return 'downloaded ' + d.toISOString().slice(0, 10);
+}
+
+async function dmrRm(model) {
+  if (!confirm('Delete ' + model + ' from local Docker Model Runner storage?')) return;
+  toast('Deleting ' + model + '...', 'success');
+  const r = await api('/ui/dmr/rm', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model }),
+  });
+  if (r && r.status === 'removed') {
+    toast('Deleted ' + model, 'success');
+    loadDmrModels();
+  } else {
+    const msg = r && r.error ? r.error : 'delete failed';
+    toast(msg, 'error');
+  }
 }
 
 // Track active pull SSE so we don't overlap.
@@ -649,28 +1255,103 @@ function dmrPullManual() {
 }
 
 // ── Secrets (.env) ──────────────────────────────────────────────────────────
+//
+// SECRET_SECTIONS is the presentational registry: which env vars belong to
+// which section, which API keys have paired base URLs (auto-added with a
+// default when the key is added), and which have extra companions (Azure
+// API version, OpenAI org, OAuth field names). The backend's
+// _BASE_URL_OR_VERSION_TO_API_KEY mirror is the source of truth for the
+// "only write base URL if key is set" save logic.
+const SECRET_SECTIONS = [
+  {
+    id: 'litellm',
+    title: 'LiteLLM Proxy',
+    description: 'Admin keys for the proxy itself. LITELLM_MASTER_KEY is required.',
+    entries: [
+      { key: 'LITELLM_MASTER_KEY', label: 'Master key (required)' },
+      { key: 'LITELLM_SALT_KEY', label: 'Salt key (prompt-store encryption)' },
+      { key: 'OAUTH_TOKEN_INFO_ENDPOINT', label: 'OAuth 2.0 token-info endpoint',
+        extras: [
+          { key: 'OAUTH_USER_ID_FIELD_NAME', default: 'sub' },
+          { key: 'OAUTH_USER_ROLE_FIELD_NAME', default: 'role' },
+          { key: 'OAUTH_USER_TEAM_ID_FIELD_NAME', default: 'team_id' },
+        ] },
+      { key: 'GOOGLE_CLIENT_ID', label: 'Google SSO — client ID' },
+      { key: 'GOOGLE_CLIENT_SECRET', label: 'Google SSO — client secret' },
+    ],
+  },
+  {
+    id: 'llm',
+    title: 'LLM Providers',
+    description: 'Chat/completion API keys. Adding a key auto-fills its default base URL — override or remove it after.',
+    entries: [
+      { key: 'OPENROUTER_API_KEY', label: 'OpenRouter',
+        base_url: { key: 'OPENROUTER_API_BASE', default: 'https://openrouter.ai/api/v1' } },
+      { key: 'ANTHROPIC_API_KEY', label: 'Anthropic',
+        base_url: { key: 'ANTHROPIC_API_BASE', default: 'https://api.anthropic.com' } },
+      { key: 'OPENAI_API_KEY', label: 'OpenAI',
+        base_url: { key: 'OPENAI_BASE_URL', default: 'https://api.openai.com/v1' },
+        extras: [{ key: 'OPENAI_ORGANIZATION', default: '' }] },
+      { key: 'GEMINI_API_KEY', label: 'Gemini',
+        base_url: { key: 'GEMINI_API_BASE', default: 'https://generativelanguage.googleapis.com' } },
+      { key: 'XAI_API_KEY', label: 'xAI (Grok)',
+        base_url: { key: 'XAI_API_BASE', default: 'https://api.x.ai/v1' } },
+      { key: 'AZURE_API_KEY', label: 'Azure OpenAI',
+        base_url: { key: 'AZURE_API_BASE', default: '' },
+        extras: [{ key: 'AZURE_API_VERSION', default: '2024-02-15-preview' }] },
+      { key: 'PERPLEXITY_API_KEY', label: 'Perplexity' },
+      { key: 'DEEPSEEK_API_KEY', label: 'DeepSeek' },
+      { key: 'MISTRAL_API_KEY', label: 'Mistral' },
+      { key: 'TOGETHER_API_KEY', label: 'Together AI' },
+      { key: 'COHERE_API_KEY', label: 'Cohere' },
+      { key: 'FIREWORKS_API_KEY', label: 'Fireworks' },
+      { key: 'REPLICATE_API_KEY', label: 'Replicate' },
+    ],
+  },
+  {
+    id: 'search',
+    title: 'Search APIs',
+    description: 'Proxied by LiteLLM via the litellm_web_search tool. Clients never see these keys.',
+    entries: [
+      { key: 'TAVILY_API_KEY', label: 'Tavily' },
+      { key: 'EXA_API_KEY', label: 'Exa' },
+      { key: 'BRAVE_SEARCH_API_KEY', label: 'Brave Search' },
+      { key: 'SERPER_API_KEY', label: 'Serper.dev' },
+    ],
+  },
+  {
+    id: 'observability',
+    title: 'Observability',
+    description: 'Local services and optional logging callbacks.',
+    entries: [
+      { key: 'GF_SECURITY_ADMIN_USER', label: 'Grafana admin user', defaultValue: 'admin' },
+      { key: 'GF_SECURITY_ADMIN_PASSWORD', label: 'Grafana admin password' },
+      { key: 'LANGFUSE_PUBLIC_KEY', label: 'Langfuse — public key',
+        extras: [
+          { key: 'LANGFUSE_SECRET_KEY', default: '' },
+          { key: 'LANGFUSE_HOST', default: 'https://cloud.langfuse.com' },
+        ] },
+      { key: 'HELICONE_API_KEY', label: 'Helicone' },
+    ],
+  },
+];
+
+// Flatten the registry for O(1) "which section does this key belong to" lookups.
+const SECRET_KEY_INDEX = {};
+for (const section of SECRET_SECTIONS) {
+  for (const entry of section.entries) {
+    SECRET_KEY_INDEX[entry.key] = { sectionId: section.id, role: 'primary', entry };
+    if (entry.base_url) {
+      SECRET_KEY_INDEX[entry.base_url.key] = { sectionId: section.id, role: 'base', entry };
+    }
+    for (const ex of (entry.extras || [])) {
+      SECRET_KEY_INDEX[ex.key] = { sectionId: section.id, role: 'extra', entry };
+    }
+  }
+}
+
 let secretsDefaults = {};
-let secretsRows = [];
-
-function getSecretsAvailableKeys() {
-  return secretsDefaults.availableKeys || Object.keys(secretsDefaults.defaults || {});
-}
-
-function renderSecretsEntries() {
-  const container = document.getElementById('secrets-entries');
-  container.innerHTML = secretsRows.map((row, idx) => {
-    const defaultVal = (secretsDefaults.defaults || {})[row.key] || '';
-    const isPlaceholder = !row.value && defaultVal;
-    const keyCell = `<span class="secret-key" style="font-family:var(--mono);font-size:13px">${escapeHtml(row.key)}</span>`;
-    return `<div class="secret-row" data-idx="${idx}">
-      ${keyCell}
-      <input type="text" class="secret-value ${isPlaceholder ? 'placeholder' : ''}" data-idx="${idx}" value="${escapeHtml(row.value)}" placeholder="${escapeHtml(defaultVal)}" oninput="updateSecretValue(${idx}, this)" />
-      <button type="button" class="secret-remove danger" onclick="removeSecretRow(${idx})">Remove</button>
-    </div>`;
-  }).join('');
-
-  renderSecretKeyOptions();
-}
+let secretsRows = [];  // [{key, value}, ...] — source of truth, sent verbatim to the backend
 
 function escapeHtml(s) {
   if (s == null) return '';
@@ -679,62 +1360,170 @@ function escapeHtml(s) {
   return div.innerHTML;
 }
 
+// secretsRows lookup helpers
+function findRowIdx(key) { return secretsRows.findIndex(r => r.key === key); }
+function hasRow(key) { return findRowIdx(key) >= 0; }
+function addOrSetRow(key, value) {
+  const idx = findRowIdx(key);
+  if (idx >= 0) secretsRows[idx].value = value;
+  else secretsRows.push({ key, value });
+}
+function removeRowByKey(key) {
+  const idx = findRowIdx(key);
+  if (idx >= 0) secretsRows.splice(idx, 1);
+}
+
+// Render a single row (label + value input + Remove). Role controls styling.
+function renderRow(key, role) {
+  const idx = findRowIdx(key);
+  if (idx < 0) return '';
+  const row = secretsRows[idx];
+  const exampleDefault = (secretsDefaults.defaults || {})[key] || '';
+  const isPlaceholder = !row.value && exampleDefault;
+  const secondary = role === 'base' || role === 'extra' ? ' secondary' : '';
+  return `
+    <div class="secret-row${secondary}" data-idx="${idx}">
+      <span class="secret-key">${escapeHtml(key)}</span>
+      <input type="text" class="secret-value ${isPlaceholder ? 'placeholder' : ''}"
+             value="${escapeHtml(row.value)}"
+             placeholder="${escapeHtml(exampleDefault)}"
+             oninput="updateSecretValue(${idx}, this)" />
+      <button type="button" class="secret-remove danger" onclick="removeSecretRowByKey('${escapeAttr(key)}')">Remove</button>
+    </div>`;
+}
+
+// Render a group: primary key + (optional) base URL + extras, all in one card.
+function renderSecretGroup(entry) {
+  const primary = renderRow(entry.key, 'primary');
+  if (!primary) return '';  // primary not present → don't render the group
+  const baseRow = entry.base_url && hasRow(entry.base_url.key)
+    ? renderRow(entry.base_url.key, 'base') : '';
+  const extraRows = (entry.extras || [])
+    .filter(ex => hasRow(ex.key))
+    .map(ex => renderRow(ex.key, 'extra')).join('');
+  return `<div class="secret-group">${primary}${baseRow}${extraRows}</div>`;
+}
+
+// Render the "Add to this section" control. For known sections, a dropdown
+// of unset entries; for "Other", a free-text key input.
+function renderSectionAdd(section, availableEntries) {
+  const sid = section.id;
+  if (sid === 'other') {
+    return `
+      <div class="section-add">
+        <span class="add-label">Add custom:</span>
+        <input type="text" id="add-key-other" placeholder="ENV_VAR_NAME" />
+        <input type="text" id="add-val-other" placeholder="Value" />
+        <button type="button" class="primary" onclick="addCustomSecret()">Add</button>
+      </div>`;
+  }
+  if (availableEntries.length === 0) {
+    return `<div class="section-add" style="color:var(--fg3);font-size:12px">
+              All known ${escapeHtml(section.title)} entries are configured.
+            </div>`;
+  }
+  const options = availableEntries.map(e =>
+    `<option value="${escapeAttr(e.key)}">${escapeHtml(e.label || e.key)} — ${escapeHtml(e.key)}</option>`
+  ).join('');
+  return `
+    <div class="section-add">
+      <span class="add-label">Add:</span>
+      <select id="add-key-${sid}">${options}</select>
+      <input type="text" id="add-val-${sid}" placeholder="Value (or leave blank for defaults only)" />
+      <button type="button" class="primary" onclick="addSectionSecret('${sid}')">Add</button>
+    </div>`;
+}
+
+function renderSecretsSections() {
+  const container = document.getElementById('secrets-entries');
+
+  // Render registered sections
+  const knownSectionsHTML = SECRET_SECTIONS.map(section => {
+    // Entries with at least the primary row present
+    const presentEntries = section.entries.filter(e => hasRow(e.key));
+    // Entries not yet added (offered in the dropdown)
+    const availableEntries = section.entries.filter(e => !hasRow(e.key));
+
+    const groupsHTML = presentEntries.map(renderSecretGroup).join('')
+      || `<div class="card-meta" style="font-size:12px;margin-bottom:8px">Nothing configured in this section yet.</div>`;
+    return `
+      <div class="secrets-section">
+        <h3>${escapeHtml(section.title)}</h3>
+        <div class="section-desc">${escapeHtml(section.description)}</div>
+        ${groupsHTML}
+        ${renderSectionAdd(section, availableEntries)}
+      </div>`;
+  }).join('');
+
+  // "Other" — anything in secretsRows the registry doesn't know about
+  const otherRows = secretsRows.filter(r => !SECRET_KEY_INDEX[r.key]);
+  const otherGroupsHTML = otherRows.length
+    ? otherRows.map(r => `<div class="secret-group">${renderRow(r.key, 'primary')}</div>`).join('')
+    : `<div class="card-meta" style="font-size:12px;margin-bottom:8px">No custom entries.</div>`;
+  const otherSection = {
+    id: 'other',
+    title: 'Other',
+    description: 'Custom or unrecognized variables. Use Add to write a key by name.',
+  };
+  const otherHTML = `
+    <div class="secrets-section">
+      <h3>${escapeHtml(otherSection.title)}</h3>
+      <div class="section-desc">${escapeHtml(otherSection.description)}</div>
+      ${otherGroupsHTML}
+      ${renderSectionAdd(otherSection, [])}
+    </div>`;
+
+  container.innerHTML = knownSectionsHTML + otherHTML;
+}
+
 function updateSecretValue(idx, input) {
-  if (secretsRows[idx]) {
-    secretsRows[idx].value = input.value;
-    const defaultVal = (secretsDefaults.defaults || {})[secretsRows[idx].key] || '';
-    input.classList.toggle('placeholder', !input.value && defaultVal);
+  if (!secretsRows[idx]) return;
+  secretsRows[idx].value = input.value;
+  const defaultVal = (secretsDefaults.defaults || {})[secretsRows[idx].key] || '';
+  input.classList.toggle('placeholder', !input.value && defaultVal);
+}
+
+function removeSecretRowByKey(key) {
+  const meta = SECRET_KEY_INDEX[key];
+  // If removing a primary key with companions, also drop its base URL + extras
+  // (they have no semantic meaning without the primary key anyway).
+  if (meta && meta.role === 'primary') {
+    if (meta.entry.base_url) removeRowByKey(meta.entry.base_url.key);
+    for (const ex of (meta.entry.extras || [])) removeRowByKey(ex.key);
   }
+  removeRowByKey(key);
+  renderSecretsSections();
 }
 
-function commitSecretKey(idx, key) {
-  if (!key) return;
-  secretsRows[idx].key = key;
-  renderSecretsEntries();
+// Add a known entry from a section's dropdown. Adds the primary key plus
+// its base URL (pre-filled with default) and any extras.
+function addSectionSecret(sectionId) {
+  const section = SECRET_SECTIONS.find(s => s.id === sectionId);
+  if (!section) return;
+  const keyEl = document.getElementById('add-key-' + sectionId);
+  const valEl = document.getElementById('add-val-' + sectionId);
+  if (!keyEl) return;
+  const key = keyEl.value;
+  const entry = section.entries.find(e => e.key === key);
+  if (!entry) { toast('Unknown entry', 'error'); return; }
+
+  const value = (valEl && valEl.value) ? valEl.value.trim() : (entry.defaultValue || '');
+  addOrSetRow(entry.key, value);
+  if (entry.base_url) addOrSetRow(entry.base_url.key, entry.base_url.default || '');
+  for (const ex of (entry.extras || [])) addOrSetRow(ex.key, ex.default || '');
+
+  renderSecretsSections();
 }
 
-function removeSecretRow(idx) {
-  secretsRows.splice(idx, 1);
-  renderSecretsEntries();
-}
-
-function renderSecretKeyOptions() {
-  const datalist = document.getElementById('secret-key-options');
-  if (!datalist) return;
-  const knownKeys = Array.from(
-    new Set([
-      ...getSecretsAvailableKeys(),
-      ...secretsRows.map(r => r.key).filter(Boolean),
-    ]),
-  ).sort();
-  datalist.innerHTML = knownKeys
-    .map(k => `<option value="${escapeHtml(k)}"></option>`)
-    .join('');
-}
-
-function commitNewSecret() {
-  const keyInput = document.getElementById('new-secret-key');
-  const valueInput = document.getElementById('new-secret-value');
-  if (!keyInput || !valueInput) return;
-
-  const key = (keyInput.value || '').trim();
-  const value = (valueInput.value || '').trim();
-
-  if (!key) {
-    toast('Enter an environment variable name', 'error');
-    return;
-  }
-
-  const existing = secretsRows.find(r => r.key === key);
-  if (existing) {
-    existing.value = value;
-  } else {
-    secretsRows.push({ key, value });
-  }
-
-  keyInput.value = '';
-  valueInput.value = '';
-  renderSecretsEntries();
+function addCustomSecret() {
+  const keyEl = document.getElementById('add-key-other');
+  const valEl = document.getElementById('add-val-other');
+  if (!keyEl || !valEl) return;
+  const key = (keyEl.value || '').trim();
+  const value = (valEl.value || '').trim();
+  if (!key) { toast('Enter an environment variable name', 'error'); return; }
+  addOrSetRow(key, value);
+  renderSecretsSections();
 }
 
 async function loadSecrets() {
@@ -747,10 +1536,21 @@ async function loadSecrets() {
     defaults: exampleData.defaults || {},
     availableKeys: exampleData.availableKeys || [],
   };
-  secretsRows = (data.entries || [])
-    .filter(e => (e.value || '').trim() !== '')
+  // Only rows the user explicitly set keep state — blank rows would clutter
+  // and re-appear via the per-section Add dropdown anyway.
+  const raw = (data.entries || []).filter(e => (e.value || '').trim() !== '');
+  const rawByKey = Object.fromEntries(raw.map(e => [e.key, e.value || '']));
+  // Drop orphan base URLs / extras whose primary key hasn't been set —
+  // .env.example ships defaults for some, so without this filter they'd
+  // load as un-grouped rows the user can't see or remove cleanly.
+  secretsRows = raw
+    .filter(e => {
+      const meta = SECRET_KEY_INDEX[e.key];
+      if (!meta || meta.role === 'primary') return true;
+      return (rawByKey[meta.entry.key] || '').trim() !== '';
+    })
     .map(e => ({ key: e.key, value: e.value || '' }));
-  renderSecretsEntries();
+  renderSecretsSections();
 }
 
 function showSecretsStatus(msg, type) {
@@ -777,16 +1577,60 @@ async function saveSecrets() {
     showSecretsStatus(r.error, 'error');
     return;
   }
-  showSecretsStatus('Saved', 'ok');
-  toast('.env saved', 'success');
+  const added = (r.search_tools_added || []);
+  const restart = r.litellm_restarting ? ' · LiteLLM restarting' : '';
+  const addedMsg = added.length ? ` · wired up ${added.join(', ')}` : '';
+  showSecretsStatus('Saved' + addedMsg + restart, 'ok');
+  toast('.env saved' + addedMsg + restart, 'success');
+  // search_tools entries may have been added — refresh the Routes view if visible.
+  if (added.length) {
+    setTimeout(() => { try { loadLitellmRoutes(); } catch (_) {} }, 500);
+  }
 }
 
 // ── Config editor ──────────────────────────────────────────────────────────
+// The editor exposes two YAML files:
+//   gateway → ~/.llm-gateway/config/llmgateway.yaml  (gateway service config)
+//   litellm → ~/.llm-gateway/litellm-config.yaml     (LiteLLM proxy model list)
+let configFile = 'gateway';
+
+const CONFIG_ENDPOINTS = {
+  gateway: {
+    yaml: '/ui/config/yaml',
+    save: '/ui/config/save',
+    validate: '/ui/config/validate',
+    reset: '/ui/config/reset',
+    hint: '~/.llm-gateway/config/llmgateway.yaml',
+    hasReset: true,
+  },
+  litellm: {
+    yaml: '/ui/litellm-config/yaml',
+    save: '/ui/litellm-config/save',
+    validate: '/ui/litellm-config/validate',
+    reset: null,
+    hint: 'config/litellm-config.yaml (mounted into the litellm container)',
+    hasReset: false,
+  },
+};
+
+function switchConfigFile(name) {
+  if (!CONFIG_ENDPOINTS[name]) return;
+  configFile = name;
+  document.querySelectorAll('#config-file-seg button').forEach(b => {
+    b.classList.toggle('active', b.dataset.file === name);
+  });
+  const ep = CONFIG_ENDPOINTS[name];
+  document.getElementById('config-file-hint').textContent = ep.hint;
+  document.getElementById('config-reset-btn').style.display = ep.hasReset ? '' : 'none';
+  loadConfigEditor();
+}
+
 async function loadConfigEditor() {
-  const data = await api('/ui/config/yaml');
-  if (data && data.yaml) {
-    document.getElementById('config-editor').value = data.yaml;
-  }
+  const ep = CONFIG_ENDPOINTS[configFile];
+  document.getElementById('config-file-hint').textContent = ep.hint;
+  document.getElementById('config-reset-btn').style.display = ep.hasReset ? '' : 'none';
+  const data = await api(ep.yaml);
+  document.getElementById('config-editor').value = (data && data.yaml) ? data.yaml : '';
   hideConfigStatus();
 }
 
@@ -801,8 +1645,9 @@ function hideConfigStatus() {
 }
 
 async function saveConfig() {
+  const ep = CONFIG_ENDPOINTS[configFile];
   const yaml = document.getElementById('config-editor').value;
-  const r = await api('/ui/config/save', {
+  const r = await api(ep.save, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ yaml }),
@@ -811,14 +1656,21 @@ async function saveConfig() {
   if (r.errors && r.errors.length) {
     showConfigStatus('Errors: ' + r.errors.join('; '), 'error');
   } else {
-    showConfigStatus('Saved' + (r.warnings && r.warnings.length ? ' (with warnings: ' + r.warnings.join('; ') + ')' : ''), 'ok');
-    toast('Config saved', 'success');
+    const warnMsg = r.warnings && r.warnings.length ? ' (warnings: ' + r.warnings.join('; ') + ')' : '';
+    const restartMsg = r.litellm_restarting ? ' · LiteLLM restarting...' : '';
+    showConfigStatus('Saved' + warnMsg + restartMsg, 'ok');
+    toast('Config saved' + (r.litellm_restarting ? ' (LiteLLM restarting)' : ''), 'success');
+    if (configFile === 'litellm') {
+      // model_list may have changed — refresh the Routes view if it's loaded.
+      setTimeout(() => { try { loadLitellmRoutes(); } catch (_) {} }, 500);
+    }
   }
 }
 
 async function validateConfig() {
+  const ep = CONFIG_ENDPOINTS[configFile];
   const yaml = document.getElementById('config-editor').value;
-  const r = await api('/ui/config/validate', {
+  const r = await api(ep.validate, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ yaml }),
@@ -833,8 +1685,10 @@ async function validateConfig() {
 }
 
 async function resetConfig() {
+  const ep = CONFIG_ENDPOINTS[configFile];
+  if (!ep.reset) return;
   if (!confirm('Reset configuration to shipped defaults? Your current config will be backed up.')) return;
-  const r = await api('/ui/config/reset', { method: 'POST' });
+  const r = await api(ep.reset, { method: 'POST' });
   if (r && r.yaml) {
     document.getElementById('config-editor').value = r.yaml;
     showConfigStatus('Reset to defaults', 'ok');
@@ -842,10 +1696,59 @@ async function resetConfig() {
   }
 }
 
+// ── Top processes by memory ────────────────────────────────────────────────
+async function refreshTopProcesses() {
+  const disc = document.getElementById('top-procs-disclosure');
+  // Only fetch when the disclosure is open — avoids burning psutil scans.
+  if (!disc || !disc.open) return;
+  const body = document.getElementById('top-procs-body');
+  const r = await api('/api/processes/top?count=10');
+  if (!r || !r.processes) {
+    body.innerHTML = '<div class="card-meta" style="font-size:12px">Failed to load processes.</div>';
+    return;
+  }
+  if (r.processes.length === 0) {
+    body.innerHTML = '<div class="card-meta" style="font-size:12px">No process info available.</div>';
+    return;
+  }
+  // Bucket pill — same colors as the segmented memory bar legend.
+  const bucketLabel = b => (b === 'models' ? 'Models' : b === 'services' ? 'Services' : 'System');
+  body.innerHTML = `
+    <table class="proc-table">
+      <thead><tr><th>Process</th><th>PID</th><th>User</th><th class="num">RSS</th></tr></thead>
+      <tbody>
+        ${r.processes.map(p => {
+          const b = p.bucket || 'system';
+          return `
+          <tr>
+            <td>
+              <span class="proc-pill ${b}">${bucketLabel(b)}</span>
+              ${escapeHtml(p.name)}
+            </td>
+            <td>${p.pid}</td>
+            <td>${escapeHtml(p.user || '')}</td>
+            <td class="num">${p.rss_mb.toFixed(1)} MB</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+}
+
 // ── Auto-refresh ───────────────────────────────────────────────────────────
 function startAutoRefresh() {
   refreshDashboard();
-  refreshTimer = setInterval(refreshDashboard, 10000);
+  refreshDockerServices();
+  refreshTimer = setInterval(() => {
+    refreshDashboard();
+    refreshTopProcesses();
+  }, 10000);
+
+  const disc = document.getElementById('top-procs-disclosure');
+  if (disc) {
+    disc.addEventListener('toggle', () => {
+      if (disc.open) refreshTopProcesses();
+    });
+  }
 }
 
 // Handle tab key in textarea (insert spaces instead of switching focus)

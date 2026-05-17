@@ -42,6 +42,7 @@ class ServiceStatus:
     name: str
     state: ServiceState
     description: str = ""
+    model: str = ""
     pid: Optional[int] = None
     port: Optional[int] = None
     health_url: Optional[str] = None
@@ -55,6 +56,7 @@ class ServiceStatus:
             "name": self.name,
             "state": self.state.value,
             "description": self.description,
+            "model": self.model,
             "pid": self.pid,
             "port": self.port,
             "health_url": self.health_url,
@@ -85,6 +87,7 @@ class BaseService:
         self.name = name
         self.svc_config = svc_config
         self.description = svc_config.get("description", name)
+        self.model: str = svc_config.get("model", "")
         self.health_url: Optional[str] = svc_config.get("health_check_url")
         self.expected_memory_gb: float = svc_config.get("expected_memory_gb", 0.0)
 
@@ -287,6 +290,7 @@ class BaseService:
             name=self.name,
             state=self._state,
             description=self.description,
+            model=self.model,
             pid=self._pid,
             port=self.port,
             health_url=self.health_url,

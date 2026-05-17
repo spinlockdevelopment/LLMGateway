@@ -254,6 +254,17 @@ async def cmd_serve(log: logging.Logger) -> int:
         if svc is not None:
             registry.register(svc)
 
+    # Reconcile litellm-config.yaml with .env: add search_tools entries for
+    # any web-search API key (Tavily/Exa/Brave/Serper) that's set but not yet
+    # wired up. Idempotent and non-destructive — never removes entries.
+    try:
+        from web.ui import sync_search_tools_with_env
+        added = sync_search_tools_with_env(_REPO_DIR, data_dir)
+        if added:
+            log.info(f"  Auto-added search_tools at startup: {', '.join(added)}")
+    except Exception:
+        log.warning("  search_tools sync at startup failed", exc_info=True)
+
     # Create FastAPI app
     app = create_app(cm, registry, _REPO_DIR, data_dir=data_dir)
 

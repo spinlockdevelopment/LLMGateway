@@ -123,7 +123,7 @@ cp .env.example .env
 
 ### 4. Pull local models (optional)
 
-Local inference uses Docker Model Runner, bundled with Docker Desktop. The `heartbeat` and `local-only` routes ship pointing at `ai/smollm2`; pull it (or any other model) with:
+Local inference uses Docker Model Runner, bundled with Docker Desktop. The `local-fast` (aliased as `heartbeat`) and `local-only` routes ship pointing at `ai/smollm2`; pull it (or any other model) with:
 
 ```bash
 docker model pull ai/smollm2
@@ -214,8 +214,9 @@ Clients send requests to LiteLLM with a **model name**. LiteLLM maps that to rea
 | `deep-reasoning` | Claude Sonnet 4 (OpenRouter or direct Anthropic) |
 | `coding` | Claude Sonnet 4 (OpenRouter or direct Anthropic) |
 | `vision` | Claude Sonnet 4 (OpenRouter) |
-| `heartbeat` | Docker Model Runner (e.g. `ai/smollm2`) — local |
-| `local-only` | Docker Model Runner (e.g. `ai/smollm2`) — local |
+| `local-fast` (alias `heartbeat`) | llama-server `local-fast` on `:8081` — local |
+| `local-only` | llama-server `local-coding` on `:8082` — local |
+| `local-coding` | llama-server `local-coding` on `:8082` — local |
 | Others | See `litellm-config.yaml` (e.g. `cheap-research`, `budget`, aliases) |
 
 Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) changes routing. You can also add models at runtime via the LiteLLM UI or API.
@@ -271,6 +272,6 @@ LLMGateway/
 
 ## Optional: local llama.cpp or Whisper
 
-In `config/llmgateway.yaml` (or the dashboard) you can enable `fast_model` / `deep_model` (llama-server) or `whisper`. Set `enabled: true` and fill in paths (e.g. `--model` for the GGUF file). The gateway will start and monitor them. LiteLLM can route to these via `litellm-config.yaml` (e.g. `openai/`-compatible endpoint on the port you set).
+In `config/llmgateway.yaml` (or the dashboard) you can enable `local-fast` / `local-coding` (llama-server) or `local-whispr`. Set `enabled: true` and fill in paths (e.g. `--model` for the GGUF file). The gateway will start and monitor them. LiteLLM routes to these via `litellm-config.yaml` at `http://host.docker.internal:<port>/v1`.
 
-Docker Model Runner (DMR) runs as part of Docker Desktop and uses Apple Metal via llama.cpp. The LiteLLM container reaches it at `http://model-runner.docker.internal/engines/v1`. Manage models with `docker model pull`, `docker model list`, and `docker model search`.
+Docker Model Runner (DMR) is used **only as a model downloader** — pull GGUFs with `docker model pull` and point the gateway's `local-fast` / `local-coding` services at the on-disk file. The LiteLLM container no longer routes through `model-runner.docker.internal`.
