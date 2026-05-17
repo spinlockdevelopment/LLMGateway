@@ -143,6 +143,7 @@ def cmd_install(log: logging.Logger) -> int:
     from config.manager import ConfigManager
     from data_dir import get_data_dir
     from launchd.manager import install
+    from cli_symlink import install_symlink
 
     data_dir = get_data_dir()
     config_dir = _REPO_DIR / "config"
@@ -155,13 +156,17 @@ def cmd_install(log: logging.Logger) -> int:
     if ok:
         log.info("Launch agent installed. The gateway will start on next login.")
         log.info("To start now: launchctl load ~/Library/LaunchAgents/com.local.llm-gateway.plist")
+    # Best-effort: add `gw` to PATH. Failure does not fail the install.
+    install_symlink(_REPO_DIR)
     return 0 if ok else 1
 
 
 def cmd_uninstall(log: logging.Logger) -> int:
     """Remove the launchd agent."""
     from launchd.manager import uninstall
+    from cli_symlink import uninstall_symlink
     ok = uninstall()
+    uninstall_symlink(_REPO_DIR)
     return 0 if ok else 1
 
 

@@ -3,14 +3,15 @@
 gw — LLM Gateway helper
 ========================
 Usage:
-    ./gw                         Show status of all components + key paths
-    ./gw start <component>       Start a component
-    ./gw stop <component>        Stop a component
-    ./gw restart <component>     Restart a component
-    ./gw logs <component>        Tail logs for a component
-    ./gw uninstall               Deregister all autostart, stop containers
+    gw                         Show status of all components + key paths
+    gw start <component>       Start a component (or "all")
+    gw stop <component>        Stop a component (or "all")
+    gw restart <component>     Restart a component (or "all" for full teardown + restart)
+    gw logs <component>        Tail logs for a component
+    gw uninstall               Deregister all autostart, stop containers
 
 Components:
+    all            Every enabled component (full teardown/restart in safe order)
     management     Gateway management service (llmgateway.py / launchd)
     ollama         Ollama local inference (bare metal, Metal GPU)
     llama-server   llama.cpp server (bare metal, default port 8081)
@@ -429,6 +430,51 @@ def _brew_service_started(service: str) -> bool:
         return False
 
 
+# ── "all" orchestration ──────────────────────────────────────────────────────
+
+def _ordered_components_for_stop() -> list[str]:
+    """Return enabled components in safe stop order: front-facing first, backends last."""
+    enabled = _enabled_components()
+    # Front-facing → backends. Docker stack is treated as one unit (compose down).
+    candidates = [
+        "management",
+        "llama-server", "whisper-server", "ollama",
+        "docker",
+    ]
+    return [c for c in candidates if c in enabled]
+
+
+def _ordered_components_for_start() -> list[str]:
+    """Return enabled components in safe start order: backends first, front-facing last."""
+    return list(reversed(_ordered_components_for_stop()))
+
+
+def _all_action(action: str) -> None:
+    """Run start/stop/restart for every enabled component in the appropriate order."""
+    if action == "stop":
+        components = _ordered_components_for_stop()
+        for c in components:
+            cmd_stop(c)
+    elif action == "start":
+        components = _ordered_components_for_start()
+        for c in components:
+            cmd_start(c)
+    elif action == "restart":
+        info(f"  {bold('Full teardown + restart')}")
+        blank()
+        info(f"  {dim('Stopping all components...')}")
+        for c in _ordered_components_for_stop():
+            cmd_stop(c)
+        blank()
+        time.sleep(2)
+        info(f"  {dim('Starting all components...')}")
+        for c in _ordered_components_for_start():
+            cmd_start(c)
+        blank()
+        success("All components restarted.")
+        _log("Restarted all components")
+
+
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 def cmd_status(show_more: bool = False) -> None:
@@ -652,12 +698,15 @@ def cmd_status(show_more: bool = False) -> None:
 
         blank()
         info(f"  {dim(f'Data dir: {_prefer_tilde(data_dir)}')}")
-        info(f"  {dim('Commands: ./gw start|stop|restart|logs <component>  •  ./gw uninstall')}")
+        info(f"  {dim('Commands: gw start|stop|restart|logs <component>  •  gw uninstall')}")
     blank()
 
 
 def cmd_start(name: str) -> None:
     """Start a component."""
+    if name == "all":
+        _all_action("start")
+        return
     if name in ("management", "gateway"):
         info(f"  Starting management service...")
         if MANAGEMENT_PLIST.exists():
@@ -705,6 +754,9 @@ def cmd_start(name: str) -> None:
 
 def cmd_stop(name: str) -> None:
     """Stop a component."""
+    if name == "all":
+        _all_action("stop")
+        return
     if name in ("management", "gateway"):
         info(f"  Stopping management service...")
         if MANAGEMENT_PLIST.exists():
@@ -738,6 +790,9 @@ def cmd_stop(name: str) -> None:
 
 def cmd_restart(name: str) -> None:
     """Restart a component."""
+    if name == "all":
+        _all_action("restart")
+        return
     if name in ("management", "gateway"):
         info(f"  Restarting management service...")
         if MANAGEMENT_PLIST.exists():
@@ -864,7 +919,15 @@ def cmd_uninstall() -> None:
             subprocess.run(["pkill", "-f", proc], capture_output=True)
             success("done")
 
-    # 4. Setup configuration (safe to remove; does not contain secrets)
+    # 4. CLI symlink (gw on PATH)
+    try:
+        sys.path.insert(0, str(REPO_DIR / "scripts"))
+        from cli_symlink import uninstall_symlink
+        uninstall_symlink(REPO_DIR)
+    except Exception:
+        pass
+
+    # 5. Setup configuration (safe to remove; does not contain secrets)
     setup_cfg = setup_config_path()
     if setup_cfg.exists():
         info(f"  Removing setup config: {setup_cfg}")
@@ -882,7 +945,7 @@ def cmd_uninstall() -> None:
         info(f"  {dim('Docker not available — skipping')}")
 
     blank()
-    info(f"  {yellow('Note:')} To restart:      {cyan('./gw start docker')}")
+    info(f"  {yellow('Note:')} To restart:      {cyan('gw start docker')}")
     info(f"  {yellow('Note:')} To reinstall:     {cyan('python3 scripts/llmgateway.py --install')}")
     blank()
     _log("Uninstall completed")
@@ -892,15 +955,16 @@ def cmd_usage() -> None:
     """Print usage information."""
     blank()
     info(f"  {bold('Usage:')}")
-    info(f"    ./gw                         Show status of all components")
-    info(f"    ./gw --more                  Show status plus detailed paths/volumes")
-    info(f"    ./gw start <component>       Start a component")
-    info(f"    ./gw stop <component>        Stop a component")
-    info(f"    ./gw restart <component>     Restart a component")
-    info(f"    ./gw log[s] <component>      Tail logs for a component")
-    info(f"    ./gw uninstall               Deregister autostart, stop all")
+    info(f"    gw                         Show status of all components")
+    info(f"    gw --more                  Show status plus detailed paths/volumes")
+    info(f"    gw start <component>       Start a component (or 'all')")
+    info(f"    gw stop <component>        Stop a component (or 'all')")
+    info(f"    gw restart <component>     Restart a component (or 'all' for full teardown + restart)")
+    info(f"    gw log[s] <component>      Tail logs for a component")
+    info(f"    gw uninstall               Deregister autostart, stop all")
     blank()
     info(f"  {bold('Components:')}")
+    info(f"    {'all':<14s}  Every enabled component (front-facing → backend order)")
     info(f"    {'management':<14s}  Gateway web UI + management service (launchd)")
     info(f"    {'ollama':<14s}  Ollama local inference (bare metal, Metal GPU)")
     info(f"    {'llama-server':<14s}  llama.cpp server  → http://localhost:8081")

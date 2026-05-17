@@ -134,6 +134,7 @@ def _install_management_console(data_dir: Path) -> bool:
     try:
         from launchd.manager import install as launchd_install, is_loaded
         from config.manager import ConfigManager
+        from cli_symlink import install_symlink
 
         config_dir = _REPO_DIR / "config"
         user_config_dir = data_dir / "config"
@@ -146,6 +147,9 @@ def _install_management_console(data_dir: Path) -> bool:
         if not ok:
             error("Failed to install launchd agent")
             return False
+
+        # Best-effort: add `gw` to PATH so the user can run it from anywhere.
+        install_symlink(_REPO_DIR)
 
         for attempt in range(1, 6):
             time.sleep(2)
