@@ -55,24 +55,28 @@ Restarted at **14:55:41 EDT 2026-05-18** with `max_tokens=4096` (thinkon
 equivalent). Phase 1's existing 11/11 snapshot in `ModelB_capped/phase_01/`
 is the starting point. Phases 2–12 will run with per-phase git commits.
 
-## **CURRENT STATE — what's running right now**
+## **CURRENT STATE — Run 2 COMPLETE**
 
-```
-shell wrapper:  bash run_capped_2_to_12.sh         (PID 58250)
-harness:        python harness.py ... phase --num 2 --model B   (PID 58259)
-docker tee:     docker logs --since=1s -f llm-gateway           (PID 58257)
-RUNNER log:     results/run_capped/RUNNER.log
-```
+Run 2 finished 19:12:25 EDT 2026-05-18 — total wall time 4h 17m for
+phases 2–12. No background processes are still running. All 11 phases
+were committed (`28a617d` through `e958298`).
 
-The wrapper loops phases 2..12, calling the harness for each. After each
-phase, it git-commits the workdir + result JSON + transcripts to the current
-branch as `benchmark B_capped phase NN — local capped`.
+**Read `results/run2_summary.md`** for the full per-phase table, the two
+critical findings (pytest collection-litter + destructive regression of
+`tinylang.evaluator.run` in Phase 4), and the four harness improvements to
+ship before the next experiment.
 
-Expected total time for 11 phases: 8–12+ hours, possibly more (Phase 3 in
-Run 1 took 4.4h just to implement).
+### Next things to do, in order
 
-Cross-eval and final-eval are NOT in the script. They will be run later
-against the committed snapshots.
+1. Strip scratch litter (`debug_*.py simple_*.py minimal_*.py test_*.py at
+   workdir root, NOT under tests/`) from each phase workdir and re-run
+   `pytest tests/` for the true pass rates. The in-run numbers are mostly
+   collection errors, not real failures.
+2. Update `results/opus_grades.md` with Run 2 grades (additive — keep
+   Run 1 grades for comparison).
+3. Implement the four harness fixes in `run2_summary.md` before queueing
+   the smaller-model experiment.
+4. Decide on Sonnet phases 4–12 (yes/no) for cross-eval coverage.
 
 ## How to resume in a fresh chat
 
