@@ -103,6 +103,37 @@ a known-good reference snapshot (Sonnet's, or a hand-written gold copy),
 so each phase is graded *in isolation*. Decide which variant you want
 before the rerun.
 
+## Hypothesis: context degradation rather than reasoning latency
+
+Run 2 (max_tokens=4096) is producing accurate API responses (no
+`Failed to parse input` errors) but the test pass rate at Phase 2 dropped
+to 14/24 vs Run 1's 21/24 — despite a *better* Phase 1 starting point
+(11/11 from the capped experiment vs Run 1's 8/11). One plausible
+explanation: at large context (~50K+ input tokens of carry-forward), the
+local model is hallucinating subtly without surface errors. Code looks
+plausible but breaks tests it should pass.
+
+If this pattern holds across phases 3-12 (accuracy decaying as context
+grows), the diagnosis is **context degradation, not reasoning latency**.
+That points to a smaller model with more context headroom rather than
+disabling reasoning.
+
+Candidate smaller models worth profiling on the same benchmark:
+
+- **Qwen3-14B** or **Qwen2.5-Coder-14B/32B** — same family, less weight
+  to load, more KV-cache headroom on the M4's 32 GB unified memory.
+- **DeepSeek-Coder-V2-Lite-Instruct (16B MoE, 2.4B active)** — designed
+  for coding; small active param count means fast per-token, may degrade
+  less at long context.
+- **Llama-3.1-8B-Instruct** or **Phi-3.5-mini-instruct (3.8B)** — small
+  enough that context isn't the resource constraint at all.
+
+**Procedure for the next experiment:** pick one or two candidates, ship
+the model GGUFs into the same `local-coding` slot, rerun the 12-phase
+benchmark with `max_tokens=4096`. Plot per-phase pytest accuracy against
+cumulative input-token count. If a smaller model holds accuracy through
+phase 6-12 where qwen3.6-35b starts dropping, that's the direction.
+
 ## What to keep
 
 - The 12-phase tinylang spec is good. Don't regenerate.
