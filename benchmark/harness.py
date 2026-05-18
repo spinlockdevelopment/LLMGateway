@@ -64,6 +64,11 @@ RESULT_TRUNCATE = 4000  # characters per tool result fed back to the model
 TEMPERATURE = 0.2
 MAX_TOKENS = 4096
 
+# CLI-settable overrides (mutated by main()).
+WORKDIR_SUFFIX = ""    # appended to ModelX directory name
+LABEL = ""             # appended to model_key in timing/result rows (e.g. "B_thinkoff")
+EXTRA_BODY: dict = {}  # merged into every chat.completions.create call
+
 
 PHASE_FILES = {
     1: "phase_01_lexer.md",
@@ -365,13 +370,16 @@ def run_tool_loop(
 
     while steps < cap:
         try:
-            resp = client.chat.completions.create(
+            kwargs = dict(
                 model=model_id,
                 messages=messages,
                 tools=tools,
                 temperature=TEMPERATURE,
                 max_tokens=MAX_TOKENS,
             )
+            if EXTRA_BODY:
+                kwargs["extra_body"] = EXTRA_BODY
+            resp = client.chat.completions.create(**kwargs)
         except Exception as e:
             finish = "api_error"
             error_msg = f"{type(e).__name__}: {e}"
@@ -481,7 +489,12 @@ def run_tool_loop(
 # ----------------------------------------------------------------------------
 
 def model_root(model_key: str) -> Path:
-    return ROOT / f"Model{model_key}"
+    return ROOT / f"Model{model_key}{WORKDIR_SUFFIX}"
+
+
+def label_for(model_key: str) -> str:
+    """Tag used in result filenames and timing rows. Defaults to model_key."""
+    return LABEL if LABEL else model_key
 
 
 def phase_workdir(model_key: str, phase: int) -> Path:
@@ -699,7 +712,7 @@ def run_phase_for_model(phase: int, model_key: str) -> dict:
         allow_done=True,
     )
     print(f"  implement: {impl.steps} steps, {impl.elapsed_s:.1f}s, finish={impl.finish_reason}")
-    append_timing(phase=phase, model=model_key, stage="implement",
+    append_timing(phase=phase, model=label_for(model_key), stage="implement",
                   elapsed=impl.elapsed_s, steps=impl.steps,
                   in_tok=impl.input_tokens, out_tok=impl.output_tokens,
                   finish=impl.finish_reason)
@@ -724,7 +737,7 @@ def run_phase_for_model(phase: int, model_key: str) -> dict:
 
     final = run_final_pytest(workdir)
     print(f"  pytest: {final['passed']} passed, {final['failed']} failed")
-    append_timing(phase=phase, model=model_key, stage="self_eval",
+    append_timing(phase=phase, model=label_for(model_key), stage="self_eval",
                   elapsed=seval.elapsed_s, steps=seval.steps,
                   in_tok=seval.input_tokens, out_tok=seval.output_tokens,
                   finish=seval.finish_reason,
@@ -732,7 +745,7 @@ def run_phase_for_model(phase: int, model_key: str) -> dict:
 
     record = {
         "phase": phase,
-        "model": model_key,
+        "model": label_for(model_key),
         "workdir": str(workdir),
         "implement": {
             "elapsed_s": impl.elapsed_s, "steps": impl.steps,
@@ -748,7 +761,7 @@ def run_phase_for_model(phase: int, model_key: str) -> dict:
         },
         "final_tests": final,
     }
-    out = RESULTS / "self_eval" / model_key / f"phase_{phase:02d}.json"
+    out = RESULTS / "self_eval" / label_for(model_key) / f"phase_{phase:02d}.json"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(record, indent=2, default=str))
     return record
@@ -875,6 +888,16 @@ def smoke_test_models():
 
 def main():
     parser = argparse.ArgumentParser()
+    # Global overrides applicable to most subcommands.
+    parser.add_argument("--litellm-id", help="override MODELS[--model]['litellm_id']")
+    parser.add_argument("--max-tokens", type=int, help="override MAX_TOKENS for this run")
+    parser.add_argument("--workdir-suffix", default="",
+                        help="append to ModelX directory name, e.g. _thinkoff")
+    parser.add_argument("--label", default="",
+                        help="tag used in timing rows + self_eval result dir, e.g. B_thinkoff")
+    parser.add_argument("--extra-body-json", default="",
+                        help="JSON merged into every chat completions request, e.g. "
+                             "'{\"chat_template_kwargs\":{\"enable_thinking\":false}}'")
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     sub.add_parser("models", help="smoke test both models")
@@ -894,6 +917,29 @@ def main():
 
     args = parser.parse_args()
     init_timings_csv()
+
+    # Apply CLI overrides
+    global MAX_TOKENS, WORKDIR_SUFFIX, LABEL, EXTRA_BODY
+    if args.max_tokens:
+        MAX_TOKENS = args.max_tokens
+    if args.workdir_suffix:
+        WORKDIR_SUFFIX = args.workdir_suffix
+    if args.label:
+        LABEL = args.label
+    if args.extra_body_json:
+        try:
+            EXTRA_BODY = json.loads(args.extra_body_json)
+        except json.JSONDecodeError as e:
+            sys.exit(f"--extra-body-json: not valid JSON: {e}")
+    if args.litellm_id:
+        # When provided, applies to the model chosen in `phase --model`.
+        target = getattr(args, "model", None)
+        if target in ("A", "B"):
+            MODELS[target] = {**MODELS[target], "litellm_id": args.litellm_id}
+        else:
+            # Without a specific --model, override both (useful in run-all single-model)
+            for k in MODELS:
+                MODELS[k] = {**MODELS[k], "litellm_id": args.litellm_id}
 
     if args.cmd == "models":
         smoke_test_models()

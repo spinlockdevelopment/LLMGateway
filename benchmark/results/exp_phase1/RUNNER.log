@@ -1,0 +1,75 @@
+
+================================================================
+VARIANT: thinkon   litellm-id=local-coding   max_tokens=4096
+extra_body: 
+================================================================
+rc=0   elapsed=711s
+
+=== phase 1  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 18 steps, 157.4s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_thinkon/phase_01/tests/
+=== phase 1  model B — self-eval ===
+  self-eval: 40 steps, 553.4s, finish=step_cap
+  pytest: 10 passed, 1 failed
+--- pytest in ModelB_thinkon/phase_01 ---
+........F..                                                              [100%]
+=========================== short test summary info ============================
+FAILED tests/test_lexer.py::test_unknown_char_errors - Failed: DID NOT RAISE ...
+1 failed, 10 passed in 0.00s
+
+================================================================
+VARIANT: thinkoff   litellm-id=local-coding   max_tokens=4096
+extra_body: {"chat_template_kwargs":{"enable_thinking":false}}
+================================================================
+rc=0   elapsed=338s
+
+=== phase 1  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 12 steps, 119.2s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_thinkoff/phase_01/tests/
+=== phase 1  model B — self-eval ===
+  self-eval: 20 steps, 218.1s, finish=done
+  pytest: 8 passed, 3 failed
+--- pytest in ModelB_thinkoff/phase_01 ---
+=========================== short test summary info ============================
+FAILED tests/test_lexer.py::test_string_escapes - UnicodeDecodeError: 'unicod...
+FAILED tests/test_lexer.py::test_line_col_tracking - AssertionError: assert (...
+FAILED tests/test_lexer.py::test_unknown_char_errors - Failed: DID NOT RAISE ...
+3 failed, 8 passed in 0.01s
+
+================================================================
+VARIANT: capped   litellm-id=local-coding   max_tokens=2048
+extra_body: 
+================================================================
+rc=0   elapsed=662s
+
+=== phase 1  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 12 steps, 98.6s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_capped/phase_01/tests/
+=== phase 1  model B — self-eval ===
+  self-eval: 36 steps, 562.6s, finish=done
+  pytest: 11 passed, 0 failed
+--- pytest in ModelB_capped/phase_01 ---
+...........                                                              [100%]
+11 passed in 0.00s
+
+================================================================
+EXPERIMENT COMPLETE
+================================================================
+
+Per-variant timings + tests:
+1,B_thinkon,implement,157.45,18,110254,3451,done,,
+1,B_thinkon,self_eval,553.42,40,288671,8484,step_cap,10,1
+1,B_thinkoff,implement,119.20,12,72434,2780,done,,
+1,B_thinkoff,self_eval,218.09,20,80383,5696,done,8,3
+1,B_capped,implement,98.63,12,67825,2349,done,,
+1,B_capped,self_eval,562.60,36,343649,6186,done,11,0
+
+LiteLLM log sizes:
+-rw-r--r--@ 1 llmadmin  staff    15K May 18 11:49 results/exp_phase1/capped.litellm.log
+-rw-r--r--@ 1 llmadmin  staff   8.5K May 18 11:38 results/exp_phase1/thinkoff.litellm.log
+-rw-r--r--@ 1 llmadmin  staff    17K May 18 11:32 results/exp_phase1/thinkon.litellm.log
+
+See:
+  results/exp_phase1/<variant>.harness.log     — harness stdout
+  results/exp_phase1/<variant>.litellm.log     — docker logs llm-gateway during the run
+  ModelB_<variant>/phase_01/        — the model's workdir
