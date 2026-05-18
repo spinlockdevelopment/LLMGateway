@@ -182,3 +182,86 @@ hallucinatory on phase 3.
    thrashing inside the cap without getting back to fix the Phase-1 lexer.
 
 See [`results/timings.csv`](timings.csv) for raw numbers.
+
+---
+
+# Run 2 grades — local-coding qwen3.6-35b only, phases 1–12
+
+Added 2026-05-18 after Run 2 completed and the scratch-litter regrade ran.
+Sonnet was **not** re-run for phases 4–12; the columns below are Model B
+only. Accuracy is grounded in `pytest tests/` against the cleaned
+workdirs (see [run2_regrade.md](run2_regrade.md)). Completeness is read
+from the per-phase `tinylang/` source against each phase brief.
+
+Run 1's phase 1–3 Model B scores remain above as the head-to-head against
+Sonnet. The Run 2 phase-1 entry below is the capped(2048) snapshot
+restart point (11/11), unchanged.
+
+## Per-phase
+
+| Phase | Pass | % | Opus accuracy | Opus completeness | Note |
+|---|---|---|---|---|---|
+| 01 | 11/11 | 100% | **95** | **80** | capped-2048 snapshot restart point; same code as Run-1 thinkon |
+| 02 | 14/24 | 58% | **55** | **62** | parser misses `else if` chain, `for x,y in ...`, list/dict literals, chained index/call; Run-1 lost only 3 phase-2 tests, Run-2 lost 10 — context-degradation evidence |
+| 03 | 15/39 | 38% | **35** | **55** | every Phase-1/2 regression carried forward; eval module gained features but the lex/parse base eroded |
+| 04 | 0/47 | 0% | **5** | **30** | catastrophic — `run` removed from `tinylang.evaluator`, breaking all prior phases' imports. Code for `if`/`while` was written but unreachable |
+| 05 | 18/55 | 33% | **30** | **50** | `run` restored; closures partial; scope chain has `NameError` paths |
+| 06 | 21/65 | 32% | **30** | **52** | functions+return values work for simple cases; recursion + nested calls flaky |
+| 07 | 21/71 | 30% | **28** | **48** | closures regressed further; no new ground gained |
+| 08 | 23/82 | 28% | **28** | **50** | lists implemented; index assignment and slicing buggy |
+| 09 | 25/92 | 27% | **27** | **52** | dicts present; mutation paths inconsistent; left an `ast.py.backup` in the deliverable tree |
+| 10 | 0/99 | 0% | **5** | **35** | catastrophic — `f"{type(self).__name__)}: ..."` SyntaxError in `tinylang/errors.py` makes every module unimportable. Hit `api_error` after 5 implement steps and never recovered |
+| 11 | 18/109 | 17% | **18** | **45** | `stdlib.tl` written and imports run; most stdlib semantics fail under broken evaluator |
+| 12 | 23/116 | 20% | **22** | **55** | CLI structurally complete: `tinylang/cli.py`, `tinylang_cli.py` shim, subcommand dispatch, REPL loop. Only `test_run_file_not_found` passes — the other 6 CLI tests trip on parser/evaluator bugs from earlier phases |
+
+**Opus accuracy avg (phases 1–12, Model B Run 2): 32.**
+**Opus completeness avg (phases 1–12, Model B Run 2): 51.**
+
+If phases 4 and 10 are treated as outliers (deliverable-syntax/import
+failures rather than acceptance-coverage failures) and dropped from the
+mean, accuracy averages **38** and completeness **55** — still below the
+Run-1 phase 1–3 average of 63/63, consistent with the context-degradation
+hypothesis as the run pushed past Phase 5.
+
+## Cross-model comparison (where Sonnet has data)
+
+| Phase | Sonnet (Run 1) accuracy | qwen Run 1 accuracy | qwen Run 2 accuracy |
+|---|---|---|---|
+| 1 | 95 | 55 | 95 |
+| 2 | 98 | 65 | 55 |
+| 3 | 99 | 70 | 35 |
+
+Phase 1 Run-2 is the capped-experiment win (11/11 with smaller token
+cap). Phases 2–3 Run-2 *worsen* against the same model on a longer
+context, suggesting the carry-forward transcript itself is the cost.
+
+## Run-2 specific findings
+
+1. **Two deliverable-level failures.** Phase 4 (removed `run`) and
+   Phase 10 (literal SyntaxError) are the kind of mistake the model's
+   self-eval should catch but didn't. Phase 4's self-eval used 29 steps
+   and reported 0/8 — the model saw the failures but did not connect
+   them to the missing `run` symbol. Phase 10's self-eval used 5 steps
+   and an api_error abort.
+
+2. **Self-eval step cap is misallocated.** Phase 4 burned 29 self-eval
+   steps without diagnosing the import-error root cause. Phase 10 burned
+   5 (api_error). Neither completion mode matched the actual situation;
+   the harness needs an explicit "all tests fail to import → fix imports
+   first" branch in the self-eval prompt, not more steps.
+
+3. **Regression-to-prior-phase is unsanctioned.** The model has no view
+   of what prior-phase tests previously passed. A baseline-pass set
+   carried forward into the self-eval prompt would have surfaced
+   "phase 4 broke evaluator.run" within one step.
+
+4. **Scratch-file hygiene is bad enough to obscure outcomes.** Even with
+   `pytest tests/` scoped explicitly, the model's habit of writing
+   `debug_*.py` etc. at workdir root is a signal of poor task discipline
+   — and the per-run summary lines reported numbers that buried real
+   results behind collection errors.
+
+See [run2_regrade.md](run2_regrade.md) for the underlying pytest data
+and [run2_summary.md](run2_summary.md) for the four harness fixes that
+should land before any further Model-B runs.
+

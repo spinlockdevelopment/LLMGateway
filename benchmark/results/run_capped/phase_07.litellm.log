@@ -1,0 +1,262 @@
+INFO:     160.79.104.10:50153 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:56372 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:56372 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:33864 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:33864 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:46578 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:46578 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:42656 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:42656 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:60196 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:60196 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:53124 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:53124 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:44438 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:44438 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:52882 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:52882 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:41696 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:41696 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:48206 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:48206 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:51552 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:51552 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:39410 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:39410 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:49456 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:49456 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:49684 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:49684 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:60614 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:60614 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:60020 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:60020 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:59456 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:59456 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:45436 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:45436 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:45792 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:45792 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:34050 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:34050 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:43170 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:43170 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:57808 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:57808 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:33110 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:33110 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:57716 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:57716 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:50350 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:50350 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:54344 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:54344 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:47488 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:47488 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:49444 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:49444 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:40664 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:40664 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:52842 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:52842 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:40838 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:40838 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:59232 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:59232 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:46378 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:46378 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:55952 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:55952 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:45488 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:45488 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:60596 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:60596 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:40490 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:40490 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:43380 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:43380 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:57700 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:57700 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:33056 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:33056 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:42588 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:42588 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:34666 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:34666 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:35140 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:35140 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:33546 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:33546 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:42228 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:42228 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:50306 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:50306 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:54920 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:54920 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:42958 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:42958 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:35184 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:35184 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:35354 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:35354 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:50202 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:50202 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:47330 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:47330 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:56404 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:56404 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:46504 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:46504 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:27948 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:38844 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:38844 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:47718 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:47718 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:44718 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:44718 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:37194 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:37194 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:36632 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:36632 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:58980 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:58980 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:34918 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:34918 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:46984 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:46984 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:57438 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:57438 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     172.18.0.6:45760 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:45760 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:34158 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:34158 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:40690 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:40690 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK
+INFO:     172.18.0.6:59116 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:59116 - "GET /metrics/ HTTP/1.1" 200 OK
+[32mLiteLLM: Proxy initialized with Search Tools:[0m
+[32m    tavily-search (tavily)[0m
+[32m    exa-search (exa_ai)[0m
+INFO:     172.18.0.6:57740 - "GET /metrics HTTP/1.1" 307 Temporary Redirect
+INFO:     172.18.0.6:57740 - "GET /metrics/ HTTP/1.1" 200 OK
+INFO:     160.79.104.10:42792 - "POST /v1/chat/completions HTTP/1.1" 200 OK

@@ -55,28 +55,32 @@ Restarted at **14:55:41 EDT 2026-05-18** with `max_tokens=4096` (thinkon
 equivalent). Phase 1's existing 11/11 snapshot in `ModelB_capped/phase_01/`
 is the starting point. Phases 2–12 will run with per-phase git commits.
 
-## **CURRENT STATE — Run 2 COMPLETE**
+## **CURRENT STATE — Run 2 COMPLETE + regraded**
 
 Run 2 finished 19:12:25 EDT 2026-05-18 — total wall time 4h 17m for
 phases 2–12. No background processes are still running. All 11 phases
 were committed (`28a617d` through `e958298`).
 
+**Regrade pass landed 2026-05-18 evening.** Scratch litter stripped from
+phases 02–12 workdirs (one commit). `pytest tests/` re-run against the
+cleaned snapshots. Run 2 grades added to `results/opus_grades.md` and
+detailed in `results/run2_regrade.md`.
+
 **Read `results/run2_summary.md`** for the full per-phase table, the two
 critical findings (pytest collection-litter + destructive regression of
 `tinylang.evaluator.run` in Phase 4), and the four harness improvements to
-ship before the next experiment.
+ship before the next experiment. **Read `results/run2_regrade.md`** for
+the cleaned pytest numbers and the Phase 10 SyntaxError finding.
 
 ### Next things to do, in order
 
-1. Strip scratch litter (`debug_*.py simple_*.py minimal_*.py test_*.py at
-   workdir root, NOT under tests/`) from each phase workdir and re-run
-   `pytest tests/` for the true pass rates. The in-run numbers are mostly
-   collection errors, not real failures.
-2. Update `results/opus_grades.md` with Run 2 grades (additive — keep
-   Run 1 grades for comparison).
+1. ~~Strip scratch litter and re-run pytest tests/.~~ Done.
+2. ~~Update results/opus_grades.md with Run 2 grades.~~ Done.
 3. Implement the four harness fixes in `run2_summary.md` before queueing
    the smaller-model experiment.
 4. Decide on Sonnet phases 4–12 (yes/no) for cross-eval coverage.
+5. Optional follow-up: also sweep `.tl` scratch and `tinylang/ast.py.backup`
+   files from the workdirs — they don't break pytest but are noise.
 
 ## How to resume in a fresh chat
 
