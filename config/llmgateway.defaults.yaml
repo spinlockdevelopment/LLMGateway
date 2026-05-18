@@ -17,90 +17,52 @@ gateway:
 # Local inference services managed by the gateway.
 # Set enabled: true to have the gateway start and monitor the service.
 # Set enabled: false to skip (the service entry is preserved for later use).
-# These are native llama-server / whisper-server processes — Docker Model
-# Runner is no longer used for serving; it is kept only for model downloads.
+# These are native llama-server / whisper-server processes.
 #
-# Five service slots, matching the LiteLLM route names in litellm-config.yaml:
+# Service slots:
 #
-#   local-fast      → fast small-context model (heartbeat / triage / smoke tests)
-#   local-coding    → coder model (backs `local-coding` and `local-only` fallback)
-#   local-reason    → general reasoning (backs `local-reason` and `local-only`)
-#   whisper-large   → primary STT (high quality)
-#   whisper-fast    → low-latency STT
+#   local         → single local model, backs the local-* LiteLLM routes
+#   whisper-large → primary STT (high quality)
+#   whisper-fast  → low-latency STT
 #
-# local-coding and local-reason share a mutex group: only one of the two can
-# load at a time on memory-constrained hosts (≤32 GB unified memory).
-# whisper-large and whisper-fast share a mutex group for the same reason.
+# whisper-large and whisper-fast share a mutex group: only one runs at a time.
 # ---------------------------------------------------------------------------
 services:
 
-  # Fast small-context model — heartbeat, smoke tests, local-only routes.
-  # SmolLM2 or any similarly small llama-server-compatible GGUF.
-  local-fast:
+  # Local model — one llama-server slot backing the local-code / local-think
+  # / local-reason LiteLLM routes (they all share this backend; the thinking
+  # mode is controlled per-route via chat_template_kwargs in litellm-config).
+  #
+  # Tuned for M4 / 32 GB unified memory. Assumes a 30–35B MoE model like
+  # Qwen3.6-35B-A3B at Q4_K_M (~17 GB weights on disk). Sized to leave the
+  # Docker stack (LiteLLM, Postgres, Grafana, Prometheus, Loki) room to run.
+  #
+  #   threads: 4        — base M4 perf-core count. M4 Pro has more perf
+  #                       cores, but with -ngl 99 the GPU does the work and
+  #                       llama.cpp never benefits from spilling onto
+  #                       efficiency cores.
+  #   ctx-size: 131072  — 128K with q4_0-quantized KV cache. q4_0 halves
+  #                       per-token KV (~24 KB/token vs ~48 KB at q8_0), so
+  #                       128K adds ~3 GB on top of the ~17 GB weights →
+  #                       ~20 GB resident. Trades a small attention-
+  #                       quantization quality cost for ~6 GB headroom.
+  #   parallel: 1       — single in-flight request keeps the full 128K
+  #                       window addressable per request (intended for
+  #                       single-agent coding plans, not concurrent agents).
+  local:
     enabled: false
     type: "llamacpp"
-    model: "smollm2"
-    description: "Fast model — llama-server"
-    binary: "llama-server"
-    args:
-      --host: "0.0.0.0"
-      --port: "8081"
-      --model: ""              # REQUIRED: path to SmolLM2 (or similar small) GGUF
-      --n-gpu-layers: "99"
-      --ctx-size: "8192"
-      --threads: "4"
-      --parallel: "3"
-    extra_args:
-      - "--cont-batching"
-      - "--mlock"
-      - "--flash-attn"
-      - "on"
-    health_check_url: "http://localhost:8081/health"
-    expected_memory_gb: 1.5
-
-  # Local coding model — backs LiteLLM's `local-coding` route and is the
-  # fallback for `local-only`. Qwen3-Coder-30B-A3B (or any coder GGUF).
-  # MUTEX `local-large`: only one of {local-coding, local-reason} runs.
-  local-coding:
-    enabled: false
-    type: "llamacpp"
-    model: "qwen3-coder-30b-a3b-instruct"
-    description: "Local coding model — llama-server"
-    mutex_group: "local-large"
+    model: "qwen3.6-35b"
+    description: "Local model — llama-server (Qwen3.6-35B class)"
     binary: "llama-server"
     args:
       --host: "0.0.0.0"
       --port: "8082"
-      --model: ""              # REQUIRED: path to coder GGUF
+      --model: ""              # REQUIRED: path to the local model GGUF
       --n-gpu-layers: "99"
-      --ctx-size: "16384"
-      --threads: "6"
-      --parallel: "2"
-    extra_args:
-      - "--cont-batching"
-      - "--mlock"
-      - "--flash-attn"
-      - "on"
-    health_check_url: "http://localhost:8082/health"
-    expected_memory_gb: 18.0
-
-  # General reasoning. Qwen3-30B-A3B (MoE) or similar. Backs LiteLLM's
-  # `local-reason` route and is the primary backend for `local-only`.
-  # MUTEX `local-large`: only one of {local-coding, local-reason} runs.
-  local-reason:
-    enabled: false
-    type: "llamacpp"
-    model: "qwen3-30b-a3b"
-    description: "Qwen3-30B-A3B (general reasoning) — llama-server"
-    mutex_group: "local-large"
-    binary: "llama-server"
-    args:
-      --host: "0.0.0.0"
-      --port: "8084"
-      --model: ""              # REQUIRED: path to Qwen3-30B-A3B GGUF
-      --ctx-size: "65536"
-      --n-gpu-layers: "99"
-      --parallel: "2"
+      --ctx-size: "131072"
+      --threads: "4"
+      --parallel: "1"
       --temp: "0.6"
       --top-p: "0.95"
       --top-k: "20"
@@ -112,14 +74,14 @@ services:
       - "--flash-attn"
       - "on"
       - "--cache-type-k"
-      - "q8_0"
+      - "q4_0"
       - "--cache-type-v"
-      - "q8_0"
+      - "q4_0"
       - "--cont-batching"
       - "--mlock"
       - "--no-context-shift"
-    health_check_url: "http://localhost:8084/health"
-    expected_memory_gb: 22.0
+    health_check_url: "http://localhost:8082/health"
+    expected_memory_gb: 20.0
 
   # Primary STT. Whisper Large-v3.
   # MUTEX `whisper`: only one of {whisper-large, whisper-fast} runs.
@@ -177,5 +139,5 @@ health_check:
 # Memory budget tracking (Apple Silicon unified memory).
 # ---------------------------------------------------------------------------
 memory:
-  reserved_gb: 7               # reserved for macOS + Docker + overhead
+  reserved_gb: 7               # reserved for macOS + Docker + overhead (M4/32GB)
   pressure_threshold: 0.90     # warn when used memory exceeds this fraction
