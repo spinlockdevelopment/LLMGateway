@@ -4,285 +4,1038 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LLM Gateway</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>document.documentElement.setAttribute('data-theme', localStorage.getItem('llmgw-theme') || 'light');</script>
 <style>
 :root {
-  --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
-  --fg: #c9d1d9; --fg2: #8b949e; --fg3: #484f58;
-  --accent: #58a6ff; --green: #3fb950; --red: #f85149;
-  --yellow: #d29922; --border: #30363d;
-  --radius: 6px; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --mono: "SF Mono", "Fira Code", "Fira Mono", Menlo, Consolas, monospace;
+  /* Surfaces — light theme */
+  --bg:   #ffffff;
+  --bg2:  #ffffff;
+  --bg3:  #f3f4f6;
+
+  /* Text */
+  --fg:   rgba(0, 0, 0, 0.88);
+  --fg2:  #6b7280;
+  --fg3:  #9ca3af;
+
+  /* Brand / interactive */
+  --accent:    #4338ca;      /* indigo-700 — primary CTAs */
+  --accent-hi: #3730a3;
+  --link:      #1677ff;      /* nav-selected, link blue */
+  --link-bg:   #e6f4ff;
+
+  /* Semantic */
+  --green:  #16a34a;
+  --red:    #dc2626;
+  --yellow: #b45309;
+
+  /* Borders */
+  --border:      #e5e7eb;    /* gray-200 — structural divider */
+  --border-card: #f0f0f0;    /* lighter, for card edges */
+  --border-input:#d9d9d9;    /* ant-style inputs/buttons */
+
+  /* Radii */
+  --radius:    6px;          /* inputs, secondary buttons, tags */
+  --radius-lg: 8px;          /* primary CTA, cards, modal */
+
+  /* Fonts */
+  --font: 'Inter', 'Inter Fallback', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+
+  /* Shadows */
+  --shadow-xs:    0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-modal: 0 6px 16px rgba(0,0,0,0.08), 0 3px 6px -4px rgba(0,0,0,0.12), 0 9px 28px 8px rgba(0,0,0,0.05);
 }
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 14px; }
-a { color: var(--accent); text-decoration: none; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 22px;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
+
+h1 { font-size: 20px; font-weight: 600; line-height: 28px; color: rgb(17, 24, 39); }
+h2 { font-size: 18px; font-weight: 600; line-height: 28px; color: rgb(17, 24, 39); }
+h3 { font-size: 14px; font-weight: 600; line-height: 20px; color: rgb(17, 24, 39); }
+h4 { font-size: 13px; font-weight: 600; color: rgb(17, 24, 39); }
+p  { color: var(--fg2); }
+code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: #f3f4f6;
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
 button {
-  background: var(--bg3); color: var(--fg); border: 1px solid var(--border);
-  padding: 6px 14px; border-radius: var(--radius); cursor: pointer; font-size: 13px;
+  background: #ffffff;
+  color: rgba(0, 0, 0, 0.88);
+  border: 1px solid var(--border-input);
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 13px;
+  font-family: var(--font);
+  font-weight: 400;
+  line-height: 22px;
+  box-shadow: 0 2px 0 0 rgba(0, 0, 0, 0.02);
+  transition: color .15s, background-color .15s, border-color .15s;
 }
-button:hover { background: var(--border); }
-button.primary { background: #1f6feb; border-color: #1f6feb; }
-button.primary:hover { background: #388bfd; }
-button.danger { border-color: var(--red); color: var(--red); }
-button.danger:hover { background: rgba(248,81,73,.15); }
+button:hover  { color: var(--link); border-color: var(--link); }
+button:active { color: #0958d9; border-color: #0958d9; }
+button:disabled, button[disabled] {
+  color: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.04);
+  border-color: var(--border);
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #ffffff;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-lg);
+  padding: 7px 16px;
+  font-weight: 500;
+  box-shadow: var(--shadow-xs);
+}
+button.primary:hover  { background: var(--accent-hi); border-color: var(--accent-hi); color: #fff; }
+button.primary:active { background: #312e81; border-color: #312e81; color: #fff; }
+
+button.danger {
+  background: #ffffff;
+  color: var(--red);
+  border-color: #fecaca;
+}
+button.danger:hover  { background: #fee2e2; border-color: var(--red); color: var(--red); }
+
+/* ── Inputs ──────────────────────────────────────────────────────────────── */
 input, textarea, select {
-  background: var(--bg); color: var(--fg); border: 1px solid var(--border);
-  padding: 6px 10px; border-radius: var(--radius); font-size: 13px; font-family: var(--font);
+  background: #ffffff;
+  color: rgba(0, 0, 0, 0.88);
+  border: 1px solid var(--border-input);
+  padding: 4px 11px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-family: var(--font);
+  outline: none;
+  transition: border-color .15s, box-shadow .15s;
 }
-textarea { font-family: var(--mono); resize: vertical; }
-
-/* Layout */
-.header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; }
-.header h1 { font-size: 18px; font-weight: 600; }
-.header .status { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--fg2); }
-.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.dot.green { background: var(--green); }
-.dot.red { background: var(--red); }
-.dot.yellow { background: var(--yellow); }
-.dot.gray { background: var(--fg3); }
-
-.tabs { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; gap: 0; }
-.tab {
-  padding: 10px 16px; cursor: pointer; color: var(--fg2); border-bottom: 2px solid transparent;
-  font-size: 13px; transition: all .15s;
+input::placeholder, textarea::placeholder { color: rgba(0, 0, 0, 0.25); }
+input:hover, textarea:hover, select:hover { border-color: var(--link); }
+input:focus, textarea:focus, select:focus {
+  border-color: var(--link);
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.10);
 }
-.tab:hover { color: var(--fg); }
-.tab.active { color: var(--fg); border-bottom-color: var(--accent); }
-.tab.external { margin-left: auto; }
-.tab.external::after { content: " ↗"; font-size: 11px; }
+textarea {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  resize: vertical;
+  line-height: 1.55;
+}
+select { cursor: pointer; }
 
-.content { max-width: 1200px; margin: 0 auto; padding: 24px; }
+/* ── Layout shell ────────────────────────────────────────────────────────── */
+.app-shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+.topnav {
+  height: 57px;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 16px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.topnav .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: rgb(17, 24, 39);
+  letter-spacing: -0.005em;
+}
+.topnav .brand-mark { width: 26px; height: 26px; display: inline-flex; }
+.topnav .brand-mark svg { width: 100%; height: 100%; }
+
+.topnav .status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--fg2);
+  padding: 3px 10px 3px 8px;
+  background: var(--bg3);
+  border-radius: 999px;
+  border: 1px solid var(--border-card);
+}
+.topnav .spacer { flex: 1; }
+.topnav .topnav-link {
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.65);
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color .12s, color .12s;
+}
+.topnav .topnav-link:hover {
+  background: var(--bg3);
+  color: rgba(0, 0, 0, 0.88);
+  text-decoration: none;
+}
+.topnav .topnav-link::after { content: "↗"; font-size: 11px; color: var(--fg3); }
+.topnav .topnav-link:hover::after { color: var(--fg2); }
+
+.main { display: flex; flex: 1; min-height: 0; }
+
+.sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: #ffffff;
+  padding: 12px 0 32px;
+}
+.sidebar .nav-group { margin-bottom: 8px; }
+.sidebar .nav-group-title {
+  padding: 14px 24px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--fg2);
+  text-transform: uppercase;
+}
+.sidebar .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 32px;
+  padding: 0 16px 0 24px;
+  font-size: 13px;
+  color: rgba(0, 0, 0, 0.88);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color .12s, color .12s;
+}
+.sidebar .nav-item:hover { background: var(--bg3); }
+.sidebar .nav-item.active {
+  background: var(--link-bg);
+  color: var(--link);
+  font-weight: 500;
+}
+.sidebar .nav-item .nav-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  opacity: 0.72;
+}
+.sidebar .nav-item.active .nav-icon { opacity: 1; }
+
+.content {
+  flex: 1;
+  padding: 28px 32px 48px;
+  min-width: 0;
+  background: #ffffff;
+}
+
 .panel { display: none; }
 .panel.active { display: block; }
 
-/* Cards */
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.card {
-  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 16px; display: flex; flex-direction: column; gap: 8px;
+/* ── Status dots ─────────────────────────────────────────────────────────── */
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.dot.green  { background: var(--green);  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15); }
+.dot.red    { background: var(--red);    box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15); }
+.dot.yellow { background: #f59e0b;       box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15); }
+.dot.gray   { background: var(--fg3); }
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-bottom: 20px;
 }
-.card .card-title { font-weight: 600; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-.card .card-meta { font-size: 12px; color: var(--fg2); }
+.card {
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.card .card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: rgb(17, 24, 39);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card .card-meta { font-size: 12.5px; color: var(--fg2); }
 .card .card-actions { display: flex; gap: 8px; margin-top: 4px; }
 
-/* Memory bar (stacked: system | services | models | free) */
+/* ── Memory bar ─────────────────────────────────────────────────────────── */
 .mem-bar-wrap {
-  background: var(--bg3); border-radius: 4px; height: 20px;
-  overflow: hidden; position: relative; margin: 8px 0; display: flex;
+  background: var(--bg3);
+  border-radius: var(--radius);
+  height: 22px;
+  overflow: hidden;
+  position: relative;
+  margin: 10px 0 6px;
+  display: flex;
+  border: 1px solid var(--border-card);
 }
 .mem-bar-seg { height: 100%; transition: width .3s; }
 .mem-bar-seg.system   { background: var(--green); }
 .mem-bar-seg.services { background: var(--accent); }
-.mem-bar-seg.models   { background: #db6d28; }   /* orange — clearly distinct from yellow warning */
+.mem-bar-seg.models   { background: #ea580c; }
 .mem-label {
-  position: absolute; top: 0; left: 0; right: 0; text-align: center;
-  line-height: 20px; font-size: 12px; color: #fff; z-index: 1;
-  text-shadow: 0 0 4px rgba(0,0,0,.6);
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  text-align: center;
+  line-height: 22px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.65);
+  z-index: 1;
   pointer-events: none;
+  mix-blend-mode: difference;
+  filter: invert(1) grayscale(1) contrast(2);
 }
 
 /* Legend */
-.mem-legend { display: flex; gap: 14px; font-size: 12px; color: var(--fg2); margin-top: 4px; flex-wrap: wrap; }
+.mem-legend {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--fg2);
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
 .mem-legend .legend-swatch {
-  display: inline-block; width: 10px; height: 10px; border-radius: 2px;
-  vertical-align: middle; margin-right: 5px;
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 2px;
+  vertical-align: middle;
+  margin-right: 6px;
 }
 .mem-legend .legend-swatch.system   { background: var(--green); }
 .mem-legend .legend-swatch.services { background: var(--accent); }
-.mem-legend .legend-swatch.models   { background: #db6d28; }
+.mem-legend .legend-swatch.models   { background: #ea580c; }
 .mem-legend .legend-swatch.free     { background: var(--bg3); border: 1px solid var(--border); }
 
-/* Config editor */
+/* ── Config editor ──────────────────────────────────────────────────────── */
 .editor-wrap { display: flex; flex-direction: column; gap: 12px; }
-.editor-wrap textarea { width: 100%; min-height: 500px; line-height: 1.5; tab-size: 2; }
-.editor-toolbar { display: flex; gap: 8px; align-items: center; }
-.validation-msg { font-size: 13px; padding: 8px 12px; border-radius: var(--radius); }
-.validation-msg.ok { background: rgba(63,185,80,.1); color: var(--green); }
-.validation-msg.error { background: rgba(248,81,73,.1); color: var(--red); }
-.validation-msg.warn { background: rgba(210,153,34,.1); color: var(--yellow); }
+.editor-wrap textarea {
+  width: 100%;
+  min-height: 540px;
+  line-height: 1.55;
+  tab-size: 2;
+  padding: 12px 14px;
+  background: #fafafa;
+  border-color: var(--border);
+}
+.editor-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.validation-msg {
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.validation-msg.ok    { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.validation-msg.error { background: #fef2f2; color: #991b1b; border-color: #fecaca; }
+.validation-msg.warn  { background: #fffbeb; color: #92400e; border-color: #fde68a; }
 
-/* Service list */
+/* ── Service list ───────────────────────────────────────────────────────── */
 .svc-row {
-  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 14px 16px; margin-bottom: 8px;
-  display: flex; align-items: center; gap: 16px;
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 14px 20px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
-.svc-row .svc-info { flex: 1; }
-.svc-row .svc-name { font-weight: 600; }
-.svc-row .svc-desc { font-size: 12px; color: var(--fg2); }
-.svc-row .svc-state { font-size: 13px; display: flex; align-items: center; gap: 6px; min-width: 100px; }
-.svc-row .svc-actions { display: flex; gap: 6px; }
+.svc-row .svc-info { flex: 1; min-width: 0; }
+.svc-row .svc-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: rgb(17, 24, 39);
+}
+.svc-row .svc-desc {
+  font-size: 12.5px;
+  color: var(--fg2);
+  margin-top: 2px;
+  line-height: 18px;
+}
+.svc-row .svc-state {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 100px;
+}
+.svc-row .svc-actions { display: flex; gap: 6px; flex-shrink: 0; }
 
-/* Sub-tabs (inside a panel) */
-.subtabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
-.subtab {
-  padding: 6px 14px; cursor: pointer; color: var(--fg2);
-  font-size: 13px; border-bottom: 2px solid transparent;
-  margin-bottom: -1px; transition: all .15s;
+/* ── Sub-tabs (kept for any in-panel usage) ─────────────────────────────── */
+.subtabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
 }
-.subtab:hover { color: var(--fg); }
-.subtab.active { color: var(--fg); border-bottom-color: var(--accent); }
+.subtab {
+  padding: 8px 14px;
+  cursor: pointer;
+  color: var(--fg2);
+  font-size: 13px;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color .12s, border-color .12s;
+}
+.subtab:hover { color: rgba(0, 0, 0, 0.88); }
+.subtab.active { color: #6366f1; border-bottom-color: #6366f1; font-weight: 500; }
 .subpanel { display: none; }
 .subpanel.active { display: block; }
 
-/* Backend chips (Routes table) */
+/* ── Backend chips (Routes table) ───────────────────────────────────────── */
 .chip {
-  display: inline-block; padding: 1px 8px; border-radius: 10px;
-  font-size: 11px; font-family: var(--mono); white-space: nowrap;
-  border: 1px solid var(--border);
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: var(--mono);
+  white-space: nowrap;
+  border: 1px solid var(--border-input);
+  background: #fafafa;
+  color: rgba(0, 0, 0, 0.88);
+  font-weight: 500;
 }
-.chip.openrouter        { background: rgba(88,166,255,.12); color: #58a6ff; border-color: rgba(88,166,255,.3); }
-.chip.anthropic         { background: rgba(210,153,34,.12); color: #d29922; border-color: rgba(210,153,34,.3); }
-.chip.openai            { background: rgba(63,185,80,.12);  color: #3fb950; border-color: rgba(63,185,80,.3); }
-.chip.gemini            { background: rgba(170,124,255,.12); color: #aa7cff; border-color: rgba(170,124,255,.3); }
-.chip.xai               { background: rgba(200,200,200,.12); color: #c9d1d9; border-color: rgba(200,200,200,.3); }
-.chip.azure             { background: rgba(0,160,220,.12); color: #00a0dc; border-color: rgba(0,160,220,.3); }
-.chip.deepseek          { background: rgba(120,160,255,.12); color: #78a0ff; border-color: rgba(120,160,255,.3); }
+.chip.openrouter        { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+.chip.anthropic         { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+.chip.openai            { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.chip.gemini            { background: #f3e8ff; color: #6b21a8; border-color: #e9d5ff; }
+.chip.xai               { background: #f3f4f6; color: #374151; border-color: #d1d5db; }
+.chip.azure             { background: #cffafe; color: #155e75; border-color: #a5f3fc; }
+.chip.deepseek          { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
 .chip.docker-model-runner,
-.chip.local-llamacpp    { background: rgba(63,185,80,.12);  color: #3fb950; border-color: rgba(63,185,80,.3); }
-.chip.search-tool       { background: rgba(219,109,40,.14); color: #db6d28; border-color: rgba(219,109,40,.35); }
-.chip.other             { background: var(--bg3); color: var(--fg2); }
-.chip.local { background: rgba(63,185,80,.12); color: #3fb950; border-color: rgba(63,185,80,.3); }
-.chip.key-set { color: var(--green); border-color: rgba(63,185,80,.3); }
-.chip.key-missing { color: var(--red); border-color: rgba(248,81,73,.3); }
-.chip.key-none { color: var(--fg3); }
+.chip.local-llamacpp,
+.chip.local             { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.chip.search-tool       { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+.chip.other             { background: #f3f4f6; color: var(--fg2); border-color: var(--border); }
+.chip.key-set     { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.chip.key-missing { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
+.chip.key-none    { background: transparent; color: var(--fg3); border-color: var(--border); }
 
-/* Routes table */
-table.routes-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-table.routes-table th, table.routes-table td {
-  text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border);
+/* ── Routes table ───────────────────────────────────────────────────────── */
+table.routes-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+table.routes-table th,
+table.routes-table td {
+  text-align: left;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-card);
   vertical-align: top;
 }
-table.routes-table th { font-weight: 600; color: var(--fg2); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-table.routes-table td.mono { font-family: var(--mono); font-size: 11.5px; word-break: break-all; }
-table.routes-table tr.dim td { opacity: .65; }  /* fallback rows */
-table.routes-table tr.section-row td {
-  background: var(--bg3); font-weight: 600; color: var(--fg2);
-  font-size: 11px; text-transform: uppercase; letter-spacing: .04em;
-  padding: 6px 10px;
+table.routes-table tbody tr:last-child td { border-bottom: none; }
+table.routes-table th {
+  font-weight: 600;
+  color: rgb(17, 24, 39);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  background: #fafafa;
+  border-bottom: 1px solid var(--border);
 }
+table.routes-table td        { color: rgba(0, 0, 0, 0.88); }
+table.routes-table td.mono   {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--fg);
+  word-break: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
+}
+table.routes-table td:last-child { padding-right: 18px; }
+table.routes-table tr.dim td { opacity: .55; }
 
-/* Docker container row */
+/* Routes inline subtitles & helpers */
+.route-alias       { color: var(--fg3); font-weight: 400; }
+.route-cont        { color: var(--fg3); }
+.route-api-base    { color: var(--fg3); font-size: 11px; margin-top: 3px; overflow-wrap: anywhere; }
+.route-env-key     { color: var(--fg3); font-size: 11px; font-family: var(--mono); margin-top: 4px; overflow-wrap: anywhere; }
+.route-fallback    { color: var(--fg3); font-size: 11px; margin-top: 3px; }
+.route-rr {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 1px 8px 1px 6px;
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+  border-radius: 4px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.route-rr-dot      { font-size: 11px; line-height: 1; transform: translateY(-0.5px); }
+.route-default-tag {
+  width: fit-content;
+  margin-top: 5px;
+  padding: 1px 7px;
+  background: #ede9fe;
+  color: #5b21b6;
+  border: 1px solid #ddd6fe;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+button.copy-route { font-size: 12.5px; padding: 4px 12px; }
+table.routes-table tr.section-row td {
+  background: #fafafa;
+  font-weight: 600;
+  color: var(--fg2);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border-card);
+  border-bottom: 1px solid var(--border-card);
+}
+table.routes-table tbody tr:not(.section-row):hover td { background: #fafbff; }
+
+/* ── Docker container row ───────────────────────────────────────────────── */
 .docker-row {
-  background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 12px 14px; margin-bottom: 8px;
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  margin-bottom: 8px;
 }
 .docker-row .docker-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.docker-row .docker-name { font-weight: 600; }
+.docker-row .docker-name { font-weight: 600; color: rgb(17, 24, 39); font-size: 13.5px; }
 .docker-row .docker-image { color: var(--fg2); font-size: 12px; font-family: var(--mono); }
 .docker-row .docker-meta { font-size: 12px; color: var(--fg2); margin-top: 4px; }
-.docker-row .docker-paths { margin-top: 6px; font-size: 11.5px; font-family: var(--mono); color: var(--fg2); }
-.docker-row .docker-paths .path-label { color: var(--fg3); margin-right: 6px; }
-
-/* Segmented control (Config file picker, etc.) */
-.seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-.seg button {
-  background: var(--bg2); border: none; border-radius: 0; padding: 6px 14px;
-  color: var(--fg2); font-size: 13px; cursor: pointer;
+.docker-row .docker-paths {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-family: var(--mono);
+  color: var(--fg2);
 }
-.seg button + button { border-left: 1px solid var(--border); }
-.seg button:hover { background: var(--bg3); color: var(--fg); }
-.seg button.active { background: var(--bg3); color: var(--fg); }
+.docker-row .docker-paths .path-label {
+  color: var(--fg3);
+  margin-right: 6px;
+}
 
-/* Disclosure (top processes) */
-details.disclosure { margin-top: 6px; }
+/* ── Segmented control ──────────────────────────────────────────────────── */
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 2px 0 0 rgba(0,0,0,0.02);
+}
+.seg button {
+  background: #ffffff;
+  border: none;
+  border-radius: 0;
+  padding: 5px 14px;
+  color: var(--fg2);
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: none;
+  font-weight: 400;
+}
+.seg button + button { border-left: 1px solid var(--border-card); }
+.seg button:hover { background: var(--bg3); color: rgba(0, 0, 0, 0.88); border-color: transparent; }
+.seg button.active {
+  background: var(--link-bg);
+  color: var(--link);
+  font-weight: 500;
+}
+
+/* ── Disclosure (top processes) ─────────────────────────────────────────── */
+details.disclosure { margin-top: 10px; }
 details.disclosure > summary {
-  cursor: pointer; font-size: 12px; color: var(--fg2);
-  padding: 4px 0; user-select: none; list-style: none;
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--fg2);
+  padding: 6px 0;
+  user-select: none;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 details.disclosure > summary::-webkit-details-marker { display: none; }
-details.disclosure > summary::before { content: "▸ "; display: inline-block; transition: transform .15s; }
-details.disclosure[open] > summary::before { content: "▾ "; }
-details.disclosure > summary:hover { color: var(--fg); }
+details.disclosure > summary::before {
+  content: "▸";
+  display: inline-block;
+  transition: transform .15s;
+  font-size: 10px;
+  color: var(--fg3);
+}
+details.disclosure[open] > summary::before { transform: rotate(90deg); }
+details.disclosure > summary:hover { color: rgba(0, 0, 0, 0.88); }
+
 table.proc-table {
-  width: 100%; border-collapse: collapse; margin-top: 4px;
-  font-family: var(--mono); font-size: 12px;
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  background: #ffffff;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
-table.proc-table th, table.proc-table td {
-  text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border);
+table.proc-table th,
+table.proc-table td {
+  text-align: left;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-card);
 }
-table.proc-table th { color: var(--fg2); font-weight: 500; }
+table.proc-table th {
+  color: rgb(17, 24, 39);
+  font-weight: 600;
+  background: #fafafa;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+table.proc-table td { color: rgba(0, 0, 0, 0.88); }
 table.proc-table td.num { text-align: right; }
 table.proc-table tr:last-child td { border-bottom: none; }
+
 .proc-pill {
-  display: inline-block; padding: 1px 7px; margin-right: 8px;
-  border-radius: 10px; font-size: 10px; font-family: var(--font);
-  font-weight: 600; letter-spacing: .02em; vertical-align: middle;
+  display: inline-block;
+  padding: 1px 7px;
+  margin-right: 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-family: var(--font);
+  font-weight: 600;
+  letter-spacing: .02em;
+  vertical-align: middle;
   border: 1px solid transparent;
 }
-.proc-pill.system   { background: rgba(63,185,80,.12);  color: var(--green);  border-color: rgba(63,185,80,.3); }
-.proc-pill.services { background: rgba(88,166,255,.12); color: var(--accent); border-color: rgba(88,166,255,.3); }
-.proc-pill.models   { background: rgba(219,109,40,.14); color: #db6d28;       border-color: rgba(219,109,40,.35); }
+.proc-pill.system   { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+.proc-pill.services { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
+.proc-pill.models   { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
 
-/* Secrets key-value rows */
-.secret-row { display: flex; gap: 12px; align-items: center; margin-bottom: 6px; }
-.secret-row .secret-key { min-width: 240px; flex-shrink: 0; font-family: var(--mono); font-size: 13px; }
-.secret-row .secret-value { flex: 1; }
-.secret-row .secret-value.placeholder { color: var(--fg3); }
-.secret-row .secret-remove { flex-shrink: 0; }
-
-/* Secrets sections */
-.secrets-section { margin-bottom: 32px; }
-.secrets-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
-.secrets-section .section-desc { color: var(--fg2); font-size: 12.5px; margin-bottom: 12px; }
-.secret-group {
-  border: 1px solid var(--border); border-radius: var(--radius);
-  background: var(--bg2); padding: 10px 12px; margin-bottom: 8px;
+/* ── Secrets key-value rows ─────────────────────────────────────────────── */
+.secret-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
 }
-.secret-group .secret-row { margin-bottom: 4px; }
+.secret-row .secret-key {
+  width: 240px;
+  flex: 0 0 240px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: rgb(17, 24, 39);
+}
+.secret-row .secret-value { flex: 1; min-width: 0; }
+.secret-row .secret-value.placeholder { color: var(--fg3); font-style: italic; }
+.secret-row .secret-remove { flex: 0 0 auto; }
+
+/* Reveal-toggle wrapper for secret-shaped values */
+.secret-value-wrap {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+.secret-value-wrap input.secret-value {
+  flex: 1;
+  width: 100%;
+  padding-right: 38px;
+  font-family: var(--mono);
+  letter-spacing: 0.02em;
+}
+button.secret-reveal {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 24px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  cursor: pointer;
+  color: var(--fg3);
+  padding: 0;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .12s, background-color .12s;
+}
+button.secret-reveal:hover {
+  color: var(--fg2);
+  background: var(--bg3);
+  border: none;
+  box-shadow: none;
+}
+button.secret-reveal.revealed { color: var(--link); }
+button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; display: block; }
+
+.secrets-section { margin-bottom: 32px; }
+.secrets-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; color: rgb(17, 24, 39); }
+.secrets-section .section-desc { color: var(--fg2); font-size: 12.5px; margin-bottom: 12px; line-height: 18px; }
+.secrets-section .secrets-empty {
+  padding: 10px 14px;
+  background: #fafafa;
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  color: var(--fg2);
+  font-size: 12.5px;
+  margin-bottom: 8px;
+}
+
+.secret-group {
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  padding: 14px 18px;
+  margin-bottom: 8px;
+}
+.secret-group .secret-row { margin-bottom: 6px; }
 .secret-group .secret-row:last-child { margin-bottom: 0; }
 .secret-group .secret-row.secondary .secret-key {
-  color: var(--fg2); padding-left: 16px; font-size: 12px;
+  color: var(--fg2);
+  padding-left: 16px;
+  font-size: 12px;
 }
-.section-add {
-  display: flex; gap: 8px; align-items: center; margin-top: 8px;
-  padding: 8px 12px; background: var(--bg2); border: 1px dashed var(--border);
-  border-radius: var(--radius);
-}
-.section-add select, .section-add input { font-size: 13px; }
-.section-add select { min-width: 240px; }
-.section-add input { flex: 1; }
-.section-add .add-label { color: var(--fg3); font-size: 12px; margin-right: 4px; }
 
-/* Toast */
-.toast {
-  position: fixed; bottom: 24px; right: 24px; padding: 12px 20px;
-  border-radius: var(--radius); font-size: 13px; opacity: 0;
-  transition: opacity .3s; z-index: 1000; max-width: 400px;
+/* Section "Add" control — one dropdown by default, swaps to inline custom form */
+.section-add {
+  display: flex;
+  align-items: center;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: #fafafa;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  min-height: 52px;
 }
-.toast.show { opacity: 1; }
-.toast.success { background: rgba(63,185,80,.9); color: #fff; }
-.toast.error { background: rgba(248,81,73,.9); color: #fff; }
+.section-add-select {
+  flex: 1;
+  max-width: 420px;
+  font-size: 13px;
+  height: 32px;
+  color: rgba(0, 0, 0, 0.78);
+}
+.section-add-select:invalid,
+.section-add-select option[disabled][selected] { color: var(--fg3); }
+.section-custom-add {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+.section-custom-add[hidden] { display: none; }
+.section-custom-add .custom-key {
+  width: 240px;
+  flex: 0 0 240px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+.section-custom-add .custom-val { flex: 1; min-width: 0; }
+.section-custom-add button { flex: 0 0 auto; }
+
+/* ── Toast ──────────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 12px 20px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity .3s, transform .3s;
+  transform: translateY(8px);
+  z-index: 1000;
+  max-width: 400px;
+  box-shadow: var(--shadow-modal);
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: #16a34a; color: #fff; }
+.toast.error   { background: #dc2626; color: #fff; }
+
+/* ── Page-level utility ─────────────────────────────────────────────────── */
+.page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.page-header h2 { margin: 0; }
+.page-header .page-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 28px 0 12px;
+}
+.section-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg2);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.section-header .section-actions { display: flex; gap: 8px; margin-left: auto; }
+.section-header button { font-size: 12px; padding: 2px 10px; }
+
+.muted { color: var(--fg2); font-size: 13px; }
+
+/* ── Dark theme ─────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  --bg:   #0f1115;
+  --bg2:  #15181f;
+  --bg3:  #252830;
+
+  --fg:   rgba(255, 255, 255, 0.92);
+  --fg2:  #9ca3af;
+  --fg3:  #6b7280;
+
+  --accent:    #6366f1;
+  --accent-hi: #818cf8;
+  --link:      #60a5fa;
+  --link-bg:   #1e3a5f;
+
+  --border:      #2d3138;
+  --border-card: #232830;
+  --border-input:#3a3f48;
+}
+
+[data-theme="dark"] body { background: var(--bg); }
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4 { color: var(--fg); }
+[data-theme="dark"] code { background: var(--bg3); color: var(--fg); }
+
+[data-theme="dark"] button { background: var(--bg2); color: var(--fg); }
+[data-theme="dark"] button:disabled,
+[data-theme="dark"] button[disabled] {
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.25);
+}
+[data-theme="dark"] button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+[data-theme="dark"] button.primary:hover  { background: var(--accent-hi); border-color: var(--accent-hi); color: #fff; }
+[data-theme="dark"] button.primary:active { background: #4f46e5; border-color: #4f46e5; color: #fff; }
+[data-theme="dark"] button.danger { background: var(--bg2); color: #f87171; border-color: #7f1d1d; }
+[data-theme="dark"] button.danger:hover { background: #3b1212; border-color: #f87171; color: #fca5a5; }
+
+[data-theme="dark"] input,
+[data-theme="dark"] textarea,
+[data-theme="dark"] select { background: var(--bg2); color: var(--fg); }
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder { color: rgba(255, 255, 255, 0.25); }
+
+[data-theme="dark"] .topnav { background: var(--bg2); }
+[data-theme="dark"] .topnav .brand { color: var(--fg); }
+[data-theme="dark"] .topnav .topnav-link { color: rgba(255, 255, 255, 0.65); }
+[data-theme="dark"] .topnav .topnav-link:hover { background: var(--bg3); color: var(--fg); }
+
+[data-theme="dark"] .sidebar { background: var(--bg2); }
+[data-theme="dark"] .sidebar .nav-item { color: var(--fg); }
+[data-theme="dark"] .sidebar .nav-item:hover { background: var(--bg3); }
+
+[data-theme="dark"] .content { background: var(--bg); }
+
+[data-theme="dark"] .card { background: var(--bg2); }
+[data-theme="dark"] .card .card-title { color: var(--fg); }
+
+[data-theme="dark"] .editor-wrap textarea { background: var(--bg2); border-color: var(--border); }
+
+[data-theme="dark"] .svc-row { background: var(--bg2); }
+[data-theme="dark"] .svc-row .svc-name { color: var(--fg); }
+
+[data-theme="dark"] table.routes-table { background: var(--bg2); }
+[data-theme="dark"] table.routes-table th { background: var(--bg3); color: var(--fg); }
+[data-theme="dark"] table.routes-table td { color: var(--fg); }
+[data-theme="dark"] table.routes-table td.mono { color: var(--fg); }
+[data-theme="dark"] table.routes-table tr.section-row td { background: var(--bg3); color: var(--fg2); }
+[data-theme="dark"] table.routes-table tbody tr:not(.section-row):hover td { background: var(--bg3); }
+
+[data-theme="dark"] table.proc-table { background: var(--bg2); }
+[data-theme="dark"] table.proc-table th { background: var(--bg3); color: var(--fg); }
+[data-theme="dark"] table.proc-table td { color: var(--fg); }
+[data-theme="dark"] details.disclosure > summary:hover { color: var(--fg); }
+
+[data-theme="dark"] .docker-row { background: var(--bg2); }
+[data-theme="dark"] .docker-row .docker-name { color: var(--fg); }
+
+[data-theme="dark"] .seg,
+[data-theme="dark"] .seg button { background: var(--bg2); }
+[data-theme="dark"] .seg button:hover { background: var(--bg3); color: var(--fg); }
+
+[data-theme="dark"] .chip { background: var(--bg3); color: var(--fg); }
+[data-theme="dark"] .chip.other { background: var(--bg3); color: var(--fg2); }
+[data-theme="dark"] .subtab:hover { color: var(--fg); }
+
+[data-theme="dark"] .secrets-section h3 { color: var(--fg); }
+[data-theme="dark"] .secret-row .secret-key { color: var(--fg); }
+[data-theme="dark"] .secrets-section .secrets-empty,
+[data-theme="dark"] .secret-group,
+[data-theme="dark"] .section-add { background: var(--bg2); }
+
+[data-theme="dark"] .validation-msg.ok    { background: #052e1a; color: #4ade80; border-color: #166534; }
+[data-theme="dark"] .validation-msg.error { background: #2c0b0b; color: #fca5a5; border-color: #7f1d1d; }
+[data-theme="dark"] .validation-msg.warn  { background: #2a1d05; color: #fcd34d; border-color: #92400e; }
+
+[data-theme="dark"] .mem-bar-wrap { background: var(--bg3); }
+[data-theme="dark"] #mem-legend-system,
+[data-theme="dark"] #mem-legend-services,
+[data-theme="dark"] #mem-legend-models,
+[data-theme="dark"] #mem-legend-free { color: var(--fg) !important; }
+[data-theme="dark"] #dmr-pull-output { background: var(--bg2) !important; color: var(--fg) !important; }
+[data-theme="dark"] #llmfit-controls { background: var(--bg2) !important; }
+
+[data-theme="dark"] .section-add-select { color: var(--fg); }
 </style>
 </head>
 <body>
 
-<div class="header">
-  <h1>LLM Gateway</h1>
-  <div class="status">
-    <span class="dot gray" id="gateway-dot"></span>
-    <span id="gateway-uptime">loading...</span>
-  </div>
-</div>
+<div class="app-shell">
 
-<div class="tabs" id="tab-bar">
-  <div class="tab active" data-tab="system">System</div>
-  <div class="tab" data-tab="models">Models</div>
-  <div class="tab" data-tab="config">Config</div>
-  <div class="tab" data-tab="secrets">Secrets</div>
-  <div class="tab external" onclick="window.open('http://localhost:4000/ui','_blank')">LiteLLM</div>
-  <div class="tab external" onclick="window.open('http://localhost:3000','_blank')">Grafana</div>
-</div>
+  <nav class="topnav" aria-label="Top">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+          <rect width="28" height="28" rx="7" fill="#4338CA"/>
+          <path d="M7 14h14M15 8l6 6-6 6" stroke="#fff" stroke-width="2.2"
+                stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+      </span>
+      <span>LLM Gateway</span>
+    </div>
+    <div class="status" title="Gateway service">
+      <span class="dot gray" id="gateway-dot"></span>
+      <span id="gateway-uptime">loading…</span>
+    </div>
+    <span class="spacer"></span>
+    <a class="topnav-link" href="http://localhost:4000/ui" target="_blank" rel="noopener">LiteLLM</a>
+    <a class="topnav-link" href="http://localhost:3000" target="_blank" rel="noopener">Grafana</a>
+  </nav>
 
-<div class="content">
+  <div class="main">
+
+    <aside class="sidebar" aria-label="Primary">
+
+      <div class="nav-group">
+        <div class="nav-group-title">Gateway</div>
+        <div class="nav-item active" data-tab="system">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="1.5" y="3" width="13" height="5" rx="1"/><rect x="1.5" y="10" width="13" height="3.5" rx="1"/><circle cx="4" cy="5.5" r="0.6" fill="currentColor"/><circle cx="4" cy="11.75" r="0.6" fill="currentColor"/>
+          </svg>
+          System
+        </div>
+        <div class="nav-item" data-tab="models" data-subtab="routes">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="3.5" cy="4" r="1.5"/><circle cx="3.5" cy="12" r="1.5"/><circle cx="12.5" cy="8" r="1.5"/><path d="M5 4h3.5a2 2 0 012 2v0a2 2 0 002 2M5 12h3.5a2 2 0 002-2v0a2 2 0 012-2"/>
+          </svg>
+          Routes
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Models</div>
+        <div class="nav-item" data-tab="models" data-subtab="downloads">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 2v8m0 0L5 7m3 3l3-3M2.5 13.5h11"/>
+          </svg>
+          Downloads
+        </div>
+        <div class="nav-item" data-tab="models" data-subtab="recommendations">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true">
+            <path d="M8 1.5l1.85 4.05L14 6l-3.2 2.8L11.7 13 8 10.8 4.3 13 5.2 8.8 2 6l4.15-.45z"/>
+          </svg>
+          Recommendations
+        </div>
+      </div>
+
+      <div class="nav-group">
+        <div class="nav-group-title">Configuration</div>
+        <div class="nav-item" data-tab="config">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="8" cy="8" r="2"/><path d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.13 1.13M4.53 11.47L3.4 12.6M12.6 12.6l-1.13-1.13M4.53 4.53L3.4 3.4"/>
+          </svg>
+          Config
+        </div>
+        <div class="nav-item" data-tab="secrets">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 015 0v2"/>
+          </svg>
+          Secrets
+        </div>
+        <div class="nav-item" id="theme-toggle" onclick="toggleTheme()" role="button" tabindex="0">
+          <svg class="nav-icon" id="theme-icon-sun" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="display:none">
+            <circle cx="8" cy="8" r="3"/>
+            <path d="M8 1.5v1.6M8 12.9v1.6M14.5 8h-1.6M3.1 8H1.5M12.6 3.4l-1.13 1.13M4.53 11.47L3.4 12.6M12.6 12.6l-1.13-1.13M4.53 4.53L3.4 3.4"/>
+          </svg>
+          <svg class="nav-icon" id="theme-icon-moon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M13.5 9.5A6 6 0 016.5 2.5a6 6 0 107 7z"/>
+          </svg>
+          <span id="theme-toggle-label">Dark Theme</span>
+        </div>
+      </div>
+
+    </aside>
+
+    <main class="content">
 
   <!-- ══════════ System ══════════ -->
   <div class="panel active" id="panel-system">
-    <h2 style="margin-bottom:16px">System Overview</h2>
+    <div class="page-header">
+      <h2>System Overview</h2>
+    </div>
 
     <div id="mem-section" style="margin-bottom:24px">
-      <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--fg2)">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:12.5px;color:var(--fg2);font-weight:500">
         <span id="mem-label-left">Memory</span>
         <span id="mem-label-right">--</span>
       </div>
@@ -293,96 +1046,103 @@ table.proc-table tr:last-child td { border-bottom: none; }
         <div class="mem-label" id="mem-bar-label">--</div>
       </div>
       <div class="mem-legend">
-        <span><span class="legend-swatch system"></span>System <span id="mem-legend-system" style="color:var(--fg)">--</span></span>
-        <span><span class="legend-swatch services"></span>Services <span id="mem-legend-services" style="color:var(--fg)">--</span></span>
-        <span><span class="legend-swatch models"></span>Models <span id="mem-legend-models" style="color:var(--fg)">--</span></span>
-        <span><span class="legend-swatch free"></span>Free <span id="mem-legend-free" style="color:var(--fg)">--</span></span>
+        <span><span class="legend-swatch system"></span>System <span id="mem-legend-system" style="color:rgb(17,24,39);font-weight:500">--</span></span>
+        <span><span class="legend-swatch services"></span>Services <span id="mem-legend-services" style="color:rgb(17,24,39);font-weight:500">--</span></span>
+        <span><span class="legend-swatch models"></span>Models <span id="mem-legend-models" style="color:rgb(17,24,39);font-weight:500">--</span></span>
+        <span><span class="legend-swatch free"></span>Free <span id="mem-legend-free" style="color:rgb(17,24,39);font-weight:500">--</span></span>
       </div>
       <details class="disclosure" id="top-procs-disclosure">
         <summary>Top 10 processes by memory</summary>
-        <div id="top-procs-body"><div class="card-meta" style="font-size:12px">Loading...</div></div>
+        <div id="top-procs-body"><div class="card-meta" style="font-size:12px;padding:8px 0">Loading…</div></div>
       </details>
     </div>
 
-    <h3 style="margin-bottom:12px;font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px">
-      Services
-      <button type="button" onclick="refreshDashboard()" style="font-size:11px;padding:2px 8px;font-weight:400">Refresh</button>
-    </h3>
+    <div class="section-header">
+      <h3>Services</h3>
+      <div class="section-actions">
+        <button type="button" onclick="refreshDashboard()">Refresh</button>
+      </div>
+    </div>
     <div id="dashboard-cards">
-      <div class="card-meta">Loading...</div>
+      <div class="card-meta">Loading…</div>
     </div>
 
-    <h3 style="margin:32px 0 8px;font-size:14px;color:var(--fg2);display:flex;align-items:center;gap:8px">
-      Docker Services
-      <button type="button" onclick="refreshDockerServices()" style="font-size:11px;padding:2px 8px;font-weight:400">Refresh</button>
-      <button type="button" onclick="restartStack()" style="font-size:11px;padding:2px 8px;font-weight:400">Restart all</button>
-    </h3>
-    <p style="color:var(--fg2);margin-bottom:12px;font-size:13px">
+    <div class="section-header">
+      <h3>Docker Services</h3>
+      <div class="section-actions">
+        <button type="button" onclick="refreshDockerServices()">Refresh</button>
+        <button type="button" onclick="restartStack()">Restart all</button>
+      </div>
+    </div>
+    <p class="muted" style="margin-bottom:12px">
       Docker containers detected on this host. Entries that are part of the LLM Gateway stack are enriched
       with config and data paths from <code>docker/docker-compose.yml</code>.
     </p>
     <div id="docker-service-list">
-      <div class="card-meta">Loading...</div>
+      <div class="card-meta">Loading…</div>
     </div>
   </div>
 
   <!-- ══════════ Models ══════════ -->
   <div class="panel" id="panel-models">
-    <h2 style="margin-bottom:12px">Models</h2>
-
-    <div class="subtabs" id="models-subtabs">
-      <div class="subtab active" data-subtab="routes">Routes</div>
-      <div class="subtab" data-subtab="downloads">Downloads</div>
-      <div class="subtab" data-subtab="recommendations">Recommendations</div>
-    </div>
 
     <!-- ── Routes ─────────────────────────────────────────────────────────── -->
     <div class="subpanel active" id="subpanel-routes">
-      <h3 style="margin-bottom:8px;font-size:14px;display:flex;align-items:center;gap:8px">
-        Routes
-        <button type="button" onclick="loadLitellmRoutes()" style="font-size:11px;padding:2px 8px;font-weight:400">Refresh</button>
-      </h3>
-      <p style="color:var(--fg2);margin-bottom:12px;font-size:13px">
+      <div class="page-header">
+        <h2>Routes</h2>
+        <div class="page-actions">
+          <button type="button" onclick="loadLitellmRoutes()">Refresh</button>
+        </div>
+      </div>
+      <p class="muted" style="margin-bottom:16px;max-width:760px">
         Pseudo-model routes to LiteLLM Proxy. Parsed from <code>litellm-config.yaml</code>.
       </p>
       <div id="routes-content">
-        <div class="card-meta">Loading...</div>
+        <div class="card-meta">Loading…</div>
       </div>
     </div>
 
     <!-- ── Downloads ──────────────────────────────────────────────────────── -->
     <div class="subpanel" id="subpanel-downloads">
-      <p style="color:var(--fg2);margin-bottom:12px;font-size:13px">
+      <div class="page-header">
+        <h2>Downloads</h2>
+      </div>
+      <p class="muted" style="margin-bottom:20px;max-width:760px">
         Pulls models from the web using Docker Model Runner CLI.
       </p>
 
-      <h3 style="margin:8px 0 8px;font-size:14px">Pull by name</h3>
+      <div class="section-header"><h3>Pull by name</h3></div>
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
         <input type="text" id="dmr-pull-input" placeholder="ai/smollm2 or hf.co/&lt;repo&gt;" style="flex:1;max-width:480px">
         <button class="primary" onclick="dmrPullManual()">Pull</button>
       </div>
-      <div id="dmr-pull-output" style="display:none;background:var(--bg2);padding:12px;border-radius:var(--radius);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:240px;overflow:auto"></div>
+      <div id="dmr-pull-output" style="display:none;background:#fafafa;border:1px solid var(--border-card);padding:12px 14px;border-radius:var(--radius-lg);font-family:var(--mono);font-size:12px;white-space:pre-wrap;max-height:240px;overflow:auto;color:rgba(0,0,0,0.78)"></div>
 
-      <h3 style="margin:24px 0 8px;font-size:14px">Pulled models
-        <button type="button" onclick="loadDmrModels()" style="margin-left:8px;font-size:12px;padding:2px 8px">Refresh</button>
-      </h3>
+      <div class="section-header">
+        <h3>Pulled models</h3>
+        <div class="section-actions">
+          <button type="button" onclick="loadDmrModels()">Refresh</button>
+        </div>
+      </div>
       <div id="dmr-models">
-        <div class="card-meta">Loading...</div>
+        <div class="card-meta">Loading…</div>
       </div>
     </div>
 
     <!-- ── Recommendations ────────────────────────────────────────────────── -->
     <div class="subpanel" id="subpanel-recommendations">
-      <h3 style="margin-bottom:8px;font-size:14px;display:flex;align-items:center;gap:8px">
-        Recommendations
-        <button type="button" onclick="loadLlmfitRecommendations()" style="font-size:11px;padding:2px 8px;font-weight:400">Refresh</button>
-      </h3>
+      <div class="page-header">
+        <h2>Recommendations</h2>
+        <div class="page-actions">
+          <button type="button" onclick="loadLlmfitRecommendations()">Refresh</button>
+        </div>
+      </div>
       <div id="llmfit-banner" style="display:none"></div>
-      <p style="color:var(--fg2);margin-bottom:12px;font-size:13px">
+      <p class="muted" style="margin-bottom:16px;max-width:760px">
         Hardware-matched ranking from <code>llmfit</code>. Pick one and pull it to Docker Model Runner.
       </p>
-      <div id="llmfit-controls" style="display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:12px;flex-wrap:wrap">
-        <label>Use case:
+      <div id="llmfit-controls" style="display:flex;gap:12px;align-items:center;font-size:13px;margin-bottom:16px;flex-wrap:wrap;padding:14px 16px;background:#fafafa;border:1px solid var(--border-card);border-radius:var(--radius-lg)">
+        <label style="display:inline-flex;align-items:center;gap:6px;color:var(--fg2);font-size:12.5px">Use case:
           <select id="llmfit-use-case">
             <option value="">Any</option>
             <option value="general">General</option>
@@ -392,43 +1152,47 @@ table.proc-table tr:last-child td { border-bottom: none; }
             <option value="multimodal">Multimodal</option>
           </select>
         </label>
-        <label>Min fit:
+        <label style="display:inline-flex;align-items:center;gap:6px;color:var(--fg2);font-size:12.5px">Min fit:
           <select id="llmfit-min-fit">
             <option value="perfect">Perfect</option>
             <option value="good" selected>Good</option>
             <option value="marginal">Marginal</option>
           </select>
         </label>
-        <label title="Show only models with a GGUF published by the upstream model maker (e.g. Qwen, Meta, Google). Most upstreams ship only safetensors; community quantizers like unsloth and bartowski produce the GGUFs.">
-          <input type="checkbox" id="llmfit-official-only" onchange="loadLlmfitRecommendations()">
+        <label style="display:inline-flex;align-items:center;gap:6px;color:var(--fg2);font-size:12.5px" title="Show only models with a GGUF published by the upstream model maker (e.g. Qwen, Meta, Google). Most upstreams ship only safetensors; community quantizers like unsloth and bartowski produce the GGUFs.">
+          <input type="checkbox" id="llmfit-official-only" onchange="loadLlmfitRecommendations()" style="margin:0">
           Official only
         </label>
-        <span id="llmfit-system-meta" style="color:var(--fg2);font-size:12px;margin-left:auto"></span>
+        <span id="llmfit-system-meta" style="color:var(--fg2);font-size:12px;margin-left:auto;font-family:var(--mono)"></span>
       </div>
       <div id="llmfit-recommendations">
-        <div class="card-meta">Loading recommendations...</div>
+        <div class="card-meta">Loading recommendations…</div>
       </div>
     </div>
   </div>
 
   <!-- ══════════ Secrets ══════════ -->
   <div class="panel" id="panel-secrets">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
-      <h2 style="margin:0">Secrets</h2>
-      <button class="primary" onclick="saveSecrets()">Save</button>
-      <span id="secrets-status" class="validation-msg" style="display:none"></span>
+    <div class="page-header">
+      <h2>Secrets</h2>
+      <div class="page-actions">
+        <span id="secrets-status" class="validation-msg" style="display:none"></span>
+        <button class="primary" onclick="saveSecrets()">Save</button>
+      </div>
     </div>
-    <p style="color:var(--fg2);margin-bottom:16px;font-size:13px">
-      Edits your <code>.env</code> with secrets used by the LLMGateway components. Saving overwrites <code>.env</code>, a backup is kept.
+    <p class="muted" style="margin-bottom:24px;max-width:760px">
+      Edits your <code>.env</code> with secrets used by the LLMGateway components. Saving overwrites <code>.env</code>; a backup is kept.
     </p>
     <div id="secrets-entries"></div>
   </div>
 
   <!-- ══════════ Config ══════════ -->
   <div class="panel" id="panel-config">
-    <h2 style="margin-bottom:16px">Configuration Editor</h2>
+    <div class="page-header">
+      <h2>Configuration Editor</h2>
+    </div>
     <div class="editor-wrap">
-      <div class="editor-toolbar" style="flex-wrap:wrap">
+      <div class="editor-toolbar">
         <div class="seg" id="config-file-seg">
           <button type="button" data-file="gateway" class="active" onclick="switchConfigFile('gateway')">Gateway</button>
           <button type="button" data-file="litellm" onclick="switchConfigFile('litellm')">LiteLLM</button>
@@ -436,13 +1200,15 @@ table.proc-table tr:last-child td { border-bottom: none; }
         <button class="primary" onclick="saveConfig()">Save</button>
         <button onclick="validateConfig()">Validate</button>
         <button class="danger" id="config-reset-btn" onclick="resetConfig()">Reset to Defaults</button>
-        <span id="config-file-hint" style="color:var(--fg3);font-size:12px;margin-left:4px"></span>
+        <span id="config-file-hint" style="color:var(--fg3);font-size:12px;margin-left:4px;font-family:var(--mono)"></span>
         <span id="config-status" class="validation-msg" style="display:none"></span>
       </div>
-      <textarea id="config-editor" spellcheck="false" placeholder="Loading configuration..."></textarea>
+      <textarea id="config-editor" spellcheck="false" placeholder="Loading configuration…"></textarea>
     </div>
   </div>
 
+    </main>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -451,17 +1217,48 @@ table.proc-table tr:last-child td { border-bottom: none; }
 // ── State ──────────────────────────────────────────────────────────────────
 let refreshTimer = null;
 
-// ── Tab switching ──────────────────────────────────────────────────────────
-document.querySelectorAll('.tab[data-tab]').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+// ── Theme toggle ───────────────────────────────────────────────────────────
+function applyTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  const sun = document.getElementById('theme-icon-sun');
+  const moon = document.getElementById('theme-icon-moon');
+  const label = document.getElementById('theme-toggle-label');
+  if (!sun || !moon || !label) return;
+  if (theme === 'dark') {
+    sun.style.display = '';
+    moon.style.display = 'none';
+    label.textContent = 'Light Theme';
+  } else {
+    sun.style.display = 'none';
+    moon.style.display = '';
+    label.textContent = 'Dark Theme';
+  }
+}
+function toggleTheme() {
+  const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('llmgw-theme', next);
+  applyTheme(next);
+}
+applyTheme(localStorage.getItem('llmgw-theme') || 'light');
+
+// ── Sidebar navigation ─────────────────────────────────────────────────────
+// Each sidebar item has data-tab (panel id) and optionally data-subtab (subpanel
+// id, used to deep-link to a specific Models subpanel). Top-nav external links
+// (LiteLLM, Grafana) are plain <a target="_blank"> elements — not handled here.
+document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+  item.addEventListener('click', () => {
+    const tab = item.dataset.tab;
+    const subtab = item.dataset.subtab;
+
+    document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'config') loadConfigEditor();
-    if (tab.dataset.tab === 'secrets') loadSecrets();
-    if (tab.dataset.tab === 'system') { refreshDashboard(); refreshDockerServices(); }
-    if (tab.dataset.tab === 'models') { loadModelsTab(); }
+    item.classList.add('active');
+    document.getElementById('panel-' + tab).classList.add('active');
+
+    if (tab === 'config') loadConfigEditor();
+    if (tab === 'secrets') loadSecrets();
+    if (tab === 'system') { refreshDashboard(); refreshDockerServices(); }
+    if (tab === 'models') { switchModelsSubtab(subtab || modelsSubtab || 'routes'); }
   });
 });
 
@@ -874,6 +1671,14 @@ async function loadLitellmRoutes() {
   const remoteGroups = groupOrder.filter(n => !isLocalGroup(n));
   const activeReordered = [...localGroups, ...remoteGroups].flatMap(n => groupRows.get(n));
 
+  // Count backends per model_name across BOTH active and inactive — a single
+  // model_name with multiple backend rows is load-balanced (round-robin) by
+  // LiteLLM, and we want to flag that on the first row.
+  const backendCounts = new Map();
+  for (const rt of routes) {
+    backendCounts.set(rt.model_name, (backendCounts.get(rt.model_name) || 0) + 1);
+  }
+
   // Build lookup: target model_name → list of aliases pointing at it.
   // e.g. {"local-only": ["local"], "deep-reasoning": ["reasoning"]}
   const aliasesByTarget = {};
@@ -899,27 +1704,31 @@ async function loadLitellmRoutes() {
     const backend = rt.backend || 'other';
     const backendLabel = BACKEND_LABELS[backend] || backend;
     const apiBase = rt.api_base
-      ? `<div style="color:var(--fg3);font-size:11px;margin-top:2px">${escapeHtml(rt.api_base)}</div>`
+      ? `<div class="route-api-base">${escapeHtml(rt.api_base)}</div>`
       : '';
     let modelCell;
     if (isFirst) {
       const aliases = aliasesByTarget[rt.model_name] || [];
       const aliasSuffix = aliases.length
-        ? ` <span style="color:var(--fg3);font-weight:400">&lt;- ${aliases.map(escapeHtml).join(', ')}</span>`
+        ? ` <span class="route-alias">&lt;- ${aliases.map(escapeHtml).join(', ')}</span>`
+        : '';
+      const count = backendCounts.get(rt.model_name) || 1;
+      const rrSub = count > 1
+        ? `<div class="route-rr"><span class="route-rr-dot" aria-hidden="true">↻</span> round-robin · ${count} backends</div>`
         : '';
       const fbTargets = fallbacksBySource[rt.model_name] || [];
       const fallbackSub = fbTargets.length
-        ? `<div style="color:var(--fg3);font-size:11px;margin-top:2px">↳ fallback: ${fbTargets.map(escapeHtml).join(', ')}</div>`
+        ? `<div class="route-fallback">↳ fallback: ${fbTargets.map(escapeHtml).join(', ')}</div>`
         : '';
-      modelCell = `<strong>${escapeHtml(rt.model_name)}</strong>${aliasSuffix}${fallbackSub}`;
+      modelCell = `<strong>${escapeHtml(rt.model_name)}</strong>${aliasSuffix}${rrSub}${fallbackSub}`;
     } else {
-      modelCell = `<span style="color:var(--fg3)">↳</span>`;
+      modelCell = `<span class="route-cont">↳</span>`;
     }
     const reasonCell = showReason
       ? `<span class="chip key-missing" title="${escapeAttr(rt.env_key || '')} not set in .env">missing API key</span>
-         <div style="color:var(--fg3);font-size:11px;font-family:var(--mono);margin-top:2px">${escapeHtml(rt.env_key || '')}</div>`
+         <div class="route-env-key">${escapeHtml(rt.env_key || '')}</div>`
       : (isFirst
-          ? `<button type="button" onclick="copyRouteName('${escapeAttr(rt.model_name)}')" style="font-size:11px;padding:2px 8px">Copy Route</button>`
+          ? `<button type="button" class="copy-route" onclick="copyRouteName('${escapeAttr(rt.model_name)}')">Copy Route</button>`
           : '');
     return `
       <tr class="${isFirst ? '' : 'dim'}">
@@ -948,24 +1757,24 @@ async function loadLitellmRoutes() {
     const providerLabel = SEARCH_PROVIDER_LABELS[provider] || provider;
     const aliases = aliasesByTarget[st.search_tool_name] || [];
     const aliasSuffix = aliases.length
-      ? ` <span style="color:var(--fg3);font-weight:400">&lt;- ${aliases.map(escapeHtml).join(', ')}</span>`
+      ? ` <span class="route-alias">&lt;- ${aliases.map(escapeHtml).join(', ')}</span>`
       : '';
     const isDefault = st.search_tool_name === activeSearchToolName;
-    const defaultBadge = isDefault
-      ? ` <span style="color:var(--accent);font-size:10px;font-weight:600;letter-spacing:.04em">DEFAULT</span>`
+    const defaultSub = isDefault
+      ? `<div class="route-default-tag">DEFAULT</div>`
       : '';
     let reasonCell;
     if (inactive) {
       reasonCell = `<span class="chip key-missing" title="${escapeAttr(st.env_key)} not set in .env">missing API key</span>
-                    <div style="color:var(--fg3);font-size:11px;font-family:var(--mono);margin-top:2px">${escapeHtml(st.env_key)}</div>`;
+                    <div class="route-env-key">${escapeHtml(st.env_key)}</div>`;
     } else {
-      reasonCell = `<button type="button" onclick="copyRouteName('${escapeAttr(st.search_tool_name)}')" style="font-size:11px;padding:2px 8px">Copy Route</button>`;
+      reasonCell = `<button type="button" class="copy-route" onclick="copyRouteName('${escapeAttr(st.search_tool_name)}')">Copy Route</button>`;
     }
     return `
       <tr${inactive ? ' class="dim"' : ''}>
-        <td><strong>${escapeHtml(st.search_tool_name)}</strong>${aliasSuffix}${defaultBadge}</td>
+        <td><strong>${escapeHtml(st.search_tool_name)}</strong>${aliasSuffix}${defaultSub}</td>
         <td><span class="chip search-tool">Search Tool</span></td>
-        <td class="mono">${escapeHtml(providerLabel)}<div style="color:var(--fg3);font-size:11px;margin-top:2px">via litellm_web_search</div></td>
+        <td class="mono">${escapeHtml(providerLabel)}<div class="route-api-base">via litellm_web_search</div></td>
         <td>${reasonCell}</td>
       </tr>`;
   }
@@ -992,10 +1801,10 @@ async function loadLitellmRoutes() {
   el.innerHTML = `
     <table class="routes-table" style="table-layout:fixed">
       <colgroup>
-        <col style="width:24%">
-        <col style="width:20%">
-        <col style="width:38%">
+        <col style="width:22%">
         <col style="width:18%">
+        <col style="width:35%">
+        <col style="width:25%">
       </colgroup>
       <thead>
         <tr>
@@ -1099,6 +1908,16 @@ async function loadLlmfitRecommendations() {
   }).join('');
 }
 
+// Split a model identifier into the registry path prefix and the basename.
+// "docker.io/ai/smollm2:latest" -> { prefix: "docker.io/ai/", basename: "smollm2:latest" }
+// "smollm2" -> { prefix: "", basename: "smollm2" }
+function splitModelPath(tag) {
+  const s = String(tag || '');
+  const i = s.lastIndexOf('/');
+  if (i < 0) return { prefix: '', basename: s };
+  return { prefix: s.slice(0, i + 1), basename: s.slice(i + 1) };
+}
+
 async function loadDmrModels() {
   const el = document.getElementById('dmr-models');
   const r = await api('/ui/dmr/models');
@@ -1111,10 +1930,14 @@ async function loadDmrModels() {
   }
   el.innerHTML = models.map(m => {
     const tag = (m.tags && m.tags[0]) || m.id || '?';
+    const { prefix, basename } = splitModelPath(tag);
     const cfg = m.config || {};
     const runningBadge = m.running
       ? ' <span class="chip local" title="currently loaded in Docker Model Runner">● running</span>'
       : ' <span class="chip key-none">idle</span>';
+    const pathLine = prefix
+      ? `<div class="svc-desc" style="font-family:var(--mono);font-size:11.5px;color:var(--fg3);margin-top:2px">${escapeHtml(prefix)}</div>`
+      : '';
     const descParts = [
       cfg.parameters || '',
       cfg.quantization || '',
@@ -1125,8 +1948,9 @@ async function loadDmrModels() {
     return `
       <div class="svc-row">
         <div class="svc-info">
-          <div class="svc-name">${escapeHtml(tag)}${runningBadge}</div>
-          <div class="svc-desc">${descParts}</div>
+          <div class="svc-name" title="${escapeAttr(tag)}">${escapeHtml(basename)}${runningBadge}</div>
+          ${pathLine}
+          ${descParts ? `<div class="svc-desc">${descParts}</div>` : ''}
         </div>
         <div class="svc-actions">
           <button type="button" class="danger" onclick="dmrRm('${escapeAttr(tag)}')">Delete</button>
@@ -1373,7 +2197,17 @@ function removeRowByKey(key) {
   if (idx >= 0) secretsRows.splice(idx, 1);
 }
 
+// Env var names ending with one of these suffixes are treated as secrets:
+// rendered as type=password by default with an eye toggle to reveal.
+const SECRET_SUFFIX_RE = /(?:_KEY|_SECRET|_TOKEN|_PASSWORD|_PASS|_SALT)$/i;
+function isMaskableKey(key) { return SECRET_SUFFIX_RE.test(String(key || '')); }
+
+// SVG eye icons — `eye` shown when masked, `eye-off` when revealed.
+const EYE_SVG = '<svg class="eye-icon eye" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1.5 8s2.3-4.5 6.5-4.5S14.5 8 14.5 8s-2.3 4.5-6.5 4.5S1.5 8 1.5 8z"/><circle cx="8" cy="8" r="1.9"/></svg>';
+const EYE_OFF_SVG = '<svg class="eye-icon eye-off" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 5.5C1.7 6.5 1.5 8 1.5 8s2.3 4.5 6.5 4.5c1.1 0 2.1-.3 2.9-.7M5.5 4.1A7.4 7.4 0 018 3.5c4.2 0 6.5 4.5 6.5 4.5s-.7 1.4-2 2.7M6.2 9.8a2 2 0 012.6-2.7M2 2l12 12"/></svg>';
+
 // Render a single row (label + value input + Remove). Role controls styling.
+// Secret-shaped keys render as <input type=password> with a reveal toggle.
 function renderRow(key, role) {
   const idx = findRowIdx(key);
   if (idx < 0) return '';
@@ -1381,15 +2215,40 @@ function renderRow(key, role) {
   const exampleDefault = (secretsDefaults.defaults || {})[key] || '';
   const isPlaceholder = !row.value && exampleDefault;
   const secondary = role === 'base' || role === 'extra' ? ' secondary' : '';
+  const masked = isMaskableKey(key);
+
+  const inputAttrs = `
+    value="${escapeHtml(row.value)}"
+    placeholder="${escapeHtml(exampleDefault)}"
+    oninput="updateSecretValue(${idx}, this)"
+    autocomplete="off"
+    spellcheck="false"`;
+
+  const valueControl = masked
+    ? `<div class="secret-value-wrap">
+         <input type="password" class="secret-value ${isPlaceholder ? 'placeholder' : ''}"${inputAttrs} />
+         <button type="button" class="secret-reveal" onclick="toggleSecretReveal(this)" aria-label="Show value" title="Show value">${EYE_SVG}</button>
+       </div>`
+    : `<input type="text" class="secret-value ${isPlaceholder ? 'placeholder' : ''}"${inputAttrs} />`;
+
   return `
-    <div class="secret-row${secondary}" data-idx="${idx}">
+    <div class="secret-row${secondary}" data-idx="${idx}" data-key="${escapeAttr(key)}">
       <span class="secret-key">${escapeHtml(key)}</span>
-      <input type="text" class="secret-value ${isPlaceholder ? 'placeholder' : ''}"
-             value="${escapeHtml(row.value)}"
-             placeholder="${escapeHtml(exampleDefault)}"
-             oninput="updateSecretValue(${idx}, this)" />
+      ${valueControl}
       <button type="button" class="secret-remove danger" onclick="removeSecretRowByKey('${escapeAttr(key)}')">Remove</button>
     </div>`;
+}
+
+function toggleSecretReveal(btn) {
+  const input = btn.parentElement.querySelector('input.secret-value');
+  if (!input) return;
+  const revealed = input.type === 'text';
+  input.type = revealed ? 'password' : 'text';
+  btn.innerHTML = revealed ? EYE_SVG : EYE_OFF_SVG;
+  btn.classList.toggle('revealed', !revealed);
+  const label = revealed ? 'Show value' : 'Hide value';
+  btn.title = label;
+  btn.setAttribute('aria-label', label);
 }
 
 // Render a group: primary key + (optional) base URL + extras, all in one card.
@@ -1404,48 +2263,110 @@ function renderSecretGroup(entry) {
   return `<div class="secret-group">${primary}${baseRow}${extraRows}</div>`;
 }
 
-// Render the "Add to this section" control. For known sections, a dropdown
-// of unset entries; for "Other", a free-text key input.
+// Render the "Add to this section" control. Single dropdown of unconfigured
+// entries (by service name only) plus an "Other…" option that swaps the
+// dropdown for an inline ENV_VAR_NAME / Value form for free-form additions.
 function renderSectionAdd(section, availableEntries) {
   const sid = section.id;
-  if (sid === 'other') {
-    return `
-      <div class="section-add">
-        <span class="add-label">Add custom:</span>
-        <input type="text" id="add-key-other" placeholder="ENV_VAR_NAME" />
-        <input type="text" id="add-val-other" placeholder="Value" />
-        <button type="button" class="primary" onclick="addCustomSecret()">Add</button>
-      </div>`;
-  }
-  if (availableEntries.length === 0) {
-    return `<div class="section-add" style="color:var(--fg3);font-size:12px">
-              All known ${escapeHtml(section.title)} entries are configured.
-            </div>`;
-  }
-  const options = availableEntries.map(e =>
-    `<option value="${escapeAttr(e.key)}">${escapeHtml(e.label || e.key)} — ${escapeHtml(e.key)}</option>`
+  const knownOpts = availableEntries.map(e =>
+    `<option value="${escapeAttr(e.key)}">${escapeHtml(e.label || e.key)}</option>`
   ).join('');
+  const placeholder = availableEntries.length === 0
+    ? '+ Add a custom variable…'
+    : '+ Add a key…';
+  const separator = knownOpts ? '<option value="" disabled>──────────</option>' : '';
+
   return `
-    <div class="section-add">
-      <span class="add-label">Add:</span>
-      <select id="add-key-${sid}">${options}</select>
-      <input type="text" id="add-val-${sid}" placeholder="Value (or leave blank for defaults only)" />
-      <button type="button" class="primary" onclick="addSectionSecret('${sid}')">Add</button>
+    <div class="section-add" data-section="${escapeAttr(sid)}">
+      <select class="section-add-select" data-section="${escapeAttr(sid)}" onchange="handleSectionAddSelect(this)">
+        <option value="" disabled selected>${escapeHtml(placeholder)}</option>
+        ${knownOpts}
+        ${separator}
+        <option value="__custom__">Other… (custom variable)</option>
+      </select>
+      <div class="section-custom-add" data-section="${escapeAttr(sid)}" hidden>
+        <input type="text" class="custom-key" placeholder="ENV_VAR_NAME" autocomplete="off" spellcheck="false" />
+        <input type="text" class="custom-val" placeholder="Value (optional)" autocomplete="off" spellcheck="false" />
+        <button type="button" class="primary" onclick="submitCustomSecret(this)">Add</button>
+        <button type="button" onclick="cancelCustomSecret(this)">Cancel</button>
+      </div>
     </div>`;
+}
+
+// Dropdown change handler — auto-adds a known entry or opens the custom form.
+function handleSectionAddSelect(sel) {
+  const val = sel.value;
+  if (!val) return;
+  const sid = sel.dataset.section;
+
+  if (val === '__custom__') {
+    const form = sel.parentElement.querySelector('.section-custom-add');
+    sel.hidden = true;
+    form.hidden = false;
+    form.querySelector('.custom-key').value = '';
+    form.querySelector('.custom-val').value = '';
+    setTimeout(() => form.querySelector('.custom-key').focus(), 0);
+    return;
+  }
+
+  addSectionSecretByKey(sid, val);
+  sel.value = '';  // reset (in case the section persists for the same render)
+}
+
+// Add a known section entry by env key. Pulls in its base URL + extras.
+function addSectionSecretByKey(sectionId, key) {
+  const section = SECRET_SECTIONS.find(s => s.id === sectionId);
+  if (!section) return;
+  const entry = section.entries.find(e => e.key === key);
+  if (!entry) return;
+
+  addOrSetRow(entry.key, entry.defaultValue || '');
+  if (entry.base_url) addOrSetRow(entry.base_url.key, entry.base_url.default || '');
+  for (const ex of (entry.extras || [])) addOrSetRow(ex.key, ex.default || '');
+
+  renderSecretsSections();
+  // Focus the newly added primary input so the user can type straight away.
+  setTimeout(() => {
+    const row = document.querySelector(`.secret-row[data-key="${CSS.escape(entry.key)}"]`);
+    if (!row) return;
+    const input = row.querySelector('input.secret-value');
+    if (input) input.focus();
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, 30);
+}
+
+function submitCustomSecret(btn) {
+  const form = btn.parentElement;
+  const keyEl = form.querySelector('.custom-key');
+  const valEl = form.querySelector('.custom-val');
+  const key = (keyEl.value || '').trim();
+  const value = (valEl.value || '').trim();
+  if (!key) { toast('Enter an environment variable name', 'error'); keyEl.focus(); return; }
+  addOrSetRow(key, value);
+  renderSecretsSections();
+  setTimeout(() => {
+    const row = document.querySelector(`.secret-row[data-key="${CSS.escape(key)}"]`);
+    if (row) row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, 30);
+}
+
+function cancelCustomSecret(btn) {
+  const form = btn.parentElement;
+  const select = form.parentElement.querySelector('.section-add-select');
+  form.hidden = true;
+  select.hidden = false;
+  select.value = '';
 }
 
 function renderSecretsSections() {
   const container = document.getElementById('secrets-entries');
 
-  // Render registered sections
   const knownSectionsHTML = SECRET_SECTIONS.map(section => {
-    // Entries with at least the primary row present
     const presentEntries = section.entries.filter(e => hasRow(e.key));
-    // Entries not yet added (offered in the dropdown)
     const availableEntries = section.entries.filter(e => !hasRow(e.key));
 
     const groupsHTML = presentEntries.map(renderSecretGroup).join('')
-      || `<div class="card-meta" style="font-size:12px;margin-bottom:8px">Nothing configured in this section yet.</div>`;
+      || `<div class="secrets-empty">Nothing configured in this section yet.</div>`;
     return `
       <div class="secrets-section">
         <h3>${escapeHtml(section.title)}</h3>
@@ -1455,23 +2376,22 @@ function renderSecretsSections() {
       </div>`;
   }).join('');
 
-  // "Other" — anything in secretsRows the registry doesn't know about
+  // Custom — entries in secretsRows that aren't in the known registry. The
+  // section is display-only; new custom entries are added via the "Other…"
+  // option in any known section's Add control above.
   const otherRows = secretsRows.filter(r => !SECRET_KEY_INDEX[r.key]);
-  const otherGroupsHTML = otherRows.length
-    ? otherRows.map(r => `<div class="secret-group">${renderRow(r.key, 'primary')}</div>`).join('')
-    : `<div class="card-meta" style="font-size:12px;margin-bottom:8px">No custom entries.</div>`;
-  const otherSection = {
-    id: 'other',
-    title: 'Other',
-    description: 'Custom or unrecognized variables. Use Add to write a key by name.',
-  };
-  const otherHTML = `
-    <div class="secrets-section">
-      <h3>${escapeHtml(otherSection.title)}</h3>
-      <div class="section-desc">${escapeHtml(otherSection.description)}</div>
-      ${otherGroupsHTML}
-      ${renderSectionAdd(otherSection, [])}
-    </div>`;
+  let otherHTML = '';
+  if (otherRows.length) {
+    const otherGroupsHTML = otherRows.map(r =>
+      `<div class="secret-group">${renderRow(r.key, 'primary')}</div>`
+    ).join('');
+    otherHTML = `
+      <div class="secrets-section">
+        <h3>Custom</h3>
+        <div class="section-desc">Custom or unrecognized variables. Add new ones via "Other…" in any section above.</div>
+        ${otherGroupsHTML}
+      </div>`;
+  }
 
   container.innerHTML = knownSectionsHTML + otherHTML;
 }
@@ -1492,37 +2412,6 @@ function removeSecretRowByKey(key) {
     for (const ex of (meta.entry.extras || [])) removeRowByKey(ex.key);
   }
   removeRowByKey(key);
-  renderSecretsSections();
-}
-
-// Add a known entry from a section's dropdown. Adds the primary key plus
-// its base URL (pre-filled with default) and any extras.
-function addSectionSecret(sectionId) {
-  const section = SECRET_SECTIONS.find(s => s.id === sectionId);
-  if (!section) return;
-  const keyEl = document.getElementById('add-key-' + sectionId);
-  const valEl = document.getElementById('add-val-' + sectionId);
-  if (!keyEl) return;
-  const key = keyEl.value;
-  const entry = section.entries.find(e => e.key === key);
-  if (!entry) { toast('Unknown entry', 'error'); return; }
-
-  const value = (valEl && valEl.value) ? valEl.value.trim() : (entry.defaultValue || '');
-  addOrSetRow(entry.key, value);
-  if (entry.base_url) addOrSetRow(entry.base_url.key, entry.base_url.default || '');
-  for (const ex of (entry.extras || [])) addOrSetRow(ex.key, ex.default || '');
-
-  renderSecretsSections();
-}
-
-function addCustomSecret() {
-  const keyEl = document.getElementById('add-key-other');
-  const valEl = document.getElementById('add-val-other');
-  if (!keyEl || !valEl) return;
-  const key = (keyEl.value || '').trim();
-  const value = (valEl.value || '').trim();
-  if (!key) { toast('Enter an environment variable name', 'error'); return; }
-  addOrSetRow(key, value);
   renderSecretsSections();
 }
 

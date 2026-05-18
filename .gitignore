@@ -57,3 +57,7 @@ Thumbs.db
 ehthumbs.db
 desktop.ini
 
+# --- Design / browser-automation artifacts ---
+.playwright-mcp/
+design/tokens-*.json
+
