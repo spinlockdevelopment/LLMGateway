@@ -17,3 +17,9 @@ phase,model,stage,elapsed_s,steps,input_tokens,output_tokens,finish_reason,test_
 3,B,self_eval,7057.04,40,448487,8317,step_cap,35,5
 3,A->B,cross_eval,163.94,16,143062,1508,score,,
 3,B->A,cross_eval,153.55,19,163523,1284,score,,
+1,B_thinkon,implement,157.45,18,110254,3451,done,,
+1,B_thinkon,self_eval,553.42,40,288671,8484,step_cap,10,1
+1,B_thinkoff,implement,119.20,12,72434,2780,done,,
+1,B_thinkoff,self_eval,218.09,20,80383,5696,done,8,3
+1,B_capped,implement,98.63,12,67825,2349,done,,
+1,B_capped,self_eval,562.60,36,343649,6186,done,11,0
