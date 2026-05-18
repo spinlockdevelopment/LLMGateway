@@ -494,34 +494,7 @@ table.routes-table tr.dim td { opacity: .55; }
 .route-api-base    { color: var(--fg3); font-size: 11px; margin-top: 3px; overflow-wrap: anywhere; }
 .route-env-key     { color: var(--fg3); font-size: 11px; font-family: var(--mono); margin-top: 4px; overflow-wrap: anywhere; }
 .route-fallback    { color: var(--fg3); font-size: 11px; margin-top: 3px; }
-.route-rr {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  width: fit-content;
-  margin-top: 6px;
-  padding: 1px 8px 1px 6px;
-  background: #e0e7ff;
-  color: #3730a3;
-  border: 1px solid #c7d2fe;
-  border-radius: 4px;
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: .02em;
-}
-.route-rr-dot      { font-size: 11px; line-height: 1; transform: translateY(-0.5px); }
-.route-default-tag {
-  width: fit-content;
-  margin-top: 5px;
-  padding: 1px 7px;
-  background: #ede9fe;
-  color: #5b21b6;
-  border: 1px solid #ddd6fe;
-  border-radius: 4px;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: .08em;
-}
+.route-default     { color: var(--fg3); font-weight: 400; }
 button.copy-route { font-size: 12.5px; padding: 4px 12px; }
 table.routes-table tr.section-row td {
   background: #fafafa;
@@ -1625,9 +1598,10 @@ const SEARCH_PROVIDER_LABELS = {
 };
 
 async function copyRouteName(name) {
+  const url = 'http://localhost:4000/' + name;
   try {
-    await navigator.clipboard.writeText(name);
-    toast('Copied: ' + name, 'success');
+    await navigator.clipboard.writeText(url);
+    toast('Copied: ' + url, 'success');
   } catch (e) {
     toast('Copy failed', 'error');
   }
@@ -1713,10 +1687,10 @@ async function loadLitellmRoutes() {
         ? ` <span class="route-alias">&lt;- ${aliases.map(escapeHtml).join(', ')}</span>`
         : '';
       const count = backendCounts.get(rt.model_name) || 1;
-      const rrSub = count > 1
-        ? `<div class="route-rr"><span class="route-rr-dot" aria-hidden="true">↻</span> round-robin · ${count} backends</div>`
-        : '';
       const fbTargets = fallbacksBySource[rt.model_name] || [];
+      const rrSub = (count > 1 && fbTargets.length === 0)
+        ? `<div class="route-fallback">↻ round-robin</div>`
+        : '';
       const fallbackSub = fbTargets.length
         ? `<div class="route-fallback">↳ fallback: ${fbTargets.map(escapeHtml).join(', ')}</div>`
         : '';
@@ -1761,7 +1735,7 @@ async function loadLitellmRoutes() {
       : '';
     const isDefault = st.search_tool_name === activeSearchToolName;
     const defaultSub = isDefault
-      ? `<div class="route-default-tag">DEFAULT</div>`
+      ? ` <span class="route-default">(default)</span>`
       : '';
     let reasonCell;
     if (inactive) {
@@ -1811,7 +1785,7 @@ async function loadLitellmRoutes() {
           <th>Model</th>
           <th>Backend</th>
           <th>Provider call</th>
-          <th>Reason</th>
+          <th>Route</th>
         </tr>
       </thead>
       <tbody>
