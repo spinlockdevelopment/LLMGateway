@@ -35,3 +35,5 @@ phase,model,stage,elapsed_s,steps,input_tokens,output_tokens,finish_reason,test_
 5,B_capped,self_eval,47.40,16,31957,1256,done,0,2
 6,B_capped,implement,1153.40,67,1287320,13778,done,,
 6,B_capped,self_eval,378.08,40,374863,6334,step_cap,0,2
+7,B_capped,implement,538.08,34,355965,5902,done,,
+7,B_capped,self_eval,133.86,22,59943,3688,done,0,2
