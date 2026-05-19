@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="11" skipped="0" tests="11" time="0.023" timestamp="2026-05-19T13:50:15.774107-04:00" hostname="llmgateway"><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000"><failure message="assert 0 == 1&#10; +  where 0 = len([])">tests/test_lexer.py:14: in test_empty_input_just_eof
+    assert len(toks) == 1
+E   assert 0 == 1
+E    +  where 0 = len([])</failure></testcase><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000"><failure message="AssertionError: assert [] == ['KEYWORD', '...'NUMBER', ...]&#10;  &#10;  Right contains 8 more items, first extra item: 'KEYWORD'&#10;  Use -v to get more diff">tests/test_lexer.py:20: in test_let_x_eq_1_plus_2
+    assert kinds(toks) == [
+E   AssertionError: assert [] == ['KEYWORD', '...'NUMBER', ...]
+E     
+E     Right contains 8 more items, first extra item: 'KEYWORD'
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000"><failure message="AssertionError: assert [] == ['KEYWORD', '...ORD', 'IDENT']&#10;  &#10;  Right contains 4 more items, first extra item: 'KEYWORD'&#10;  Use -v to get more diff">tests/test_lexer.py:28: in test_keywords_vs_identifiers
+    assert kinds(toks)[:4] == ["KEYWORD", "IDENT", "KEYWORD", "IDENT"]
+E   AssertionError: assert [] == ['KEYWORD', '...ORD', 'IDENT']
+E     
+E     Right contains 4 more items, first extra item: 'KEYWORD'
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000"><failure message="AssertionError: assert [] == ['==', '!=', ...', '&amp;&amp;', '||']&#10;  &#10;  Right contains 6 more items, first extra item: '=='&#10;  Use -v to get more diff">tests/test_lexer.py:37: in test_multi_char_punct
+    assert [t.value for t in toks if t.kind == "PUNCT"] == ["==", "!=", "&lt;=", "&gt;=", "&amp;&amp;", "||"]
+E   AssertionError: assert [] == ['==', '!=', ...', '&amp;&amp;', '||']
+E     
+E     Right contains 6 more items, first extra item: '=='
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000"><failure message="assert False&#10; +  where False = any(&lt;generator object test_single_char_punct_after_multi.&lt;locals&gt;.&lt;genexpr&gt; at 0x10ae431d0&gt;)">tests/test_lexer.py:46: in test_single_char_punct_after_multi
+    assert any(t.kind == "PUNCT" and t.value == "=" for t in toks)
+E   assert False
+E    +  where False = any(&lt;generator object test_single_char_punct_after_multi.&lt;locals&gt;.&lt;genexpr&gt; at 0x10ae431d0&gt;)</failure></testcase><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000"><failure message="IndexError: list index out of range">tests/test_lexer.py:51: in test_string_escapes
+    s = [t for t in toks if t.kind == "STRING"][0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000"><failure message="AssertionError: assert [] == ['x', 'y']&#10;  &#10;  Right contains 2 more items, first extra item: 'x'&#10;  Use -v to get more diff">tests/test_lexer.py:59: in test_comments_stripped
+    assert idents == ["x", "y"]
+E   AssertionError: assert [] == ['x', 'y']
+E     
+E     Right contains 2 more items, first extra item: 'x'
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000"><failure message="IndexError: list index out of range">tests/test_lexer.py:64: in test_line_col_tracking
+    let_tok = toks[0]
+              ^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000"><failure message="Failed: DID NOT RAISE &lt;class 'Exception'&gt;">tests/test_lexer.py:72: in test_unknown_char_errors
+    with pytest.raises(Exception) as exc:
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE &lt;class 'Exception'&gt;</failure></testcase><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000"><failure message="IndexError: list index out of range">tests/test_lexer.py:84: in test_number_and_float
+    assert nums[0] == 42.0
+           ^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000"><failure message="assert 0 == 1&#10; +  where 0 = sum(&lt;generator object test_eof_only_once.&lt;locals&gt;.&lt;genexpr&gt; at 0x10ae43d30&gt;)">tests/test_lexer.py:90: in test_eof_only_once
+    assert sum(1 for t in toks if t.kind == "EOF") == 1
+E   assert 0 == 1
+E    +  where 0 = sum(&lt;generator object test_eof_only_once.&lt;locals&gt;.&lt;genexpr&gt; at 0x10ae43d30&gt;)</failure></testcase></testsuite></testsuites>
