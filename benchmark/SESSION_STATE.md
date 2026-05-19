@@ -1,230 +1,181 @@
 # Benchmark session state — handoff doc
 
-Written 2026-05-18 at ~15:00 ET before clearing chat context.
-**A live run is in progress in the background. Read this whole file before doing anything.**
+Last updated 2026-05-19 evening. Branch `test/benchmark-tinylang`, working tree clean.
 
-## Overview
+## Status one-liner
 
-This is a 12-phase tinylang interpreter coding benchmark. Two coding models
-under test, both going through the local LiteLLM proxy on `localhost:4000`:
+Sonnet baseline (12/12 phases @ 100% via subagent) is complete and committed. Next session: test **qwen3-14b** as a smaller-model context-degradation candidate, BEFORE doing any system-level memory restructuring.
 
-- **Model A** = Sonnet 4 (`claude-sonnet` route → OpenRouter)
-- **Model B** = local-coding qwen3.6-35b (`local-coding` route → llama-server on :8082)
+## Three runs on the books
 
-The benchmark progresses through 12 incrementally-harder phases of building a
-small dynamically-typed scripting language ("tinylang") in Python. Each phase
-has a brief + a hidden acceptance test suite. Each model implements →
-self-evaluates (tests revealed) → fixes → done. After each phase, both models
-cross-evaluate the other's work (read-only). Opus grades at the end.
+### Run 1 — phases 1–3, both models, OpenAI-SDK harness (committed `5d4c987`)
+- Sonnet 4 via OpenRouter: 39/39, 11.4 min
+- qwen3-coder-30b local: 34/39, 6.6 h (reasoning-mode tax)
+- Cross-eval done. Halted after Phase 3.
 
-## What we did
+### Run 2 — phases 1–12 local-only, max_tokens=4096 (committed `28a617d..e958298`)
+- qwen3-coder-30b only, 4 h 17 m wall. All 12 phases committed.
+- Regraded after litter strip: 116-test suite ended at **23/116 passing**, avg accuracy 32, avg completeness 51.
+- Two catastrophic deliverable failures: Phase 04 (removed `evaluator.run`), Phase 10 (literal SyntaxError in `errors.py`).
+- See `results/run2_summary.md` and `results/run2_regrade.md`.
 
-### Run 1 (committed: `5d4c987 benchmark: scaffold + phases 1-3 results`)
-Built the scaffold and ran phases 1-3 for both models.
-- Sonnet 4: 39/39 acceptance tests, 11.4 minutes total, perfect.
-- local-coding (`local-coding`, no extra config): 34/39, **6.6 hours**.
-- Discovery: qwen was ~30× slower per step than Sonnet, because reasoning
-  mode (`--reasoning-format deepseek` + `enable_thinking` defaulting to on)
-  was emitting long `<think>` blocks before every tool call. Each phase's
-  context grew, latency grew with it.
-- Cross-eval finding: Sonnet's reviews catch real bugs (e.g. flagged missing
-  multi-char punct in qwen's lexer). qwen's reviews are unstable — generous
-  on phases 1–2, hallucinated missing functions on phase 3.
-- Halted after Phase 3 cross-eval. Grades in `results/opus_grades.md`.
+### Run 3 — Sonnet baseline via Claude Code subagent, phases 1–12 (committed `82f00b6..4a05751`)
+- All 12 phases @ **100% / 116-of-116 tests**, 52.8 min total wall.
+- 11 of 12 phases one-shot at implement. Phase 11 self-eval caught + fixed a real stdlib-loader scope bug.
+- Tokens reported by subagent harness: ~744k total across 24 invocations (input ~688k / output ~56k approx).
+- Estimated API cost equivalent: ~$1.50–$2.90 (paid via max-plan subscription instead).
+- See `results/baseline_sonnet_subagent.md`.
 
-### Experiment 1 — reasoning A/B/C (committed: `962973e A/B/C reasoning experiment`)
-Phase 1 only, local model, three reasoning configs side by side:
-- `thinkon` (default = thinking on, max_tokens=4096): 711s, 10/11 tests.
-- `thinkoff` (`enable_thinking=false`, max_tokens=4096): 338s **2.1× faster**, 8/11.
-- `capped` (default, max_tokens=2048): **662s, 11/11** ← winner on both axes.
-- The `--reasoning-format` llama-server flag is **cosmetic** — controls
-  output channel, not whether the model thinks. Actual thinking is governed
-  by chat_template_kwargs.enable_thinking.
-- The LiteLLM `local-reason` route is misconfigured (points at :8084 with no
-  server). To force thinking-off, the harness now passes
-  `extra_body={"chat_template_kwargs":{"enable_thinking":false}}` against
-  the working `local-coding` route. See `--extra-body-json` flag.
+## Harness improvements that have shipped
 
-### Run 2 (in progress) — 12-phase local-only, max_tokens=4096
-After capped (2048) **failed Phase 2 with tool-call truncation** — model
-emitted `<tool_call><function=write_file>...` truncated mid-write; llama-server
-rejected the malformed XML with `Failed to parse input`. Capped is unsafe for
-file writes larger than ~2000 output tokens.
+In `harness.py`:
+- `pytest -q tests/` is the only thing graded (was `pytest -q` whole tree).
+- `IMPL_SYSTEM` and `SELFEVAL_SYSTEM` ban scratch files at workdir root.
+- `prepare_phase_workdir` sweeps `debug_*.py simple_*.py minimal_*.py detailed_*.py very_*.py final_*.py test_*.py *.tl *.py.backup` (preserving `tinylang_cli.py`, `stdlib.tl`).
+- After every self-eval, the harness writes a junit XML and persists the list of passing test ids at `results/baselines/<label>/phase_NN_passed.json`.
+- SELFEVAL prompt for phase>1 embeds the prior-phase passing-test list with regression priority.
+- Console prints `⚠ regressed N prior-phase tests: …` after each phase whose passing set shrank.
 
-Restarted at **14:55:41 EDT 2026-05-18** with `max_tokens=4096` (thinkon
-equivalent). Phase 1's existing 11/11 snapshot in `ModelB_capped/phase_01/`
-is the starting point. Phases 2–12 will run with per-phase git commits.
+In `bench_subagent_helper.py` (new — bookkeeping for Claude Code subagent runs):
+- `seed <N>`, `drop-tests <N>`, `grade <N>` (writes junit + passed_ids), `log <N> <stage>`, `commit <N>`, `show-passed <N>`.
+- Used to drive the Sonnet baseline run. The two subagent invocations per phase happen from the parent conversation; this script handles the deterministic glue.
 
-## **CURRENT STATE — Run 2 COMPLETE + regraded**
+## The kernel panic post-mortem (2026-05-18 23:31 EDT)
 
-Run 2 finished 19:12:25 EDT 2026-05-18 — total wall time 4h 17m for
-phases 2–12. No background processes are still running. All 11 phases
-were committed (`28a617d` through `e958298`).
+While prepping a qwen3-14b context-size sweep last session, the M4 box panicked with
+`watchdog timeout: no checkins from watchdogd in 94 seconds`. Root cause was wired-memory
+exhaustion: `memoryStatus.wired = 2,060,406 pages × 16 KiB ≈ 31.4 GiB` on a 32 GiB
+machine, with free pages at 14 MiB. `--mlock` plus an oversized `--ctx-size` on llama-server
+will wire everything; combined with the launchd `KeepAlive=true` policy on
+`com.local.llm-gateway`, a respawned 30B running alongside a new 14B is enough to push wired
+past system memory. Kernel had no pageable memory left, watchdogd starved, system panicked.
 
-**Regrade pass landed 2026-05-18 evening.** Scratch litter stripped from
-phases 02–12 workdirs (one commit). `pytest tests/` re-run against the
-cleaned snapshots. Run 2 grades added to `results/opus_grades.md` and
-detailed in `results/run2_regrade.md`.
+System recovered cleanly. 30B is currently running via launchd auto-respawn (PID was 1904
+at 8:55 AM today, RSS ~19.8 GiB). No qwen3-14b experimental artifacts were persisted before
+the crash.
 
-**Read `results/run2_summary.md`** for the full per-phase table, the two
-critical findings (pytest collection-litter + destructive regression of
-`tinylang.evaluator.run` in Phase 4), and the four harness improvements to
-ship before the next experiment. **Read `results/run2_regrade.md`** for
-the cleaned pytest numbers and the Phase 10 SyntaxError finding.
+## Plan for the next session — DO THIS BEFORE FREEING SYSTEM RESOURCES
 
-### Next things to do, in order
+Test the qwen3-14b candidate FIRST as a context-degradation experiment. The system-resource
+restructuring is deferred until after we have the 14B data point.
 
-1. ~~Strip scratch litter and re-run pytest tests/.~~ Done.
-2. ~~Update results/opus_grades.md with Run 2 grades.~~ Done.
-3. ~~Implement the four harness fixes in `run2_summary.md`.~~ Done — see
-   `harness.py` changes around `sweep_scratch`, `_parse_junit_passed`,
-   `baseline_path`, `load_prior_baseline`, `save_baseline`, the rescoped
-   `run_final_pytest(workdir, junit_path=...)`, the tightened `IMPL_SYSTEM`
-   and `SELFEVAL_SYSTEM` prompts, and the baseline block in
-   `selfeval_user_prompt(phase, label=...)`.
-4. Decide on Sonnet phases 4–12 (yes/no) for cross-eval coverage.
-5. Smaller-model experiment per `NEXT_RUN.md` (Qwen2.5-Coder-14B/32B,
-   DeepSeek-Coder-V2-Lite, etc.) to test the context-degradation
-   hypothesis with the new harness.
+### Safer relaunch checklist for the qwen3-14b sweep
 
-### What the new harness does differently vs Run 2
+Before launching any side llama-server:
 
-- `pytest -q tests/` is the only thing graded (was `pytest -q`).
-- IMPL_SYSTEM and SELFEVAL_SYSTEM now explicitly ban scratch files at the
-  workdir root and warn against breaking prior-phase public surface.
-- `prepare_phase_workdir` sweeps `debug_*.py simple_*.py minimal_*.py
-  detailed_*.py very_*.py final_*.py test_*.py *.tl *.py.backup` from the
-  copied workdir root (preserving `tinylang_cli.py` and `stdlib.tl`).
-- After every self-eval, the harness writes a junit XML and persists the
-  list of passing test ids at `results/baselines/<label>/phase_NN_passed.json`.
-- SELFEVAL prompt for phase>1 embeds the prior-phase passing-test list
-  with the instruction "these must still pass; fixing regressions takes
-  priority over new failures."
-- Console prints `⚠ regressed N prior-phase tests: …` after each phase
-  whose passing set shrank vs the prior baseline.
+1. `launchctl unload ~/Library/LaunchAgents/com.local.llm-gateway.plist` to stop the
+   30B respawning. (Just stopping the process is not enough — see [[project_plist_regen]].)
+2. `pgrep llama-server` returns nothing before continuing.
+3. Drop `--mlock` for the sweep. The point is to discover what ctx fits; without mlock,
+   the OS can page out and you get poor-throughput-but-alive instead of a kernel panic.
+4. Cap total expected wired memory at ~24 GiB to leave OS headroom (~8 GiB).
+5. Use `--ctx-size 131072` first; only raise to 262144 if RSS after model load + KV
+   allocation is well under 24 GiB. Skip 524288 unless RSS at 262144 is < 15 GiB.
+
+### Qwen3-14B GGUF location
+
+`/Users/llmadmin/.docker/models/blobs/sha256/915913e22399475dbe6c968ac014d9f1fbe08975e489279aede9d5c7b2c98eb6`
+(8.38 GB, already on disk from previous DMR pull).
+
+### Suggested LiteLLM wiring
+
+Either bypass LiteLLM entirely (point harness directly at `http://localhost:8083/v1` via
+`LITELLM_URL` env) or add a new route `local-coding-14b` pointing at port 8083, leaving
+`local-coding` (the 30B) on 8082 if you want to A/B them. The current LiteLLM yaml at
+`config/llmgateway.defaults.yaml` plus the DB-stored routes need `/v1/model/info` to be
+queried to see the live state — see [[reference_litellm_local]].
+
+### Run protocol
+
+Drive the 14B run with the existing `harness.py` (it already has all the new prompts and
+the regression-baseline plumbing). Use `--workdir-suffix _14b --label B_14b` so workdirs
+land under `ModelB_14b/phase_NN/` and timings get tagged `B_14b`. Compare to the
+`A_subagent` 116/116 baseline and the Run 2 `B_capped` 23/116 ceiling.
+
+### Hypothesis to test
+
+From `NEXT_RUN.md`: smaller model + more KV headroom may hold accuracy past phase 5 where
+qwen3-coder-30b's accuracy fell off. If the 14B at 131k ctx beats the 30B at 131k ctx on
+phases 5–12, the diagnosis is context degradation (not parameter-count limit) and we
+should explore even smaller models or aggressive context-trimming strategies.
+
+## What's NOT next (deferred)
+
+- **System resource restructuring** (the "we'll restructure to free up memory" plan).
+  Postponed until after the 14B data point.
+- Cross-eval against Sonnet for phases 4–12. The `A_subagent` snapshots are committed,
+  so cross-eval can run any time; not blocking anything.
+- Final-eval / whole-project Opus grading for the Sonnet baseline. The result is
+  obvious (perfect), so grading is low-priority.
+- `local-reason`, `local-fast` LiteLLM routes — still misconfigured per the May 18
+  notes. Independent concern.
 
 ## How to resume in a fresh chat
 
-1. **Check if the run is still alive:**
-   ```bash
-   cd /Users/llmadmin/src/LLMGateway/benchmark
-   ps -ef | grep -E "harness|run_capped" | grep -v grep
-   tail -40 results/run_capped/RUNNER.log
-   ls ModelB_capped/                       # which phases finished
-   ```
+```bash
+cd /Users/llmadmin/src/LLMGateway/benchmark
+git log --oneline | head -20            # confirm last commit is 4a05751
+ls ModelA_subagent/                     # should show phase_01..12
+cat results/baseline_sonnet_subagent.md # the Sonnet baseline writeup
+.venv/bin/python bench_subagent_helper.py show-passed 12 --max 5  # spot-check baseline
+```
 
-2. **If it's still running, just monitor:**
-   ```bash
-   # in the same shell, watch progress
-   tail -f results/run_capped/RUNNER.log
-   ```
+Then read the "Plan for the next session" section above and start with the 14B safer
+relaunch checklist.
 
-3. **If it died mid-phase**, the per-phase commits in
-   `git log --oneline | grep B_capped` tell you the last clean phase.
-   Restart from the next phase by editing `run_capped_2_to_12.sh`
-   (`START_PHASE=` line) and re-launching with `nohup bash ... &`.
-
-4. **When the run completes (Phase 12 done):**
-   ```bash
-   # Cross-eval each phase: Sonnet reviews qwen, qwen reviews Sonnet
-   # Note: Sonnet only has phases 1-3 committed (ModelA/phase_01..03).
-   # Cross-eval for phases 4-12 has no Model A counterpart unless we also
-   # run Sonnet on those phases. Decide before invoking cross-eval.
-
-   # If you want cross-eval against the Sonnet baseline (phases 1-3 only):
-   for n in 1 2 3; do
-       ./.venv/bin/python harness.py cross-eval --phase $n
-   done
-
-   # Final whole-project review:
-   ./.venv/bin/python harness.py final-eval
-   ```
-
-5. **Opus grading**: read the workdirs and cross-eval JSON, update
-   `results/opus_grades.md` with per-phase scores for the new run, and
-   commit.
-
-## Directory map
+## Directory map (updated)
 
 ```
 benchmark/
-  README.md                         # how to use the harness
-  NEXT_RUN.md                       # design notes for *future* reruns (per-model parallel pipelines)
-  SESSION_STATE.md                  # this file — handoff for the current run
-  harness.py                        # the agent harness; OpenAI client → litellm; 5 tools; CLI flags
-  run_capped_2_to_12.sh             # the in-progress 12-phase runner
-  exp_phase1_reasoning.sh           # the A/B/C reasoning experiment (already run)
-  .gitignore                        # ignores .venv/, transcripts/ NOT ignored
+  README.md
+  NEXT_RUN.md                       # design notes for future reruns
+  SESSION_STATE.md                  # this file
+  harness.py                        # OpenAI-SDK harness for the API-side runs
+  bench_subagent_helper.py          # NEW — bookkeeping for Claude Code subagent runs
+  run_capped_2_to_12.sh             # Run 2 driver
+  exp_phase1_reasoning.sh
 
-  spec/
-    overall_brief.md                # tinylang language spec — read first per phase
-    phase_NN_<topic>.md             # 12 phase briefs
-    tests/phase_NN/test_*.py        # acceptance tests, hidden during implement
+  spec/                             # 12-phase briefs + hidden acceptance tests
 
-  ModelA/phase_01..03/              # Sonnet snapshots from Run 1 (committed)
-  ModelB/phase_01..03/              # qwen Run 1 snapshots (committed; 8-34 of 39 pass)
-  ModelB_thinkon/phase_01/          # A/B/C experiment artifact (committed)
+  ModelA/phase_01..03/              # Run 1 Sonnet (committed)
+  ModelB/phase_01..03/              # Run 1 qwen (committed)
+  ModelB_thinkon/phase_01/          # A/B/C reasoning experiment
   ModelB_thinkoff/phase_01/
-  ModelB_capped/phase_01..??/       # the IN-PROGRESS run; per-phase commits land here
-  .venv/                            # python venv with openai + pytest (NOT committed)
+  ModelB_capped/phase_01..12/       # Run 2 qwen complete (committed)
+  ModelA_subagent/phase_01..12/     # NEW — Run 3 Sonnet baseline (116/116 committed)
 
   results/
-    timings.csv                     # one row per (phase, model, stage)
-    opus_grades.md                  # written after Run 1; needs update after Run 2 done
-    self_eval/<label>/phase_NN.json # implement+self-eval results, per phase per model
-    cross_eval/<reviewer>_on_<target>/phase_NN.json  # score-tool output
-    cross_eval_final/<r>_on_<t>.json
-    transcripts/*.json              # full message-by-message tool transcripts
-    exp_phase1/                     # A/B/C experiment outputs (committed)
-      RESULTS.md
-      <variant>.harness.log
-      <variant>.litellm.log         # docker logs of llm-gateway during the variant
-    run_capped/                     # IN-PROGRESS run's per-phase logs
-      RUNNER.log
-      phase_NN.harness.log
-      phase_NN.litellm.log
+    timings.csv                     # rows per (phase, model, stage); A_subagent rows latest
+    opus_grades.md                  # Run 1 grades + Run 2 grades
+    run2_summary.md
+    run2_regrade.md
+    baseline_sonnet_subagent.md     # NEW — Run 3 writeup
+    self_eval/<label>/phase_NN.json
+    cross_eval/<reviewer>_on_<target>/phase_NN.json
+    baselines/<label>/phase_NN_{junit.xml,passed.json}   # used by SELFEVAL prompt
+    transcripts/*.json
+    exp_phase1/                     # A/B/C experiment outputs
+    run_capped/                     # Run 2 per-phase logs
 ```
-
-## Key files to read first
-
-- `benchmark/results/opus_grades.md` — Run 1 grades (phases 1-3). Will need
-  amending after Run 2.
-- `benchmark/results/exp_phase1/RESULTS.md` — A/B/C experiment writeup.
-- `benchmark/NEXT_RUN.md` — design changes for *future* runs beyond this one
-  (per-model parallel pipelines, etc. — not implemented yet).
 
 ## Important findings to keep in mind
 
-1. **Capped (max_tokens=2048) is unsafe** for tool calls that write large
-   files. Qwen3.6-35b emits malformed `<tool_call><function=...>` XML when
-   truncated mid-output, and llama-server's tool-call parser rejects it.
-   Use 4096 minimum.
+1. `--mlock` + large `--ctx-size` on a 32 GiB machine is panic-prone. Last session burned
+   one. Drop `--mlock` for any ctx-sweep work. See the post-mortem above.
 
-2. **`--reasoning-format` is cosmetic.** It controls how `<think>` blocks
-   are surfaced in the response, not whether they're emitted. To actually
-   disable thinking, use `chat_template_kwargs.enable_thinking=false`.
+2. `com.local.llm-gateway` has `KeepAlive=true` — stopping a llama-server process is not
+   enough; the plist must be unloaded or `gw stop llama-server` used. Plain `kill` will
+   respawn within seconds.
 
-3. **The `local-reason` LiteLLM route is broken** — points at port 8084
-   with no llama-server backing it. Either fix the route to point at :8082
-   (same as `local-coding`) or pass `extra_body` per-request.
+3. The Claude Code subagent harness is a viable path for Sonnet baselines without burning
+   API credits. The `bench_subagent_helper.py` glue is reusable for any future
+   subagent-driven runs.
 
-4. **Sonnet's cross-eval reviews are reliable; qwen's are not.** Phase 3,
-   qwen scored Sonnet 30/40 by hallucinating missing functions in code that
-   was working perfectly. Don't trust B-as-reviewer scores without a sanity
-   check.
+4. The Run 2 regrade exposed that qwen's failure mode is NOT just litter — Phase 4 and
+   Phase 10 were real deliverable bugs (removed function, literal SyntaxError). The new
+   harness's regression-baseline self-eval prompt is specifically designed to surface
+   these but qwen Run 2 predates that fix. Re-running qwen3-coder-30b under the new
+   harness is a separate experiment from the 14B test, and worth doing eventually.
 
-5. **qwen on M4 with 131K context, thinking on:** wall-time per tool call
-   grew 13.6s → 22s → 414s across phases 1-2-3 in Run 1, as context grew.
-   Same is likely to happen in Run 2 unless something changes.
-
-6. **The branch is `test/benchmark-tinylang`**, local-only, not pushed.
-   Run-2 commits are landing on this branch as they happen.
-
-## Tasks not yet done
-
-- Wait for Run 2 to finish (~hours).
-- Decide whether to also run Sonnet on phases 4-12 for full cross-eval coverage.
-- Cross-eval and final-eval after Run 2 completes.
-- Update `results/opus_grades.md` with Run 2 grades, compare to Run 1.
-- Optionally fix the `local-reason` route in LiteLLM config (separate concern).
-- Optionally implement the per-model parallel pipeline design from `NEXT_RUN.md`.
+5. The branch is `test/benchmark-tinylang`, local-only, never pushed. Last commit on it
+   as of this writeup: `4a05751`.
