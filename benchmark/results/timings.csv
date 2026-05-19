@@ -73,3 +73,5 @@ phase,model,stage,elapsed_s,steps,input_tokens,output_tokens,finish_reason,test_
 12,A_subagent,self_eval,15.98,3,18576,1000,done,116,0
 1,B_14b,implement,853.04,3,13420,3907,done,,
 1,B_14b,self_eval,2230.60,6,12340,6731,api_error,0,11
+1,B_14bcoder,implement,97.08,6,24868,402,done,,
+1,B_14bcoder,self_eval,62.41,6,13235,309,done,0,11
