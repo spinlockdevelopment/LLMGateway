@@ -1,0 +1,172 @@
+Starting phases 2..12 at Tue May 19 15:40:13 EDT 2026
+
+================================================================
+PHASE 02   15:40:13
+================================================================
+rc=0   elapsed=120s
+
+=== phase 2  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 3 steps, 95.7s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_02/tests/
+=== phase 2  model B — self-eval ===
+  self-eval: 2 steps, 23.7s, finish=done
+  pytest: 0 passed, 24 failed
+committed ModelB_14bcoder/phase_02
+
+================================================================
+PHASE 03   15:42:13
+================================================================
+rc=0   elapsed=160s
+
+=== phase 3  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 3 steps, 134.8s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_03/tests/
+=== phase 3  model B — self-eval ===
+  self-eval: 2 steps, 23.9s, finish=done
+  pytest: 0 passed, 1 failed
+committed ModelB_14bcoder/phase_03
+
+================================================================
+PHASE 04   15:44:53
+================================================================
+rc=0   elapsed=101s
+
+=== phase 4  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 3 steps, 76.5s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_04/tests/
+=== phase 4  model B — self-eval ===
+  self-eval: 2 steps, 24.2s, finish=done
+  pytest: 0 passed, 2 failed
+committed ModelB_14bcoder/phase_04
+
+================================================================
+PHASE 05   15:46:34
+================================================================
+rc=0   elapsed=242s
+
+=== phase 5  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 24 steps, 213.5s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_05/tests/
+=== phase 5  model B — self-eval ===
+  self-eval: 2 steps, 27.8s, finish=done
+  pytest: 0 passed, 5 failed
+committed ModelB_14bcoder/phase_05
+
+================================================================
+PHASE 06   15:50:36
+================================================================
+rc=0   elapsed=85s
+
+=== phase 6  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 3 steps, 57.0s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_06/tests/
+=== phase 6  model B — self-eval ===
+  self-eval: 2 steps, 27.8s, finish=done
+  pytest: 0 passed, 6 failed
+committed ModelB_14bcoder/phase_06
+
+================================================================
+PHASE 07   15:52:01
+================================================================
+rc=0   elapsed=163s
+
+=== phase 7  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 4 steps, 132.4s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_07/tests/
+=== phase 7  model B — self-eval ===
+  self-eval: 2 steps, 29.0s, finish=done
+  pytest: 0 passed, 7 failed
+committed ModelB_14bcoder/phase_07
+
+================================================================
+PHASE 08   15:54:44
+================================================================
+rc=0   elapsed=117s
+
+=== phase 8  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 4 steps, 88.0s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_08/tests/
+=== phase 8  model B — self-eval ===
+  self-eval: 2 steps, 29.0s, finish=done
+  pytest: 0 passed, 7 failed
+committed ModelB_14bcoder/phase_08
+
+================================================================
+PHASE 09   15:56:41
+================================================================
+rc=0   elapsed=385s
+
+=== phase 9  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 7 steps, 354.9s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_09/tests/
+=== phase 9  model B — self-eval ===
+  self-eval: 2 steps, 29.2s, finish=done
+  pytest: 0 passed, 9 failed
+committed ModelB_14bcoder/phase_09
+
+================================================================
+PHASE 10   16:03:06
+================================================================
+rc=0   elapsed=104s
+
+=== phase 10  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 5 steps, 72.0s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_10/tests/
+=== phase 10  model B — self-eval ===
+  self-eval: 2 steps, 30.9s, finish=done
+  pytest: 0 passed, 3 failed
+committed ModelB_14bcoder/phase_10
+
+================================================================
+PHASE 11   16:04:50
+================================================================
+rc=0   elapsed=160s
+
+=== phase 11  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 6 steps, 123.7s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_11/tests/
+=== phase 11  model B — self-eval ===
+  self-eval: 2 steps, 36.0s, finish=done
+  pytest: 0 passed, 3 failed
+committed ModelB_14bcoder/phase_11
+
+================================================================
+PHASE 12   16:07:30
+================================================================
+rc=0   elapsed=115s
+
+=== phase 12  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 3 steps, 86.1s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_12/tests/
+=== phase 12  model B — self-eval ===
+  self-eval: 2 steps, 28.5s, finish=done
+  pytest: 0 passed, 3 failed
+committed ModelB_14bcoder/phase_12
+
+================================================================
+RUN COMPLETE   16:09:25   total=1752s
+================================================================
+1,B_14bcoder,implement,97.08,6,24868,402,done,,
+1,B_14bcoder,self_eval,62.41,6,13235,309,done,0,11
+2,B_14bcoder,implement,95.71,3,13118,773,done,,
+2,B_14bcoder,self_eval,23.68,2,3931,101,done,0,24
+3,B_14bcoder,implement,134.79,3,13349,1123,done,,
+3,B_14bcoder,self_eval,23.95,2,3739,102,done,0,1
+4,B_14bcoder,implement,76.53,3,11508,628,done,,
+4,B_14bcoder,self_eval,24.24,2,3666,100,done,0,2
+5,B_14bcoder,implement,213.49,24,114448,1739,done,,
+5,B_14bcoder,self_eval,27.81,2,3738,122,done,0,5
+6,B_14bcoder,implement,57.05,3,11454,461,done,,
+6,B_14bcoder,self_eval,27.83,2,3993,107,done,0,6
+7,B_14bcoder,implement,132.38,4,17497,1144,done,,
+7,B_14bcoder,self_eval,29.04,2,3892,127,done,0,7
+8,B_14bcoder,implement,87.99,4,15962,739,done,,
+8,B_14bcoder,self_eval,29.02,2,3962,123,done,0,7
+9,B_14bcoder,implement,354.94,7,36439,3054,done,,
+9,B_14bcoder,self_eval,29.24,2,4170,111,done,0,9
+10,B_14bcoder,implement,71.97,5,20667,573,done,,
+10,B_14bcoder,self_eval,30.86,2,4328,121,done,0,3
+11,B_14bcoder,implement,123.71,6,27014,1020,done,,
+11,B_14bcoder,self_eval,36.04,2,4399,172,done,0,3
+12,B_14bcoder,implement,86.05,3,12442,718,done,,
+12,B_14bcoder,self_eval,28.49,2,4192,103,done,0,3
