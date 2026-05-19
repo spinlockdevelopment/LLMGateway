@@ -61,3 +61,5 @@ phase,model,stage,elapsed_s,steps,input_tokens,output_tokens,finish_reason,test_
 6,A_subagent,self_eval,9.06,1,12382,500,done,65,0
 7,A_subagent,implement,141.51,16,35790,1833,done,,
 7,A_subagent,self_eval,236.05,6,17345,1000,done,71,0
+8,A_subagent,implement,168.82,24,42180,2500,done,,
+8,A_subagent,self_eval,21.22,3,15212,500,done,82,0
