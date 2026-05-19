@@ -1,0 +1,2 @@
+class TinyRuntimeError(Exception):
+    pass
