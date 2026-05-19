@@ -76,11 +76,32 @@ the cleaned pytest numbers and the Phase 10 SyntaxError finding.
 
 1. ~~Strip scratch litter and re-run pytest tests/.~~ Done.
 2. ~~Update results/opus_grades.md with Run 2 grades.~~ Done.
-3. Implement the four harness fixes in `run2_summary.md` before queueing
-   the smaller-model experiment.
+3. ~~Implement the four harness fixes in `run2_summary.md`.~~ Done — see
+   `harness.py` changes around `sweep_scratch`, `_parse_junit_passed`,
+   `baseline_path`, `load_prior_baseline`, `save_baseline`, the rescoped
+   `run_final_pytest(workdir, junit_path=...)`, the tightened `IMPL_SYSTEM`
+   and `SELFEVAL_SYSTEM` prompts, and the baseline block in
+   `selfeval_user_prompt(phase, label=...)`.
 4. Decide on Sonnet phases 4–12 (yes/no) for cross-eval coverage.
-5. Optional follow-up: also sweep `.tl` scratch and `tinylang/ast.py.backup`
-   files from the workdirs — they don't break pytest but are noise.
+5. Smaller-model experiment per `NEXT_RUN.md` (Qwen2.5-Coder-14B/32B,
+   DeepSeek-Coder-V2-Lite, etc.) to test the context-degradation
+   hypothesis with the new harness.
+
+### What the new harness does differently vs Run 2
+
+- `pytest -q tests/` is the only thing graded (was `pytest -q`).
+- IMPL_SYSTEM and SELFEVAL_SYSTEM now explicitly ban scratch files at the
+  workdir root and warn against breaking prior-phase public surface.
+- `prepare_phase_workdir` sweeps `debug_*.py simple_*.py minimal_*.py
+  detailed_*.py very_*.py final_*.py test_*.py *.tl *.py.backup` from the
+  copied workdir root (preserving `tinylang_cli.py` and `stdlib.tl`).
+- After every self-eval, the harness writes a junit XML and persists the
+  list of passing test ids at `results/baselines/<label>/phase_NN_passed.json`.
+- SELFEVAL prompt for phase>1 embeds the prior-phase passing-test list
+  with the instruction "these must still pass; fixing regressions takes
+  priority over new failures."
+- Console prints `⚠ regressed N prior-phase tests: …` after each phase
+  whose passing set shrank vs the prior baseline.
 
 ## How to resume in a fresh chat
 

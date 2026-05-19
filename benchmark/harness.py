@@ -501,6 +501,35 @@ def phase_workdir(model_key: str, phase: int) -> Path:
     return model_root(model_key) / f"phase_{phase:02d}"
 
 
+SCRATCH_PATTERNS = (
+    "debug_*.py", "simple_*.py", "minimal_*.py", "detailed_*.py",
+    "very_*.py", "final_*.py", "test_*.py",
+    "*.tl", "*.py.backup",
+)
+# Root-level deliverables that match scratch patterns but must be preserved.
+SCRATCH_PRESERVE = {"tinylang_cli.py", "stdlib.tl"}
+
+
+def sweep_scratch(workdir: Path) -> list[str]:
+    """Delete scratch/debug files at the workdir root (non-recursive).
+
+    Returns the names that were removed (for logging). Pattern matches only
+    the top level of workdir — anything under tinylang/, tests/, scratch/ is
+    left alone.
+    """
+    removed: list[str] = []
+    for pat in SCRATCH_PATTERNS:
+        for p in workdir.glob(pat):
+            if not p.is_file() or p.name in SCRATCH_PRESERVE:
+                continue
+            try:
+                p.unlink()
+                removed.append(p.name)
+            except OSError:
+                pass
+    return removed
+
+
 def prepare_phase_workdir(model_key: str, phase: int) -> Path:
     """Create the phase workdir, seeded from the prior phase if any."""
     wd = phase_workdir(model_key, phase)
@@ -512,8 +541,10 @@ def prepare_phase_workdir(model_key: str, phase: int) -> Path:
     prior = phase_workdir(model_key, phase - 1)
     if prior.exists():
         shutil.copytree(prior, wd)
-        # Remove tests/ from prior — each phase only carries tests for prior phases
-        # actually keep them: they're still valid tests for the prior code.
+        removed = sweep_scratch(wd)
+        if removed:
+            print(f"  swept {len(removed)} scratch files from new phase {phase:02d} workdir: "
+                  f"{', '.join(removed[:8])}{'...' if len(removed) > 8 else ''}", flush=True)
         return wd
     wd.mkdir(parents=True, exist_ok=True)
     return wd
@@ -552,19 +583,34 @@ brief alone. When finished, call done(summary).
 
 Output rules:
 - Do NOT write planning files, design docs, or commentary files.
+- Do NOT write scratch test or debug scripts at the workdir root (e.g.
+  debug_*.py, simple_test.py, minimal_test.py, test_*.py at root). They will
+  be deleted before the next phase. Experiment via `python -c '...'` in
+  run_bash, or write under a `scratch/` subdir. Only files under `tinylang/`
+  and (later) `tests/` are graded.
+- Do NOT remove, rename, or break functions/classes that prior phases
+  exposed via tinylang/__init__.py or that prior-phase tests imported.
+  The codebase is cumulative — earlier deliverables must keep working.
 - Do NOT print large status messages. Tool calls are sufficient.
 - Code only. Stay focused on the current phase's scope.
 """
 
 SELFEVAL_SYSTEM = """You are an autonomous coding agent self-evaluating one phase
 of the tinylang interpreter benchmark. The acceptance tests are now in tests/.
-Run them with `pytest -q` via run_bash. Fix any failures. Re-run.
+Run them with `pytest -q tests/` via run_bash (scope is `tests/` — not the
+whole workdir). Fix any failures. Re-run.
+
+If you see "errors during collection" or every test failing with the same
+ImportError, fix the import root cause FIRST before touching anything else —
+usually a function/class that prior phases exported has been removed or
+renamed. Restoring the public surface is higher priority than new features.
 
 Stop when either (a) all tests pass, or (b) you have made your best attempt and
 no further progress is possible. Call done(summary) with a short status report
 including whether tests pass.
 
 Do not introduce new features outside the phase's scope while fixing failures.
+Do not write debug scripts at the workdir root — only `tests/` is graded.
 """
 
 CROSSEVAL_SYSTEM = """You are an autonomous code-reviewer evaluating ANOTHER
@@ -593,14 +639,32 @@ def implement_user_prompt(phase: int) -> str:
     )
 
 
-def selfeval_user_prompt(phase: int) -> str:
-    return (
+def selfeval_user_prompt(phase: int, label: str = "") -> str:
+    base = (
         f"## Phase {phase} brief (for reference)\n\n{read_brief(phase)}\n\n"
         "## Your task\n\n"
-        "Run `pytest -q` via run_bash. Examine failures. Fix what you can without "
-        "expanding scope beyond this phase. Re-run until passing or no progress.\n"
+        "Run `pytest -q tests/` via run_bash. ONLY `tests/` is graded — do not "
+        "write debug scripts at the workdir root (they break collection and "
+        "are deleted between phases). Examine failures. Fix what you can "
+        "without expanding scope beyond this phase. Re-run until passing or "
+        "no further progress.\n"
         "Then call done(summary='X of Y tests pass, ...').\n"
     )
+    if label:
+        prior = load_prior_baseline(label, phase)
+        if prior:
+            shown = prior[:200]
+            base += (
+                f"\n## Regression baseline — {len(prior)} tests passed at end of phase {phase-1}\n\n"
+                "These tests must still pass. If any of them now fail, you have "
+                "regressed prior-phase code; fixing that takes priority over "
+                "new phase-" + str(phase) + " failures. The codebase is cumulative.\n\n"
+            )
+            for tid in shown:
+                base += f"- {tid}\n"
+            if len(prior) > len(shown):
+                base += f"- ... and {len(prior) - len(shown)} more\n"
+    return base
 
 
 def crosseval_user_prompt(phase: int) -> str:
@@ -671,10 +735,62 @@ def parse_pytest_output(text: str) -> tuple[int, int]:
     return passed, failed
 
 
-def run_final_pytest(workdir: Path) -> dict:
+def _parse_junit_passed(junit_xml: Path) -> list[str]:
+    """Return sorted list of test ids ('classname::name' or 'name') that passed."""
+    try:
+        import xml.etree.ElementTree as ET
+        tree = ET.parse(junit_xml)
+    except Exception:
+        return []
+    ids: list[str] = []
+    for tc in tree.iter("testcase"):
+        if any(tc.find(t) is not None for t in ("failure", "error", "skipped")):
+            continue
+        cls = tc.attrib.get("classname", "") or ""
+        name = tc.attrib.get("name", "") or ""
+        ids.append(f"{cls}::{name}" if cls else name)
+    return sorted(ids)
+
+
+def baseline_path(label: str, phase: int) -> Path:
+    return RESULTS / "baselines" / label / f"phase_{phase:02d}_passed.json"
+
+
+def junit_path_for(label: str, phase: int) -> Path:
+    return RESULTS / "baselines" / label / f"phase_{phase:02d}_junit.xml"
+
+
+def load_prior_baseline(label: str, phase: int) -> list[str]:
+    """Return the list of test ids that passed at the end of phase-1, or []."""
+    if phase <= 1 or not label:
+        return []
+    p = baseline_path(label, phase - 1)
+    if not p.exists():
+        return []
+    try:
+        return list(json.loads(p.read_text()).get("passed_ids") or [])
+    except Exception:
+        return []
+
+
+def save_baseline(label: str, phase: int, passed_ids: list[str]) -> None:
+    p = baseline_path(label, phase)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(json.dumps({"phase": phase, "passed_ids": sorted(passed_ids)}, indent=2))
+
+
+def run_final_pytest(workdir: Path, junit_path: Path | None = None) -> dict:
+    tests_dir = workdir / "tests"
+    if not tests_dir.exists():
+        return {"returncode": -1, "passed": 0, "failed": 0, "passed_ids": [],
+                "error": "no tests/ directory"}
+    cmd = [sys.executable, "-m", "pytest", "-q", "tests/", "--tb=short", "--no-header"]
+    if junit_path is not None:
+        junit_path.parent.mkdir(parents=True, exist_ok=True)
+        cmd.append(f"--junitxml={junit_path}")
     try:
         r = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q", "--tb=short", "--no-header"],
+            cmd,
             cwd=str(workdir),
             capture_output=True,
             text=True,
@@ -683,12 +799,16 @@ def run_final_pytest(workdir: Path) -> dict:
         out = r.stdout
         err = r.stderr
         passed, failed = parse_pytest_output(out + "\n" + err)
+        passed_ids = _parse_junit_passed(junit_path) if junit_path else []
         return {"returncode": r.returncode, "passed": passed, "failed": failed,
+                "passed_ids": passed_ids,
                 "stdout_tail": out[-3000:], "stderr_tail": err[-1000:]}
     except FileNotFoundError:
-        return {"returncode": -1, "passed": 0, "failed": 0, "error": "pytest not installed"}
+        return {"returncode": -1, "passed": 0, "failed": 0, "passed_ids": [],
+                "error": "pytest not installed"}
     except subprocess.TimeoutExpired:
-        return {"returncode": -1, "passed": 0, "failed": 0, "error": "pytest timed out"}
+        return {"returncode": -1, "passed": 0, "failed": 0, "passed_ids": [],
+                "error": "pytest timed out"}
 
 
 # ----------------------------------------------------------------------------
@@ -723,10 +843,11 @@ def run_phase_for_model(phase: int, model_key: str) -> dict:
 
     print(f"=== phase {phase}  model {model_key} — self-eval ===", flush=True)
     seval_transcript = TRANSCRIPTS / f"phase_{phase:02d}_{model_key}_selfeval.json"
+    label = label_for(model_key)
     seval = run_tool_loop(
         model_id=model["litellm_id"],
         system_prompt=SELFEVAL_SYSTEM,
-        user_prompt=selfeval_user_prompt(phase),
+        user_prompt=selfeval_user_prompt(phase, label=label),
         workdir=workdir,
         cap=STEP_CAP_SELFEVAL,
         readonly=False,
@@ -735,9 +856,18 @@ def run_phase_for_model(phase: int, model_key: str) -> dict:
     )
     print(f"  self-eval: {seval.steps} steps, {seval.elapsed_s:.1f}s, finish={seval.finish_reason}")
 
-    final = run_final_pytest(workdir)
+    final = run_final_pytest(workdir, junit_path=junit_path_for(label, phase))
     print(f"  pytest: {final['passed']} passed, {final['failed']} failed")
-    append_timing(phase=phase, model=label_for(model_key), stage="self_eval",
+    # Persist the set of passing test ids as next-phase's regression baseline.
+    save_baseline(label, phase, final.get("passed_ids") or [])
+    # Surface regression delta against prior phase, if available.
+    prior_passed = set(load_prior_baseline(label, phase))
+    now_passed = set(final.get("passed_ids") or [])
+    regressed = sorted(prior_passed - now_passed)
+    if regressed:
+        print(f"  ⚠ regressed {len(regressed)} prior-phase test(s): "
+              f"{', '.join(regressed[:5])}{'...' if len(regressed) > 5 else ''}", flush=True)
+    append_timing(phase=phase, model=label, stage="self_eval",
                   elapsed=seval.elapsed_s, steps=seval.steps,
                   in_tok=seval.input_tokens, out_tok=seval.output_tokens,
                   finish=seval.finish_reason,
