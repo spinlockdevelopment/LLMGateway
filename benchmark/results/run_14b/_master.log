@@ -1,0 +1,18 @@
+Starting phases 1..12 at Tue May 19 12:58:51 EDT 2026
+
+================================================================
+PHASE 01   12:58:51
+================================================================
+rc=0   elapsed=3084s
+
+=== phase 1  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 3 steps, 853.0s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_14b/phase_01/tests/
+=== phase 1  model B — self-eval ===
+  self-eval: 6 steps, 2230.6s, finish=api_error
+  pytest: 0 passed, 11 failed
+committed ModelB_14b/phase_01
+
+================================================================
+PHASE 02   13:50:15
+================================================================
