@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="24" skipped="0" tests="24" time="0.045" timestamp="2026-05-19T15:42:13.697708-04:00" hostname="llmgateway"><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000"><failure message="TypeError: object of type 'NoneType' has no len()">../phase_01/tests/test_lexer.py:14: in test_empty_input_just_eof
+    assert len(toks) == 1
+           ^^^^^^^^^
+E   TypeError: object of type 'NoneType' has no len()</failure></testcase><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000"><failure message="TypeError: 'NoneType' object is not iterable">../phase_01/tests/test_lexer.py:20: in test_let_x_eq_1_plus_2
+    assert kinds(toks) == [
+           ^^^^^^^^^^^
+../phase_01/tests/test_lexer.py:5: in kinds
+    return [t.kind for t in toks]
+                            ^^^^
+E   TypeError: 'NoneType' object is not iterable</failure></testcase><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000"><failure message="TypeError: 'NoneType' object is not iterable">../phase_01/tests/test_lexer.py:28: in test_keywords_vs_identifiers
+    assert kinds(toks)[:4] == ["KEYWORD", "IDENT", "KEYWORD", "IDENT"]
+           ^^^^^^^^^^^
+../phase_01/tests/test_lexer.py:5: in kinds
+    return [t.kind for t in toks]
+                            ^^^^
+E   TypeError: 'NoneType' object is not iterable</failure></testcase><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000"><failure message="TypeError: 'NoneType' object is not iterable">../phase_01/tests/test_lexer.py:37: in test_multi_char_punct
+    assert [t.value for t in toks if t.kind == "PUNCT"] == ["==", "!=", "&lt;=", "&gt;=", "&amp;&amp;", "||"]
+                             ^^^^
+E   TypeError: 'NoneType' object is not iterable</failure></testcase><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000"><failure message="TypeError: 'NoneType' object is not iterable">../phase_01/tests/test_lexer.py:46: in test_single_char_punct_after_multi
+    assert any(t.kind == "PUNCT" and t.value == "=" for t in toks)
+                                                             ^^^^
+E   TypeError: 'NoneType' object is not iterable</failure></testcase><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000"><failure message="TypeError: 'NoneType' object is not iterable">../phase_01/tests/test_lexer.py:51: in test_string_escapes
+    s = [t for t in toks if t.kind == "STRING"][0]
+                    ^^^^
+E   TypeError: 'NoneType' object is not iterable</failure></testcase><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000"><failure message="TypeError: 'NoneType' object is not iterable">../phase_01/tests/test_lexer.py:58: in test_comments_stripped
+    idents = [t.value for t in toks if t.kind == "IDENT"]
+                               ^^^^
+E   TypeError: 'NoneType' object is not iterable</failure></testcase><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000"><failure message="TypeError: 'NoneType' object is not subscriptable">../phase_01/tests/test_lexer.py:64: in test_line_col_tracking
+    let_tok = toks[0]
+              ^^^^^^^
+E   TypeError: 'NoneType' object is not subscriptable</failure></testcase><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000"><failure message="Failed: DID NOT RAISE &lt;class 'Exception'&gt;">../phase_01/tests/test_lexer.py:72: in test_unknown_char_errors
+    with pytest.raises(Exception) as exc:
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE &lt;class 'Exception'&gt;</failure></testcase><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000"><failure message="TypeError: 'NoneType' object is not iterable">../phase_01/tests/test_lexer.py:83: in test_number_and_float
+    nums = [t.value for t in toks if t.kind == "NUMBER"]
+                             ^^^^
+E   TypeError: 'NoneType' object is not iterable</failure></testcase><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000"><failure message="TypeError: 'NoneType' object is not iterable">../phase_01/tests/test_lexer.py:90: in test_eof_only_once
+    assert sum(1 for t in toks if t.kind == "EOF") == 1
+                          ^^^^
+E   TypeError: 'NoneType' object is not iterable</failure></testcase><testcase classname="tests.test_parser" name="test_let_stmt" time="0.000"><failure message="AssertionError: assert [] == ['LetStmt']&#10;  &#10;  Right contains one more item: 'LetStmt'&#10;  Use -v to get more diff">tests/test_parser.py:10: in test_let_stmt
+    assert names_of(p.stmts) == ["LetStmt"]
+E   AssertionError: assert [] == ['LetStmt']
+E     
+E     Right contains one more item: 'LetStmt'
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_parser" name="test_precedence_mul_before_add" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:19: in test_precedence_mul_before_add
+    rhs = p.stmts[0].value
+          ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_comparison_and_logical" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:30: in test_comparison_and_logical
+    a = p.stmts[0].expr
+        ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_if_else" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:40: in test_if_else
+    s = p.stmts[0]
+        ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_while_with_break_continue" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:48: in test_while_with_break_continue
+    w = p.stmts[0]
+        ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_fn_decl_is_fndecl_not_letstmt" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:56: in test_fn_decl_is_fndecl_not_letstmt
+    s = p.stmts[0]
+        ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_fn_lit_in_let" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:66: in test_fn_lit_in_let
+    rhs = p.stmts[0].value
+          ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_list_and_dict_literals" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:73: in test_list_and_dict_literals
+    xs = p.stmts[0].value
+         ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_call_and_index_chain" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:83: in test_call_and_index_chain
+    expr = p.stmts[0].expr
+           ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_assign_to_index" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:90: in test_assign_to_index
+    a = p.stmts[0].expr
+        ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_invalid_assign_target_raises" time="0.000"><failure message="Failed: DID NOT RAISE &lt;class 'Exception'&gt;">tests/test_parser.py:97: in test_invalid_assign_target_raises
+    with pytest.raises(Exception):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE &lt;class 'Exception'&gt;</failure></testcase><testcase classname="tests.test_parser" name="test_for_stmt_one_and_two_names" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:104: in test_for_stmt_one_and_two_names
+    f1 = p1.stmts[0]
+         ^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_parser" name="test_else_if_chain_parses" time="0.000"><failure message="IndexError: list index out of range">tests/test_parser.py:113: in test_else_if_chain_parses
+    s = p.stmts[0]
+        ^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase></testsuite></testsuites>
