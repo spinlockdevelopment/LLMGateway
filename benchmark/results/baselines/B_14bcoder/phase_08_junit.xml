@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="7" failures="0" skipped="0" tests="7" time="0.184" timestamp="2026-05-19T15:56:41.440911-04:00" hostname="llmgateway"><testcase classname="" name="tests.test_closures" time="0.000"><error message="collection failure">../../.venv/lib/python3.14/site-packages/_pytest/python.py:507: in importtestmodule
+    mod = import_path(
+../../.venv/lib/python3.14/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1398: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1371: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1342: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:938: in _load_unlocked
+    ???
+../../.venv/lib/python3.14/site-packages/_pytest/assertion/rewrite.py:197: in exec_module
+    exec(co, module.__dict__)
+../phase_07/tests/test_closures.py:1: in &lt;module&gt;
+    from tinylang.evaluator import run
+tinylang/evaluator.py:3: in &lt;module&gt;
+    from tinylang.environment import Environment
+E     File "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_08/tinylang/environment.py", line 10
+E       raise RuntimeError(f'Redeclaration of variable \
+E                          ^
+E   SyntaxError: unterminated f-string literal (detected at line 10)</error></testcase><testcase classname="" name="tests.test_control_flow" time="0.000"><error message="collection failure">../../.venv/lib/python3.14/site-packages/_pytest/python.py:507: in importtestmodule
+    mod = import_path(
+../../.venv/lib/python3.14/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1398: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1371: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1342: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:938: in _load_unlocked
+    ???
+../../.venv/lib/python3.14/site-packages/_pytest/assertion/rewrite.py:197: in exec_module
+    exec(co, module.__dict__)
+../phase_05/tests/test_control_flow.py:1: in &lt;module&gt;
+    from tinylang.evaluator import run
+tinylang/evaluator.py:3: in &lt;module&gt;
+    from tinylang.environment import Environment
+E     File "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_08/tinylang/environment.py", line 10
+E       raise RuntimeError(f'Redeclaration of variable \
+E                          ^
+E   SyntaxError: unterminated f-string literal (detected at line 10)</error></testcase><testcase classname="" name="tests.test_eval_basic" time="0.000"><error message="collection failure">../../.venv/lib/python3.14/site-packages/_pytest/python.py:507: in importtestmodule
+    mod = import_path(
+../../.venv/lib/python3.14/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1398: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1371: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1342: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:938: in _load_unlocked
+    ???
+../../.venv/lib/python3.14/site-packages/_pytest/assertion/rewrite.py:197: in exec_module
+    exec(co, module.__dict__)
+../phase_03/tests/test_eval_basic.py:1: in &lt;module&gt;
+    from tinylang.evaluator import run
+tinylang/evaluator.py:3: in &lt;module&gt;
+    from tinylang.environment import Environment
+E     File "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_08/tinylang/environment.py", line 10
+E       raise RuntimeError(f'Redeclaration of variable \
+E                          ^
+E   SyntaxError: unterminated f-string literal (detected at line 10)</error></testcase><testcase classname="" name="tests.test_functions" time="0.000"><error message="collection failure">../../.venv/lib/python3.14/site-packages/_pytest/python.py:507: in importtestmodule
+    mod = import_path(
+../../.venv/lib/python3.14/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1398: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1371: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1342: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:938: in _load_unlocked
+    ???
+../../.venv/lib/python3.14/site-packages/_pytest/assertion/rewrite.py:197: in exec_module
+    exec(co, module.__dict__)
+../phase_06/tests/test_functions.py:1: in &lt;module&gt;
+    from tinylang.evaluator import run
+tinylang/evaluator.py:3: in &lt;module&gt;
+    from tinylang.environment import Environment
+E     File "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_08/tinylang/environment.py", line 10
+E       raise RuntimeError(f'Redeclaration of variable \
+E                          ^
+E   SyntaxError: unterminated f-string literal (detected at line 10)</error></testcase><testcase classname="" name="tests.test_lexer" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_08/tests/test_lexer.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../phase_01/tests/test_lexer.py:1: in &lt;module&gt;
+    from tinylang.lexer import tokenize
+tinylang/lexer.py:2: in &lt;module&gt;
+    from tinylang.errors import ParseError
+E   ImportError: cannot import name 'ParseError' from 'tinylang.errors' (/Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_08/tinylang/errors.py)</error></testcase><testcase classname="" name="tests.test_lists" time="0.000"><error message="collection failure">../../.venv/lib/python3.14/site-packages/_pytest/python.py:507: in importtestmodule
+    mod = import_path(
+../../.venv/lib/python3.14/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1398: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1371: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1342: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:938: in _load_unlocked
+    ???
+../../.venv/lib/python3.14/site-packages/_pytest/assertion/rewrite.py:197: in exec_module
+    exec(co, module.__dict__)
+tests/test_lists.py:1: in &lt;module&gt;
+    from tinylang.evaluator import run
+tinylang/evaluator.py:3: in &lt;module&gt;
+    from tinylang.environment import Environment
+E     File "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_08/tinylang/environment.py", line 10
+E       raise RuntimeError(f'Redeclaration of variable \
+E                          ^
+E   SyntaxError: unterminated f-string literal (detected at line 10)</error></testcase><testcase classname="" name="tests.test_scope" time="0.000"><error message="collection failure">../../.venv/lib/python3.14/site-packages/_pytest/python.py:507: in importtestmodule
+    mod = import_path(
+../../.venv/lib/python3.14/site-packages/_pytest/pathlib.py:587: in import_path
+    importlib.import_module(module_name)
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1398: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1371: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1342: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:938: in _load_unlocked
+    ???
+../../.venv/lib/python3.14/site-packages/_pytest/assertion/rewrite.py:197: in exec_module
+    exec(co, module.__dict__)
+../phase_04/tests/test_scope.py:1: in &lt;module&gt;
+    from tinylang.evaluator import run
+tinylang/evaluator.py:3: in &lt;module&gt;
+    from tinylang.environment import Environment
+E     File "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_14bcoder/phase_08/tinylang/environment.py", line 10
+E       raise RuntimeError(f'Redeclaration of variable \
+E                          ^
+E   SyntaxError: unterminated f-string literal (detected at line 10)</error></testcase></testsuite></testsuites>
