@@ -1,0 +1,8 @@
+
+=== phase 5  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 64 steps, 6296.9s, finish=api_error
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_05/tests/
+=== phase 5  model B — self-eval ===
+  self-eval: 40 steps, 1844.8s, finish=step_cap
+  pytest: 0 passed, 1 failed
+  ⚠ regressed 8 prior-phase test(s): tests.test_eval_basic::test_compare_string_and_number_errors, tests.test_eval_basic::test_divide_by_zero, tests.test_eval_basic::test_string_plus_number_errors, tests.test_lexer::test_unknown_char_errors, tests.test_parser::test_invalid_assign_target_raises...
