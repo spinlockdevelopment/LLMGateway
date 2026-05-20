@@ -1,0 +1,111 @@
+Starting phases 1..12 at Wed May 20 01:30:27 EDT 2026
+
+================================================================
+PHASE 01   01:30:27
+================================================================
+rc=0   elapsed=841s
+
+=== phase 1  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 6 steps, 334.2s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_01/tests/
+=== phase 1  model B — self-eval ===
+  self-eval: 24 steps, 506.9s, finish=done
+  pytest: 2 passed, 9 failed
+committed ModelB_32bcoder/phase_01
+
+================================================================
+PHASE 02   01:44:28
+================================================================
+rc=0   elapsed=2729s
+
+=== phase 2  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 80 steps, 2673.4s, finish=step_cap
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_02/tests/
+=== phase 2  model B — self-eval ===
+  self-eval: 2 steps, 54.5s, finish=done
+  pytest: 0 passed, 1 failed
+  ⚠ regressed 2 prior-phase test(s): tests.test_lexer::test_empty_input_just_eof, tests.test_lexer::test_unknown_char_errors
+committed ModelB_32bcoder/phase_02
+
+================================================================
+PHASE 03   02:29:57
+================================================================
+rc=0   elapsed=2505s
+
+=== phase 3  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 80 steps, 2456.1s, finish=step_cap
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_03/tests/
+=== phase 3  model B — self-eval ===
+  self-eval: 2 steps, 48.3s, finish=done
+  pytest: 0 passed, 2 failed
+committed ModelB_32bcoder/phase_03
+
+================================================================
+PHASE 04   03:11:42
+================================================================
+rc=0   elapsed=2784s
+
+=== phase 4  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 80 steps, 2014.3s, finish=step_cap
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_04/tests/
+=== phase 4  model B — self-eval ===
+  self-eval: 40 steps, 769.2s, finish=step_cap
+  pytest: 8 passed, 39 failed
+committed ModelB_32bcoder/phase_04
+
+================================================================
+PHASE 05   03:58:06
+================================================================
+rc=0   elapsed=8143s
+
+=== phase 5  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 64 steps, 6296.9s, finish=api_error
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_05/tests/
+=== phase 5  model B — self-eval ===
+  self-eval: 40 steps, 1844.8s, finish=step_cap
+  pytest: 0 passed, 1 failed
+  ⚠ regressed 8 prior-phase test(s): tests.test_eval_basic::test_compare_string_and_number_errors, tests.test_eval_basic::test_divide_by_zero, tests.test_eval_basic::test_string_plus_number_errors, tests.test_lexer::test_unknown_char_errors, tests.test_parser::test_invalid_assign_target_raises...
+committed ModelB_32bcoder/phase_05
+
+================================================================
+PHASE 06   06:13:49
+================================================================
+rc=0   elapsed=8154s
+
+=== phase 6  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 49 steps, 6993.6s, finish=api_error
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_06/tests/
+=== phase 6  model B — self-eval ===
+  self-eval: 40 steps, 1159.8s, finish=step_cap
+  pytest: 0 passed, 6 failed
+committed ModelB_32bcoder/phase_06
+
+================================================================
+PHASE 07   08:29:43
+================================================================
+rc=0   elapsed=3474s
+
+=== phase 7  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 80 steps, 2050.9s, finish=step_cap
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_07/tests/
+=== phase 7  model B — self-eval ===
+  self-eval: 22 steps, 1422.7s, finish=done
+  pytest: 0 passed, 6 failed
+committed ModelB_32bcoder/phase_07
+
+================================================================
+PHASE 08   09:27:37
+================================================================
+rc=0   elapsed=17310s
+
+=== phase 8  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 41 steps, 7713.3s, finish=api_error
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_08/tests/
+=== phase 8  model B — self-eval ===
+  self-eval: 39 steps, 9595.8s, finish=api_error
+  pytest: 0 passed, 2 failed
+committed ModelB_32bcoder/phase_08
+
+================================================================
+PHASE 09   14:16:07
+================================================================
