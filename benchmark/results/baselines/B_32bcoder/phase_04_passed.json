@@ -1,0 +1,13 @@
+{
+  "phase": 4,
+  "passed_ids": [
+    "tests.test_eval_basic::test_compare_string_and_number_errors",
+    "tests.test_eval_basic::test_divide_by_zero",
+    "tests.test_eval_basic::test_string_plus_number_errors",
+    "tests.test_lexer::test_unknown_char_errors",
+    "tests.test_parser::test_invalid_assign_target_raises",
+    "tests.test_scope::test_assign_to_undefined_errors",
+    "tests.test_scope::test_redeclare_in_same_scope_errors",
+    "tests.test_scope::test_undefined_variable_errors"
+  ]
+}

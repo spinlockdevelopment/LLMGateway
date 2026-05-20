@@ -1,0 +1,704 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="39" skipped="0" tests="47" time="0.285" timestamp="2026-05-20T03:58:06.443671-04:00" hostname="llmgateway"><testcase classname="tests.test_eval_basic" name="test_print_integer_no_decimal" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '5' at line 1, column 7">tests/test_eval_basic.py:6: in test_print_integer_no_decimal
+    assert run("print(5);") == "5\n"
+           ^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '5' at line 1, column 7</failure></testcase><testcase classname="tests.test_eval_basic" name="test_arithmetic_precedence" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 7">tests/test_eval_basic.py:10: in test_arithmetic_precedence
+    assert run("print(1 + 2 * 3);") == "7\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 7</failure></testcase><testcase classname="tests.test_eval_basic" name="test_subtraction_and_unary_minus" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 7">tests/test_eval_basic.py:15: in test_subtraction_and_unary_minus
+    assert run("print(10 - 3);") == "7\n"
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 7</failure></testcase><testcase classname="tests.test_eval_basic" name="test_float_division" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '3' at line 1, column 7">tests/test_eval_basic.py:20: in test_float_division
+    assert run("print(3 / 2);") == "1.5\n"
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '3' at line 1, column 7</failure></testcase><testcase classname="tests.test_eval_basic" name="test_modulo" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '7' at line 1, column 7">tests/test_eval_basic.py:24: in test_modulo
+    assert run("print(7 % 3);") == "1\n"
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '7' at line 1, column 7</failure></testcase><testcase classname="tests.test_eval_basic" name="test_divide_by_zero" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_string_concat" time="0.000"><failure message="tinylang.parser.ParseError: Expect expression.">tests/test_eval_basic.py:33: in test_string_concat
+    assert run('print("hi" + " " + "you");') == "hi you\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:19: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in statement
+    return self.expr_statement()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:121: in expr_statement
+    expr = self.expression()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:126: in expression
+    return self.assignment()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:129: in assignment
+    expr = self.logic_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:142: in logic_or
+    expr = self.logic_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in logic_and
+    expr = self.equality()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:156: in equality
+    expr = self.comparison()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:164: in comparison
+    expr = self.term()
+           ^^^^^^^^^^^
+tinylang/parser.py:172: in term
+    expr = self.factor()
+           ^^^^^^^^^^^^^
+tinylang/parser.py:180: in factor
+    expr = self.unary()
+           ^^^^^^^^^^^^
+tinylang/parser.py:192: in unary
+    return self.call()
+           ^^^^^^^^^^^
+tinylang/parser.py:195: in call
+    expr = self.primary()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:266: in primary
+    raise ParseError('Expect expression.', self.peek())
+E   tinylang.parser.ParseError: Expect expression.</failure></testcase><testcase classname="tests.test_eval_basic" name="test_compare_numbers" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 7">tests/test_eval_basic.py:37: in test_compare_numbers
+    assert run("print(1 &lt; 2, 2 &lt; 1);") == "true false\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 7</failure></testcase><testcase classname="tests.test_eval_basic" name="test_compare_equal_unlike_types_is_false" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 7">tests/test_eval_basic.py:41: in test_compare_equal_unlike_types_is_false
+    assert run('print(1 == "1");') == "false\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 7</failure></testcase><testcase classname="tests.test_eval_basic" name="test_logical_short_circuit_returns_operand" time="0.000"><failure message="tinylang.parser.ParseError: Expect expression.">tests/test_eval_basic.py:46: in test_logical_short_circuit_returns_operand
+    assert run('print(true &amp;&amp; "x");') == "x\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:19: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in statement
+    return self.expr_statement()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:121: in expr_statement
+    expr = self.expression()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:126: in expression
+    return self.assignment()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:129: in assignment
+    expr = self.logic_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:142: in logic_or
+    expr = self.logic_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in logic_and
+    expr = self.equality()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:156: in equality
+    expr = self.comparison()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:164: in comparison
+    expr = self.term()
+           ^^^^^^^^^^^
+tinylang/parser.py:172: in term
+    expr = self.factor()
+           ^^^^^^^^^^^^^
+tinylang/parser.py:180: in factor
+    expr = self.unary()
+           ^^^^^^^^^^^^
+tinylang/parser.py:192: in unary
+    return self.call()
+           ^^^^^^^^^^^
+tinylang/parser.py:195: in call
+    expr = self.primary()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:266: in primary
+    raise ParseError('Expect expression.', self.peek())
+E   tinylang.parser.ParseError: Expect expression.</failure></testcase><testcase classname="tests.test_eval_basic" name="test_negation_returns_bool" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '0' at line 1, column 23">tests/test_eval_basic.py:52: in test_negation_returns_bool
+    assert run("print(!true, !false, !0, !1);") == "false true true false\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '0' at line 1, column 23</failure></testcase><testcase classname="tests.test_eval_basic" name="test_nil_prints_as_nil" time="0.000"><failure message="tinylang.parser.ParseError: Expect expression.">tests/test_eval_basic.py:56: in test_nil_prints_as_nil
+    assert run("print(nil);") == "nil\n"
+           ^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:19: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in statement
+    return self.expr_statement()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:121: in expr_statement
+    expr = self.expression()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:126: in expression
+    return self.assignment()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:129: in assignment
+    expr = self.logic_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:142: in logic_or
+    expr = self.logic_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in logic_and
+    expr = self.equality()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:156: in equality
+    expr = self.comparison()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:164: in comparison
+    expr = self.term()
+           ^^^^^^^^^^^
+tinylang/parser.py:172: in term
+    expr = self.factor()
+           ^^^^^^^^^^^^^
+tinylang/parser.py:180: in factor
+    expr = self.unary()
+           ^^^^^^^^^^^^
+tinylang/parser.py:192: in unary
+    return self.call()
+           ^^^^^^^^^^^
+tinylang/parser.py:195: in call
+    expr = self.primary()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:266: in primary
+    raise ParseError('Expect expression.', self.peek())
+E   tinylang.parser.ParseError: Expect expression.</failure></testcase><testcase classname="tests.test_eval_basic" name="test_bool_prints_as_lowercase" time="0.000"><failure message="tinylang.parser.ParseError: Expect expression.">tests/test_eval_basic.py:60: in test_bool_prints_as_lowercase
+    assert run("print(true, false);") == "true false\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:19: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in statement
+    return self.expr_statement()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:121: in expr_statement
+    expr = self.expression()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:126: in expression
+    return self.assignment()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:129: in assignment
+    expr = self.logic_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:142: in logic_or
+    expr = self.logic_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in logic_and
+    expr = self.equality()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:156: in equality
+    expr = self.comparison()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:164: in comparison
+    expr = self.term()
+           ^^^^^^^^^^^
+tinylang/parser.py:172: in term
+    expr = self.factor()
+           ^^^^^^^^^^^^^
+tinylang/parser.py:180: in factor
+    expr = self.unary()
+           ^^^^^^^^^^^^
+tinylang/parser.py:192: in unary
+    return self.call()
+           ^^^^^^^^^^^
+tinylang/parser.py:195: in call
+    expr = self.primary()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:266: in primary
+    raise ParseError('Expect expression.', self.peek())
+E   tinylang.parser.ParseError: Expect expression.</failure></testcase><testcase classname="tests.test_eval_basic" name="test_string_plus_number_errors" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_compare_string_and_number_errors" time="0.000" /><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000"><failure message="assert 0 == 1&#10; +  where 0 = len([])">tests/test_lexer.py:14: in test_empty_input_just_eof
+    assert len(toks) == 1
+E   assert 0 == 1
+E    +  where 0 = len([])</failure></testcase><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 9">tests/test_lexer.py:19: in test_let_x_eq_1_plus_2
+    toks = tokenize("let x = 1 + 2;")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 9</failure></testcase><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000"><failure message="AssertionError: assert [] == ['KEYWORD', '...ORD', 'IDENT']&#10;  &#10;  Right contains 4 more items, first extra item: 'KEYWORD'&#10;  Use -v to get more diff">tests/test_lexer.py:28: in test_keywords_vs_identifiers
+    assert kinds(toks)[:4] == ["KEYWORD", "IDENT", "KEYWORD", "IDENT"]
+E   AssertionError: assert [] == ['KEYWORD', '...ORD', 'IDENT']
+E     
+E     Right contains 4 more items, first extra item: 'KEYWORD'
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'kind'">tests/test_lexer.py:37: in test_multi_char_punct
+    assert [t.value for t in toks if t.kind == "PUNCT"] == ["==", "!=", "&lt;=", "&gt;=", "&amp;&amp;", "||"]
+                                     ^^^^^^
+E   AttributeError: 'Token' object has no attribute 'kind'</failure></testcase><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'kind'">tests/test_lexer.py:46: in test_single_char_punct_after_multi
+    assert any(t.kind == "PUNCT" and t.value == "=" for t in toks)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_lexer.py:46: in &lt;genexpr&gt;
+    assert any(t.kind == "PUNCT" and t.value == "=" for t in toks)
+               ^^^^^^
+E   AttributeError: 'Token' object has no attribute 'kind'</failure></testcase><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000"><failure message="IndexError: list index out of range">tests/test_lexer.py:51: in test_string_escapes
+    s = [t for t in toks if t.kind == "STRING"][0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 9">tests/test_lexer.py:56: in test_comments_stripped
+    toks = tokenize("let x = 1; // a comment\nlet y = 2;")
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 9</failure></testcase><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000"><failure message="IndexError: list index out of range">tests/test_lexer.py:64: in test_line_col_tracking
+    let_tok = toks[0]
+              ^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000" /><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '4' at line 1, column 1">tests/test_lexer.py:82: in test_number_and_float
+    toks = tokenize("42 3.14")
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '4' at line 1, column 1</failure></testcase><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000"><failure message="assert 0 == 1&#10; +  where 0 = sum(&lt;generator object test_eof_only_once.&lt;locals&gt;.&lt;genexpr&gt; at 0x108972190&gt;)">tests/test_lexer.py:90: in test_eof_only_once
+    assert sum(1 for t in toks if t.kind == "EOF") == 1
+E   assert 0 == 1
+E    +  where 0 = sum(&lt;generator object test_eof_only_once.&lt;locals&gt;.&lt;genexpr&gt; at 0x108972190&gt;)</failure></testcase><testcase classname="tests.test_parser" name="test_let_stmt" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 9">tests/test_parser.py:9: in test_let_stmt
+    p = parse("let x = 1;")
+        ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 9</failure></testcase><testcase classname="tests.test_parser" name="test_precedence_mul_before_add" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 9">tests/test_parser.py:18: in test_precedence_mul_before_add
+    p = parse("let x = 1 + 2 * 3;")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 9</failure></testcase><testcase classname="tests.test_parser" name="test_comparison_and_logical" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 5">tests/test_parser.py:29: in test_comparison_and_logical
+    p = parse("x = 1 &lt; 2 &amp;&amp; y;")
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 5</failure></testcase><testcase classname="tests.test_parser" name="test_if_else" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 18">tests/test_parser.py:39: in test_if_else
+    p = parse("if (x) { let a = 1; } else { let b = 2; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 18</failure></testcase><testcase classname="tests.test_parser" name="test_while_with_break_continue" time="0.000"><failure message="tinylang.parser.ParseError: Expect expression.">tests/test_parser.py:47: in test_while_with_break_continue
+    p = parse("while (x) { break; continue; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:19: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in statement
+    return self.expr_statement()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:121: in expr_statement
+    expr = self.expression()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:126: in expression
+    return self.assignment()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:129: in assignment
+    expr = self.logic_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:142: in logic_or
+    expr = self.logic_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in logic_and
+    expr = self.equality()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:156: in equality
+    expr = self.comparison()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:164: in comparison
+    expr = self.term()
+           ^^^^^^^^^^^
+tinylang/parser.py:172: in term
+    expr = self.factor()
+           ^^^^^^^^^^^^^
+tinylang/parser.py:180: in factor
+    expr = self.unary()
+           ^^^^^^^^^^^^
+tinylang/parser.py:192: in unary
+    return self.call()
+           ^^^^^^^^^^^
+tinylang/parser.py:195: in call
+    expr = self.primary()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:266: in primary
+    raise ParseError('Expect expression.', self.peek())
+E   tinylang.parser.ParseError: Expect expression.</failure></testcase><testcase classname="tests.test_parser" name="test_fn_decl_is_fndecl_not_letstmt" time="0.000"><failure message="tinylang.parser.ParseError: Expect expression.">tests/test_parser.py:55: in test_fn_decl_is_fndecl_not_letstmt
+    p = parse("fn add(a, b) { return a + b; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:19: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in statement
+    return self.expr_statement()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:121: in expr_statement
+    expr = self.expression()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:126: in expression
+    return self.assignment()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:129: in assignment
+    expr = self.logic_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:142: in logic_or
+    expr = self.logic_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in logic_and
+    expr = self.equality()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:156: in equality
+    expr = self.comparison()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:164: in comparison
+    expr = self.term()
+           ^^^^^^^^^^^
+tinylang/parser.py:172: in term
+    expr = self.factor()
+           ^^^^^^^^^^^^^
+tinylang/parser.py:180: in factor
+    expr = self.unary()
+           ^^^^^^^^^^^^
+tinylang/parser.py:192: in unary
+    return self.call()
+           ^^^^^^^^^^^
+tinylang/parser.py:195: in call
+    expr = self.primary()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:266: in primary
+    raise ParseError('Expect expression.', self.peek())
+E   tinylang.parser.ParseError: Expect expression.</failure></testcase><testcase classname="tests.test_parser" name="test_fn_lit_in_let" time="0.000"><failure message="tinylang.parser.ParseError: Expect expression.">tests/test_parser.py:65: in test_fn_lit_in_let
+    p = parse("let f = fn(x) { return x; };")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:19: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in statement
+    return self.expr_statement()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:121: in expr_statement
+    expr = self.expression()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:126: in expression
+    return self.assignment()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:129: in assignment
+    expr = self.logic_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:142: in logic_or
+    expr = self.logic_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in logic_and
+    expr = self.equality()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:156: in equality
+    expr = self.comparison()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:164: in comparison
+    expr = self.term()
+           ^^^^^^^^^^^
+tinylang/parser.py:172: in term
+    expr = self.factor()
+           ^^^^^^^^^^^^^
+tinylang/parser.py:180: in factor
+    expr = self.unary()
+           ^^^^^^^^^^^^
+tinylang/parser.py:192: in unary
+    return self.call()
+           ^^^^^^^^^^^
+tinylang/parser.py:195: in call
+    expr = self.primary()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:266: in primary
+    raise ParseError('Expect expression.', self.peek())
+E   tinylang.parser.ParseError: Expect expression.</failure></testcase><testcase classname="tests.test_parser" name="test_list_and_dict_literals" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 11">tests/test_parser.py:72: in test_list_and_dict_literals
+    p = parse('let xs = [1, 2, 3,]; let d = {"a": 1, "b": 2};')
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 11</failure></testcase><testcase classname="tests.test_parser" name="test_call_and_index_chain" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 3">tests/test_parser.py:82: in test_call_and_index_chain
+    p = parse("f(1, 2)[0];")
+        ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 3</failure></testcase><testcase classname="tests.test_parser" name="test_assign_to_index" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '1' at line 1, column 4">tests/test_parser.py:89: in test_assign_to_index
+    p = parse("xs[1] = 9;")
+        ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '1' at line 1, column 4</failure></testcase><testcase classname="tests.test_parser" name="test_invalid_assign_target_raises" time="0.000" /><testcase classname="tests.test_parser" name="test_for_stmt_one_and_two_names" time="0.000"><failure message="tinylang.parser.ParseError: Expect expression.">tests/test_parser.py:102: in test_for_stmt_one_and_two_names
+    p1 = parse("for (x) in xs { }")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:19: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in statement
+    return self.expr_statement()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:121: in expr_statement
+    expr = self.expression()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:126: in expression
+    return self.assignment()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:129: in assignment
+    expr = self.logic_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:142: in logic_or
+    expr = self.logic_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in logic_and
+    expr = self.equality()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:156: in equality
+    expr = self.comparison()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:164: in comparison
+    expr = self.term()
+           ^^^^^^^^^^^
+tinylang/parser.py:172: in term
+    expr = self.factor()
+           ^^^^^^^^^^^^^
+tinylang/parser.py:180: in factor
+    expr = self.unary()
+           ^^^^^^^^^^^^
+tinylang/parser.py:192: in unary
+    return self.call()
+           ^^^^^^^^^^^
+tinylang/parser.py:195: in call
+    expr = self.primary()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:266: in primary
+    raise ParseError('Expect expression.', self.peek())
+E   tinylang.parser.ParseError: Expect expression.</failure></testcase><testcase classname="tests.test_parser" name="test_else_if_chain_parses" time="0.000"><failure message="tinylang.parser.ParseError: Expect expression.">tests/test_parser.py:112: in test_else_if_chain_parses
+    p = parse("if (a) { } else if (b) { } else { }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:19: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in statement
+    return self.expr_statement()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:121: in expr_statement
+    expr = self.expression()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:126: in expression
+    return self.assignment()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:129: in assignment
+    expr = self.logic_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:142: in logic_or
+    expr = self.logic_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in logic_and
+    expr = self.equality()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:156: in equality
+    expr = self.comparison()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:164: in comparison
+    expr = self.term()
+           ^^^^^^^^^^^
+tinylang/parser.py:172: in term
+    expr = self.factor()
+           ^^^^^^^^^^^^^
+tinylang/parser.py:180: in factor
+    expr = self.unary()
+           ^^^^^^^^^^^^
+tinylang/parser.py:192: in unary
+    return self.call()
+           ^^^^^^^^^^^
+tinylang/parser.py:195: in call
+    expr = self.primary()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:266: in primary
+    raise ParseError('Expect expression.', self.peek())
+E   tinylang.parser.ParseError: Expect expression.</failure></testcase><testcase classname="tests.test_scope" name="test_let_and_use" time="0.000"><failure message="tinylang.errors.LexError: Unexpected character '5' at line 1, column 9">tests/test_scope.py:6: in test_let_and_use
+    assert run("let x = 5; print(x);") == "5\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:301: in parse
+    tokens = tokenize(source_or_tokens)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/lexer.py:41: in tokenize
+    raise LexError(f"Unexpected character '{value}' at line {line}, column {col}")
+E   tinylang.errors.LexError: Unexpected character '5' at line 1, column 9</failure></testcase><testcase classname="tests.test_scope" name="test_shadowing_inside_block_does_not_affect_outer" time="0.000"><failure message="IndexError: list index out of range">tests/test_scope.py:19: in test_shadowing_inside_block_does_not_affect_outer
+    assert run(src) == "99\n1\n"
+           ^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:18: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:291: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^
+tinylang/parser.py:294: in peek
+    return self.tokens[self.current]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_scope" name="test_block_local_not_visible_outside" time="0.000"><failure message="IndexError: list index out of range">tests/test_scope.py:29: in test_block_local_not_visible_outside
+    assert run(src) == "7\n"
+           ^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:18: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:291: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^
+tinylang/parser.py:294: in peek
+    return self.tokens[self.current]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_scope" name="test_assign_to_outer_binding" time="0.000"><failure message="IndexError: list index out of range">tests/test_scope.py:42: in test_assign_to_outer_binding
+    assert run(src) == "11\n"
+           ^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:18: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:291: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^
+tinylang/parser.py:294: in peek
+    return self.tokens[self.current]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_scope" name="test_undefined_variable_errors" time="0.000" /><testcase classname="tests.test_scope" name="test_assign_to_undefined_errors" time="0.000" /><testcase classname="tests.test_scope" name="test_redeclare_in_same_scope_errors" time="0.000" /><testcase classname="tests.test_scope" name="test_nested_blocks_chain_lookup" time="0.000"><failure message="IndexError: list index out of range">tests/test_scope.py:71: in test_nested_blocks_chain_lookup
+    assert run(src) == "1 2 3\n"
+           ^^^^^^^^
+tinylang/evaluator.py:33: in run
+    ast = parse(source)
+          ^^^^^^^^^^^^^
+tinylang/parser.py:305: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:18: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:291: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^
+tinylang/parser.py:294: in peek
+    return self.tokens[self.current]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase></testsuite></testsuites>
