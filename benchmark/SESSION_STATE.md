@@ -1,10 +1,42 @@
 # Benchmark session state — handoff doc
 
-Last updated 2026-05-19 evening. Branch `test/benchmark-tinylang`, working tree clean.
+Last updated 2026-05-19 (late). Branch `test/benchmark-tinylang`, working tree clean.
 
 ## Status one-liner
 
-Sonnet baseline (12/12 phases @ 100% via subagent) is complete and committed. Next session: test **qwen3-14b** as a smaller-model context-degradation candidate, BEFORE doing any system-level memory restructuring.
+Two 14B-class runs are done (both 0/116 — see Run 4/4a below). **Next session: full
+Qwen2.5-Coder-32B-Instruct Q4_K_M benchmark pass**, starting from a clean context.
+
+## NEXT SESSION — 32B run prep (do this first)
+
+System footprint was trimmed at end of last session:
+- Docker logging stack (grafana, prometheus, loki, alloy) is **stopped**
+  (`restart=unless-stopped`, so they stay down). Only `llm-gateway` (litellm) +
+  `llm-postgres` remain up. `docker start grafana prometheus loki alloy` to restore.
+- The manual 14B `llama-server` is **stopped**. No llama-server is running.
+- launchd `com.local.llm-gateway` is still **unloaded** (won't respawn the 30B).
+- After trim: ~17.6 GiB readily free, wired ~2.3 GiB.
+
+32B run checklist:
+1. Pull it: `docker model pull hf.co/bartowski/Qwen2.5-Coder-32B-Instruct-GGUF:Q4_K_M`
+   (~19–20 GB; ~30 GB free on disk — fine). Find blob via the manifest grep pattern
+   used last session.
+2. Launch llama-server on :8083, `--ctx-size 32768`, **no `--mlock`**, q4_0 KV cache,
+   `--jinja`, NO `--reasoning-format` (qwen2.5 has no think channel). Expect RSS ~22 GB.
+   Watch wired memory — target < 24 GiB to keep ~8 GiB OS headroom (panic was at 31.4).
+3. **`tool_choice="required"` is mandatory** for the qwen2.5-coder family via llama-server
+   — under `auto` it emits raw `<tools>` text that the harness can't parse. Pass it with
+   `--extra-body-json '{"tool_choice":"required"}'`.
+4. Driver: copy `run_14bcoder_1_to_12.sh` → `run_32bcoder_1_to_12.sh`, swap
+   `LITELLM_ID=qwen2.5-coder-32b`, `SUFFIX=_32bcoder`, `LABEL=B_32bcoder`,
+   `START_PHASE=1`. Bypass LiteLLM via `LITELLM_URL=http://127.0.0.1:8083/v1`.
+5. Smoke-test with a tool-call (SDK, max_tokens=4096, tool_choice required) before the run.
+
+See [[project_tinylang_bench_14b_class]] for why 14B failed and what to watch for.
+
+## Earlier status (superseded)
+
+Sonnet baseline (12/12 phases @ 100% via subagent) is complete and committed.
 
 ## Three runs on the books
 
