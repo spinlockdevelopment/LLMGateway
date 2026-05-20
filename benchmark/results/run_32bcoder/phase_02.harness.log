@@ -1,0 +1,8 @@
+
+=== phase 2  model B (local-coding (qwen3.6-35b)) — implement ===
+  implement: 80 steps, 2673.4s, finish=step_cap
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder/phase_02/tests/
+=== phase 2  model B — self-eval ===
+  self-eval: 2 steps, 54.5s, finish=done
+  pytest: 0 passed, 1 failed
+  ⚠ regressed 2 prior-phase test(s): tests.test_lexer::test_empty_input_just_eof, tests.test_lexer::test_unknown_char_errors
