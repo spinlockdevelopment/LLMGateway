@@ -1,44 +1,62 @@
 # Benchmark session state — handoff doc
 
-Last updated 2026-05-19 (late). Branch `test/benchmark-tinylang`, working tree clean.
+Last updated 2026-05-20. Branch `test/benchmark-tinylang`, working tree clean.
 
 ## Status one-liner
 
-Two 14B-class runs are done (both 0/116 — see Run 4/4a below). **Next session: full
-Qwen2.5-Coder-32B-Instruct Q4_K_M benchmark pass**, starting from a clean context.
+The Qwen2.5-Coder-32B run (Run 5, `B_32bcoder`) was **ABORTED at phase 9/12 after ~15 h**
+— see Run 5 below and `results/run_32bcoder.md`. It died on infrastructure, not capability:
+llama-server's `peg-native` parser 500s on `write_file` calls with large `content`, and
+32K KV thrashes on the 32 GB box. **Next session: re-run the 32B only after fixing the
+tool-call format and dropping ctx — do NOT just relaunch (it's another ~15 h of 0-pass).**
 
-## NEXT SESSION — 32B run prep (do this first)
+## NEXT SESSION — fixes before any 32B re-run
 
-System footprint was trimmed at end of last session:
-- Docker logging stack (grafana, prometheus, loki, alloy) is **stopped**
-  (`restart=unless-stopped`, so they stay down). Only `llm-gateway` (litellm) +
-  `llm-postgres` remain up. `docker start grafana prometheus loki alloy` to restore.
-- The manual 14B `llama-server` is **stopped**. No llama-server is running.
-- launchd `com.local.llm-gateway` is still **unloaded** (won't respawn the 30B).
-- After trim: ~17.6 GiB readily free, wired ~2.3 GiB.
+The 32B *engages* (hits step caps, writes real modules, peak 8 passes phase 4) — it's the
+first local model worth pursuing — but the run was unusable. Address these first:
 
-32B run checklist:
-1. Pull it: `docker model pull hf.co/bartowski/Qwen2.5-Coder-32B-Instruct-GGUF:Q4_K_M`
-   (~19–20 GB; ~30 GB free on disk — fine). Find blob via the manifest grep pattern
-   used last session.
-2. Launch llama-server on :8083, `--ctx-size 32768`, **no `--mlock`**, q4_0 KV cache,
-   `--jinja`, NO `--reasoning-format` (qwen2.5 has no think channel). Expect RSS ~22 GB.
-   Watch wired memory — target < 24 GiB to keep ~8 GiB OS headroom (panic was at 31.4).
-3. **`tool_choice="required"` is mandatory** for the qwen2.5-coder family via llama-server
-   — under `auto` it emits raw `<tools>` text that the harness can't parse. Pass it with
-   `--extra-body-json '{"tool_choice":"required"}'`.
-4. Driver: copy `run_14bcoder_1_to_12.sh` → `run_32bcoder_1_to_12.sh`, swap
-   `LITELLM_ID=qwen2.5-coder-32b`, `SUFFIX=_32bcoder`, `LABEL=B_32bcoder`,
-   `START_PHASE=1`. Bypass LiteLLM via `LITELLM_URL=http://127.0.0.1:8083/v1`.
-5. Smoke-test with a tool-call (SDK, max_tokens=4096, tool_choice required) before the run.
+1. **Tool-call format (the fatal one).** `Chat format: peg-native` (llama.cpp build 8240)
+   raises HTTP 500 `Failed to parse input at pos 12: {"name":"write_file","arguments":
+   {"content": "...big source..."}}` once `content` is a real file (escaped quotes/regex/
+   newlines). The model's writes never land → `finish=api_error` → ~0 passes. Try a
+   different `--chat-template`/tool-call grammar, OR route file writes through a
+   `run_bash` heredoc instead of `write_file`, OR chunk writes. Smoke test with a LARGE
+   `write_file` (a full module), not just `ls` — the small smoke test passed and hid this.
+2. **Drop `--ctx-size` to 16384 (or less).** At 32K the KV cache thrashes
+   (`failed to find free space in the KV cache`); per-step time grew ~45 s → ~190–250 s
+   over the run (phase 8 took 4.8 h). Smaller ctx removes most of the slowdown.
+3. **Memory headroom.** Wired sat at ~23 GiB (edge of <24 ceiling); compressor climbed
+   1 → 4.8 GB. Consider a **headless macOS boot + SSH, no Docker, only llama-server**
+   (see [[project_tinylang_bench_headless_option]]) for a clean ~23 GiB run.
 
-See [[project_tinylang_bench_14b_class]] for why 14B failed and what to watch for.
+Setup that's already in place / proven:
+- Model is pulled: `Qwen2.5-Coder-32B-Instruct-Q4_K_M.gguf` on the 2 TB drive at
+  `/opt/storage/docker-models/blobs/sha256/8e2fd78ff55e...` (`~/.docker/models` symlink —
+  see [[project_docker_store_opt_storage]]). 86 GB `~/.docker/models.bak` still on internal
+  disk pending cleanup.
+- Driver `run_32bcoder_1_to_12.sh` (committed): `LITELLM_ID=qwen2.5-coder-32b`,
+  `SUFFIX=_32bcoder`, `LABEL=B_32bcoder`, `START_PHASE=1`, bypasses LiteLLM via
+  `LITELLM_URL=http://127.0.0.1:8083/v1`, `tool_choice=required` via `--extra-body-json`.
+- launch: `llama-server -m <blob> -a qwen2.5-coder-32b --port 8083 -c 32768 -fa on
+  -ctk q4_0 -ctv q4_0 -ngl 999 --jinja` (drop -c to 16384 next time).
+- LiteLLM + Postgres containers were stopped (benchmark bypasses them).
+
+See [[project_tinylang_bench_14b_class]] for the 14B context and [[project_tinylang_benchmark]].
 
 ## Earlier status (superseded)
 
 Sonnet baseline (12/12 phases @ 100% via subagent) is complete and committed.
 
-## Three runs on the books
+## Runs on the books
+
+### Run 5 — Qwen2.5-Coder-32B Q4_K_M (`B_32bcoder`) — ABORTED ph9 (2026-05-20)
+- ~15 h wall to phase 9/12, then killed. 8 phases committed (`b16ebf4`..`e9554bf`),
+  phase 9 partial committed. Peak 8 passes (phase 4). Effective ~0/116.
+- Killed by infra: `peg-native` tool-call 500s on large `write_file` content + 32K KV
+  thrash (per-phase time 14 min → 4.8 h). First local model that actually engages.
+- Full writeup: `results/run_32bcoder.md`. Re-run needs the fixes above first.
+
+
 
 ### Run 1 — phases 1–3, both models, OpenAI-SDK harness (committed `5d4c987`)
 - Sonnet 4 via OpenRouter: 39/39, 11.4 min
