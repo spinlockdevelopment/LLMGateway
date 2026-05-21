@@ -1,0 +1,11 @@
+{
+  "phase": 3,
+  "passed_ids": [
+    "tests.test_eval_basic::test_compare_string_and_number_errors",
+    "tests.test_eval_basic::test_divide_by_zero",
+    "tests.test_eval_basic::test_string_plus_number_errors",
+    "tests.test_lexer::test_empty_input_just_eof",
+    "tests.test_lexer::test_eof_only_once",
+    "tests.test_parser::test_invalid_assign_target_raises"
+  ]
+}
