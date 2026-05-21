@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="21" skipped="0" tests="24" time="0.091" timestamp="2026-05-20T23:08:25.516673-04:00" hostname="llmgateway"><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000" /><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000"><failure message="AssertionError: assert ['EOF'] == ['KEYWORD', '...'NUMBER', ...]&#10;  &#10;  At index 0 diff: 'EOF' != 'KEYWORD'&#10;  Right contains 7 more items, first extra item: 'IDENT'&#10;  Use -v to get more diff">../phase_01/tests/test_lexer.py:20: in test_let_x_eq_1_plus_2
+    assert kinds(toks) == [
+E   AssertionError: assert ['EOF'] == ['KEYWORD', '...'NUMBER', ...]
+E     
+E     At index 0 diff: 'EOF' != 'KEYWORD'
+E     Right contains 7 more items, first extra item: 'IDENT'
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000"><failure message="AssertionError: assert ['EOF'] == ['KEYWORD', '...ORD', 'IDENT']&#10;  &#10;  At index 0 diff: 'EOF' != 'KEYWORD'&#10;  Right contains 3 more items, first extra item: 'IDENT'&#10;  Use -v to get more diff">../phase_01/tests/test_lexer.py:28: in test_keywords_vs_identifiers
+    assert kinds(toks)[:4] == ["KEYWORD", "IDENT", "KEYWORD", "IDENT"]
+E   AssertionError: assert ['EOF'] == ['KEYWORD', '...ORD', 'IDENT']
+E     
+E     At index 0 diff: 'EOF' != 'KEYWORD'
+E     Right contains 3 more items, first extra item: 'IDENT'
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000"><failure message="AssertionError: assert [] == ['==', '!=', ...', '&amp;&amp;', '||']&#10;  &#10;  Right contains 6 more items, first extra item: '=='&#10;  Use -v to get more diff">../phase_01/tests/test_lexer.py:37: in test_multi_char_punct
+    assert [t.value for t in toks if t.kind == "PUNCT"] == ["==", "!=", "&lt;=", "&gt;=", "&amp;&amp;", "||"]
+E   AssertionError: assert [] == ['==', '!=', ...', '&amp;&amp;', '||']
+E     
+E     Right contains 6 more items, first extra item: '=='
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000"><failure message="assert False&#10; +  where False = any(&lt;generator object test_single_char_punct_after_multi.&lt;locals&gt;.&lt;genexpr&gt; at 0x108c739f0&gt;)">../phase_01/tests/test_lexer.py:46: in test_single_char_punct_after_multi
+    assert any(t.kind == "PUNCT" and t.value == "=" for t in toks)
+E   assert False
+E    +  where False = any(&lt;generator object test_single_char_punct_after_multi.&lt;locals&gt;.&lt;genexpr&gt; at 0x108c739f0&gt;)</failure></testcase><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000"><failure message="IndexError: list index out of range">../phase_01/tests/test_lexer.py:51: in test_string_escapes
+    s = [t for t in toks if t.kind == "STRING"][0]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000"><failure message="AssertionError: assert [] == ['x', 'y']&#10;  &#10;  Right contains 2 more items, first extra item: 'x'&#10;  Use -v to get more diff">../phase_01/tests/test_lexer.py:59: in test_comments_stripped
+    assert idents == ["x", "y"]
+E   AssertionError: assert [] == ['x', 'y']
+E     
+E     Right contains 2 more items, first extra item: 'x'
+E     Use -v to get more diff</failure></testcase><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000"><failure message="IndexError: list index out of range">../phase_01/tests/test_lexer.py:65: in test_line_col_tracking
+    x_tok = toks[1]
+            ^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000"><failure message="Failed: DID NOT RAISE &lt;class 'Exception'&gt;">../phase_01/tests/test_lexer.py:72: in test_unknown_char_errors
+    with pytest.raises(Exception) as exc:
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE &lt;class 'Exception'&gt;</failure></testcase><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000"><failure message="IndexError: list index out of range">../phase_01/tests/test_lexer.py:84: in test_number_and_float
+    assert nums[0] == 42.0
+           ^^^^^^^
+E   IndexError: list index out of range</failure></testcase><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000" /><testcase classname="tests.test_parser" name="test_let_stmt" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:9: in test_let_stmt
+    p = parse("let x = 1;")
+        ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_precedence_mul_before_add" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:18: in test_precedence_mul_before_add
+    p = parse("let x = 1 + 2 * 3;")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_comparison_and_logical" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:29: in test_comparison_and_logical
+    p = parse("x = 1 &lt; 2 &amp;&amp; y;")
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_if_else" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:39: in test_if_else
+    p = parse("if (x) { let a = 1; } else { let b = 2; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_while_with_break_continue" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:47: in test_while_with_break_continue
+    p = parse("while (x) { break; continue; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_fn_decl_is_fndecl_not_letstmt" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:55: in test_fn_decl_is_fndecl_not_letstmt
+    p = parse("fn add(a, b) { return a + b; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_fn_lit_in_let" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:65: in test_fn_lit_in_let
+    p = parse("let f = fn(x) { return x; };")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_list_and_dict_literals" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:72: in test_list_and_dict_literals
+    p = parse('let xs = [1, 2, 3,]; let d = {"a": 1, "b": 2};')
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_call_and_index_chain" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:82: in test_call_and_index_chain
+    p = parse("f(1, 2)[0];")
+        ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_assign_to_index" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:89: in test_assign_to_index
+    p = parse("xs[1] = 9;")
+        ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_invalid_assign_target_raises" time="0.000" /><testcase classname="tests.test_parser" name="test_for_stmt_one_and_two_names" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:102: in test_for_stmt_one_and_two_names
+    p1 = parse("for (x) in xs { }")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase><testcase classname="tests.test_parser" name="test_else_if_chain_parses" time="0.000"><failure message="AttributeError: 'Token' object has no attribute 'type'">tests/test_parser.py:112: in test_else_if_chain_parses
+    p = parse("if (a) { } else if (b) { } else { }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse
+    return parser.parse()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:23: in parse
+    while not self.is_at_end():
+              ^^^^^^^^^^^^^^^^
+tinylang/parser.py:289: in is_at_end
+    return self.peek().type == 'EOF'
+           ^^^^^^^^^^^^^^^^
+E   AttributeError: 'Token' object has no attribute 'type'</failure></testcase></testsuite></testsuites>

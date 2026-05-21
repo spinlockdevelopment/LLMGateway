@@ -1,0 +1,37 @@
+{
+  "phase": 2,
+  "model": "B_32bcoder16k",
+  "workdir": "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder16k/phase_02",
+  "implement": {
+    "elapsed_s": 1844.842966079712,
+    "steps": 80,
+    "input_tokens": 831582,
+    "output_tokens": 6764,
+    "finish_reason": "step_cap",
+    "done_payload": null,
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_02_B_implement.json"
+  },
+  "self_eval": {
+    "elapsed_s": 66.9923849105835,
+    "steps": 2,
+    "input_tokens": 4093,
+    "output_tokens": 79,
+    "finish_reason": "done",
+    "done_payload": {
+      "summary": "Encountered ImportError due to missing 'tinylang' module. No further progress possible without resolving the import root cause."
+    },
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_02_B_selfeval.json"
+  },
+  "final_tests": {
+    "returncode": 1,
+    "passed": 3,
+    "failed": 21,
+    "passed_ids": [
+      "tests.test_lexer::test_empty_input_just_eof",
+      "tests.test_lexer::test_eof_only_once",
+      "tests.test_parser::test_invalid_assign_target_raises"
+    ],
+    "stdout_tail": "ttributeError: 'Token' object has no attribute 'type'\n_______________________ test_for_stmt_one_and_two_names ________________________\ntests/test_parser.py:102: in test_for_stmt_one_and_two_names\n    p1 = parse(\"for (x) in xs { }\")\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:306: in parse\n    return parser.parse()\n           ^^^^^^^^^^^^^^\ntinylang/parser.py:23: in parse\n    while not self.is_at_end():\n              ^^^^^^^^^^^^^^^^\ntinylang/parser.py:289: in is_at_end\n    return self.peek().type == 'EOF'\n           ^^^^^^^^^^^^^^^^\nE   AttributeError: 'Token' object has no attribute 'type'\n__________________________ test_else_if_chain_parses ___________________________\ntests/test_parser.py:112: in test_else_if_chain_parses\n    p = parse(\"if (a) { } else if (b) { } else { }\")\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:306: in parse\n    return parser.parse()\n           ^^^^^^^^^^^^^^\ntinylang/parser.py:23: in parse\n    while not self.is_at_end():\n              ^^^^^^^^^^^^^^^^\ntinylang/parser.py:289: in is_at_end\n    return self.peek().type == 'EOF'\n           ^^^^^^^^^^^^^^^^\nE   AttributeError: 'Token' object has no attribute 'type'\n=========================== short test summary info ============================\nFAILED tests/test_lexer.py::test_let_x_eq_1_plus_2 - AssertionError: assert [...\nFAILED tests/test_lexer.py::test_keywords_vs_identifiers - AssertionError: as...\nFAILED tests/test_lexer.py::test_multi_char_punct - AssertionError: assert []...\nFAILED tests/test_lexer.py::test_single_char_punct_after_multi - assert False\nFAILED tests/test_lexer.py::test_string_escapes - IndexError: list index out ...\nFAILED tests/test_lexer.py::test_comments_stripped - AssertionError: assert [...\nFAILED tests/test_lexer.py::test_line_col_tracking - IndexError: list index o...\nFAILED tests/test_lexer.py::test_unknown_char_errors - Failed: DID NOT RAISE ...\nFAILED tests/test_lexer.py::test_number_and_float - IndexError: list index ou...\nFAILED tests/test_parser.py::test_let_stmt - AttributeError: 'Token' object h...\nFAILED tests/test_parser.py::test_precedence_mul_before_add - AttributeError:...\nFAILED tests/test_parser.py::test_comparison_and_logical - AttributeError: 'T...\nFAILED tests/test_parser.py::test_if_else - AttributeError: 'Token' object ha...\nFAILED tests/test_parser.py::test_while_with_break_continue - AttributeError:...\nFAILED tests/test_parser.py::test_fn_decl_is_fndecl_not_letstmt - AttributeEr...\nFAILED tests/test_parser.py::test_fn_lit_in_let - AttributeError: 'Token' obj...\nFAILED tests/test_parser.py::test_list_and_dict_literals - AttributeError: 'T...\nFAILED tests/test_parser.py::test_call_and_index_chain - AttributeError: 'Tok...\nFAILED tests/test_parser.py::test_assign_to_index - AttributeError: 'Token' o...\nFAILED tests/test_parser.py::test_for_stmt_one_and_two_names - AttributeError...\nFAILED tests/test_parser.py::test_else_if_chain_parses - AttributeError: 'Tok...\n21 failed, 3 passed in 0.09s\n",
+    "stderr_tail": ""
+  }
+}
