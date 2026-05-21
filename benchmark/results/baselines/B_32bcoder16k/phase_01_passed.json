@@ -1,0 +1,7 @@
+{
+  "phase": 1,
+  "passed_ids": [
+    "tests.test_lexer::test_empty_input_just_eof",
+    "tests.test_lexer::test_eof_only_once"
+  ]
+}
