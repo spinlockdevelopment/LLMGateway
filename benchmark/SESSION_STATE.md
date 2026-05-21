@@ -1,45 +1,76 @@
 # Benchmark session state — handoff doc
 
-Last updated 2026-05-20. Branch `test/benchmark-tinylang`, working tree clean.
+Last updated 2026-05-21. Branch `test/benchmark-tinylang` — **PARKED, will NOT be merged.**
+Working tree clean (everything below is committed on this branch for the record).
 
-## Status one-liner
+## Status one-liner — branch parked
 
-The Qwen2.5-Coder-32B run (Run 5, `B_32bcoder`) was **ABORTED at phase 9/12 after ~15 h**
-— see Run 5 below and `results/run_32bcoder.md`. It died on infrastructure, not capability:
-llama-server's `peg-native` parser 500s on `write_file` calls with large `content`, and
-32K KV thrashes on the 32 GB box. **Next session: re-run the 32B only after fixing the
-tool-call format and dropping ctx — do NOT just relaunch (it's another ~15 h of 0-pass).**
+This branch holds 5 benchmark runs (see "Runs on the books"). The local-model story is now
+well characterized and there's a clear blocker: **running a 32B locally for the agent loop
+on this 32 GB Mac is bottlenecked by the macOS GUI/Docker memory overhead, not by the
+model.** Rather than keep fighting it on this branch, the decision (2026-05-21) is to
+**leave this branch unmerged**, build proper headless infrastructure on a fresh branch off
+`main`, and return here to re-run the benchmarks in headless mode.
 
-## NEXT SESSION — fixes before any 32B re-run
+## Forward plan (next work — NOT on this branch)
 
-The 32B *engages* (hits step caps, writes real modules, peak 8 passes phase 4) — it's the
-first local model worth pursuing — but the run was unusable. Address these first:
+1. `git checkout main`, then **`git switch -c feat/<name>`** (a lightweight headless
+   service shim).
+2. Build a **lightweight service shim to run llama.cpp / whisper instances headless** —
+   spin up/own `llama-server` (and whisper) processes without Docker and without a GUI
+   session, so wired memory isn't eaten by WindowServer + Docker VM. Get that working
+   correctly and tested on its own.
+3. **Come back to this `test/benchmark-tinylang` branch** and re-run the benchmark suite
+   in **headless mode** via the new shim. The headless boot is expected to free the
+   several GiB of wired RAM that forced memory compression at 23 GiB (see
+   [[project_tinylang_bench_headless_option]]), so 32K ctx can fit without KV thrash.
 
-1. **Tool-call format (the fatal one).** `Chat format: peg-native` (llama.cpp build 8240)
-   raises HTTP 500 `Failed to parse input at pos 12: {"name":"write_file","arguments":
-   {"content": "...big source..."}}` once `content` is a real file (escaped quotes/regex/
-   newlines). The model's writes never land → `finish=api_error` → ~0 passes. Try a
-   different `--chat-template`/tool-call grammar, OR route file writes through a
-   `run_bash` heredoc instead of `write_file`, OR chunk writes. Smoke test with a LARGE
-   `write_file` (a full module), not just `ls` — the small smoke test passed and hid this.
-2. **Drop `--ctx-size` to 16384 (or less).** At 32K the KV cache thrashes
-   (`failed to find free space in the KV cache`); per-step time grew ~45 s → ~190–250 s
-   over the run (phase 8 took 4.8 h). Smaller ctx removes most of the slowdown.
-3. **Memory headroom.** Wired sat at ~23 GiB (edge of <24 ceiling); compressor climbed
-   1 → 4.8 GB. Consider a **headless macOS boot + SSH, no Docker, only llama-server**
-   (see [[project_tinylang_bench_headless_option]]) for a clean ~23 GiB run.
+## What we've tried — verdict (read before re-running anything)
 
-Setup that's already in place / proven:
-- Model is pulled: `Qwen2.5-Coder-32B-Instruct-Q4_K_M.gguf` on the 2 TB drive at
-  `/opt/storage/docker-models/blobs/sha256/8e2fd78ff55e...` (`~/.docker/models` symlink —
-  see [[project_docker_store_opt_storage]]). 86 GB `~/.docker/models.bak` still on internal
-  disk pending cleanup.
-- Driver `run_32bcoder_1_to_12.sh` (committed): `LITELLM_ID=qwen2.5-coder-32b`,
-  `SUFFIX=_32bcoder`, `LABEL=B_32bcoder`, `START_PHASE=1`, bypasses LiteLLM via
-  `LITELLM_URL=http://127.0.0.1:8083/v1`, `tool_choice=required` via `--extra-body-json`.
-- launch: `llama-server -m <blob> -a qwen2.5-coder-32b --port 8083 -c 32768 -fa on
-  -ctk q4_0 -ctv q4_0 -ngl 999 --jinja` (drop -c to 16384 next time).
-- LiteLLM + Postgres containers were stopped (benchmark bypasses them).
+**Clearly NOT going to work (stop trying these):**
+- **14B-class models for this agent-loop benchmark.** Qwen2.5-Coder-14B = 0/116
+  (stub-and-done, gives up early, 29 min); qwen3-14b base aborted phase 1 (reasoning-format
+  parser 500s + overwrite cascade). The harness is clean; the gap is model effort. Don't
+  spend more time at 14B. See [[project_tinylang_bench_14b_class]].
+- **Naively tuning `--ctx-size` to fix the 32B.** 32K → KV thrash + 2–5 h/phase; 16K →
+  conversation overflows the window by phase 3 (`request 16718 tokens exceeds 16384`).
+  Neither size is right on a 32 GB box; ctx is not the real lever (see below).
+- **Running the 32B at 32K alongside the macOS GUI + Docker** — wired pins at ~23 GiB,
+  compressor climbs to ~4.8 GB, throughput collapses over a long run.
+
+**Promising (pursue these):**
+- **Qwen2.5-Coder-32B itself.** It's the FIRST local model that actually engages — hits
+  the 80-step implement cap, writes real modules, peak 8 passes (32K phase 4), 6 passes
+  (16K phase 3). Worth a proper run once the infra is fixed. See `results/run_32bcoder.md`
+  + `results/run_32bcoder16k.md`.
+- **Headless boot + service shim** (the forward plan) — removes the GUI/Docker wired-RAM
+  overhead so 32K KV fits without thrash. Highest expected payoff.
+- **Trimming the harness's accumulated context** — the agent loop keeps system prompt +
+  full spec + every tool output verbatim across 33–80 steps; that's what overflowed 16K
+  and bloated 32K KV. Truncating/summarizing old tool outputs would fix BOTH the overflow
+  and the thrash regardless of ctx. Independent of the headless work and worth doing.
+
+**Open question / not yet diagnosed:**
+- The `peg-native` tool-call 500 on large `write_file` content (15+ in the 32K run) did
+  NOT recur in the 16K p1–3 probe (0 of them) — unclear if that's because early-phase
+  files are smaller or ctx-related. Re-check with a LARGE-write smoke test before trusting
+  it. The small `ls` smoke test passed and hid the issue last time.
+
+## Setup that's already in place / proven (for when we return)
+
+- Model pulled: `Qwen2.5-Coder-32B-Instruct-Q4_K_M.gguf` on the 2 TB drive at
+  `/opt/storage/docker-models/blobs/sha256/8e2fd78ff55e...`. `~/.docker/models` is a
+  symlink to `/opt/storage/docker-models` (see [[project_docker_store_opt_storage]]).
+  The 86 GB `~/.docker/models.bak` backup was deleted (internal disk freed to ~108 GiB).
+- Drivers (committed): `run_32bcoder_1_to_12.sh` (full, 32K) and
+  `run_32bcoder16k_1_to_3.sh` (probe, 16K). Both bypass LiteLLM via
+  `LITELLM_URL=http://127.0.0.1:8083/v1`, `tool_choice=required` via `--extra-body-json`,
+  `LITELLM_ID=qwen2.5-coder-32b`, per-phase commits.
+- llama-server launch: `llama-server -m <blob> -a qwen2.5-coder-32b --port 8083
+  -c <16384|32768> -fa on -ctk q4_0 -ctv q4_0 -ngl 999 --jinja` (no `--mlock`,
+  no `--reasoning-format`). RSS ~20 GB, wired ~22–23 GiB.
+- harness.py fixed: model-B `display` label no longer stale; `--litellm-id` now updates
+  `display` so logs name the real model. llama-server + containers are STOPPED.
 
 See [[project_tinylang_bench_14b_class]] for the 14B context and [[project_tinylang_benchmark]].
 
@@ -56,6 +87,12 @@ Sonnet baseline (12/12 phases @ 100% via subagent) is complete and committed.
   thrash (per-phase time 14 min → 4.8 h). First local model that actually engages.
 - Full writeup: `results/run_32bcoder.md`. Re-run needs the fixes above first.
 
+### Run 5b — Qwen2.5-Coder-32B @ 16K, phases 1–3 timing probe (`B_32bcoder16k`) (2026-05-21)
+- p1–3 in **81 min** (vs ~101 min at 32K) — ~20% faster, wired ~22 GiB, no KV thrash,
+  0 `peg-native` 500s. Commits `bcf5484`/`973ab2c`/`4bb03ca` + driver `7f297c8`.
+- **But 16K is too small:** phase 3 overflowed the window (`request 16718 tokens exceeds
+  16384`) → `api_error`. Confirms ctx is not the lever; harness context-trim or headless
+  is. Full writeup: `results/run_32bcoder16k.md`.
 
 
 ### Run 1 — phases 1–3, both models, OpenAI-SDK harness (committed `5d4c987`)
