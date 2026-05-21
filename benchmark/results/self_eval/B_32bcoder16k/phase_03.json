@@ -1,0 +1,40 @@
+{
+  "phase": 3,
+  "model": "B_32bcoder16k",
+  "workdir": "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_32bcoder16k/phase_03",
+  "implement": {
+    "elapsed_s": 2159.5766479969025,
+    "steps": 33,
+    "input_tokens": 330366,
+    "output_tokens": 8034,
+    "finish_reason": "api_error",
+    "done_payload": null,
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_03_B_implement.json"
+  },
+  "self_eval": {
+    "elapsed_s": 67.0177800655365,
+    "steps": 2,
+    "input_tokens": 3926,
+    "output_tokens": 82,
+    "finish_reason": "done",
+    "done_payload": {
+      "summary": "Encountered errors during collection due to ModuleNotFoundError for 'tinylang' module. No further progress possible without resolving the import issues."
+    },
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_03_B_selfeval.json"
+  },
+  "final_tests": {
+    "returncode": 1,
+    "passed": 6,
+    "failed": 33,
+    "passed_ids": [
+      "tests.test_eval_basic::test_compare_string_and_number_errors",
+      "tests.test_eval_basic::test_divide_by_zero",
+      "tests.test_eval_basic::test_string_plus_number_errors",
+      "tests.test_lexer::test_empty_input_just_eof",
+      "tests.test_lexer::test_eof_only_once",
+      "tests.test_parser::test_invalid_assign_target_raises"
+    ],
+    "stdout_tail": "\n    while not self.is_at_end():\n              ^^^^^^^^^^^^^^^^\ntinylang/parser.py:289: in is_at_end\n    return self.peek().type == 'EOF'\n           ^^^^^^^^^^^^^^^^\nE   AttributeError: 'Token' object has no attribute 'type'\n=========================== short test summary info ============================\nFAILED tests/test_eval_basic.py::test_print_integer_no_decimal - AttributeErr...\nFAILED tests/test_eval_basic.py::test_arithmetic_precedence - AttributeError:...\nFAILED tests/test_eval_basic.py::test_subtraction_and_unary_minus - Attribute...\nFAILED tests/test_eval_basic.py::test_float_division - AttributeError: 'Token...\nFAILED tests/test_eval_basic.py::test_modulo - AttributeError: 'Token' object...\nFAILED tests/test_eval_basic.py::test_string_concat - AttributeError: 'Token'...\nFAILED tests/test_eval_basic.py::test_compare_numbers - AttributeError: 'Toke...\nFAILED tests/test_eval_basic.py::test_compare_equal_unlike_types_is_false - A...\nFAILED tests/test_eval_basic.py::test_logical_short_circuit_returns_operand\nFAILED tests/test_eval_basic.py::test_negation_returns_bool - AttributeError:...\nFAILED tests/test_eval_basic.py::test_nil_prints_as_nil - AttributeError: 'To...\nFAILED tests/test_eval_basic.py::test_bool_prints_as_lowercase - AttributeErr...\nFAILED tests/test_lexer.py::test_let_x_eq_1_plus_2 - AssertionError: assert [...\nFAILED tests/test_lexer.py::test_keywords_vs_identifiers - AssertionError: as...\nFAILED tests/test_lexer.py::test_multi_char_punct - AssertionError: assert []...\nFAILED tests/test_lexer.py::test_single_char_punct_after_multi - assert False\nFAILED tests/test_lexer.py::test_string_escapes - IndexError: list index out ...\nFAILED tests/test_lexer.py::test_comments_stripped - AssertionError: assert [...\nFAILED tests/test_lexer.py::test_line_col_tracking - IndexError: list index o...\nFAILED tests/test_lexer.py::test_unknown_char_errors - Failed: DID NOT RAISE ...\nFAILED tests/test_lexer.py::test_number_and_float - IndexError: list index ou...\nFAILED tests/test_parser.py::test_let_stmt - AttributeError: 'Token' object h...\nFAILED tests/test_parser.py::test_precedence_mul_before_add - AttributeError:...\nFAILED tests/test_parser.py::test_comparison_and_logical - AttributeError: 'T...\nFAILED tests/test_parser.py::test_if_else - AttributeError: 'Token' object ha...\nFAILED tests/test_parser.py::test_while_with_break_continue - AttributeError:...\nFAILED tests/test_parser.py::test_fn_decl_is_fndecl_not_letstmt - AttributeEr...\nFAILED tests/test_parser.py::test_fn_lit_in_let - AttributeError: 'Token' obj...\nFAILED tests/test_parser.py::test_list_and_dict_literals - AttributeError: 'T...\nFAILED tests/test_parser.py::test_call_and_index_chain - AttributeError: 'Tok...\nFAILED tests/test_parser.py::test_assign_to_index - AttributeError: 'Token' o...\nFAILED tests/test_parser.py::test_for_stmt_one_and_two_names - AttributeError...\nFAILED tests/test_parser.py::test_else_if_chain_parses - AttributeError: 'Tok...\n33 failed, 6 passed in 0.17s\n",
+    "stderr_tail": ""
+  }
+}
