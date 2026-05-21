@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>headless shim</title>
+<style>
+  :root { --bg:#0d1117; --panel:#161b22; --line:#30363d; --fg:#c9d1d9;
+          --dim:#8b949e; --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --err:#f85149; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace; }
+  header { padding:10px 16px; border-bottom:1px solid var(--line);
+           display:flex; align-items:baseline; gap:16px; }
+  h1 { font-size:14px; margin:0; letter-spacing:.5px; }
+  .dim { color:var(--dim); }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+          gap:12px; padding:12px; }
+  .panel { background:var(--panel); border:1px solid var(--line); border-radius:6px;
+           padding:12px; }
+  .panel h2 { font-size:12px; text-transform:uppercase; letter-spacing:1px;
+              color:var(--dim); margin:0 0 8px; }
+  table { width:100%; border-collapse:collapse; }
+  td { padding:2px 6px 2px 0; vertical-align:top; }
+  td:first-child { color:var(--dim); white-space:nowrap; }
+  .bar { height:8px; background:#222; border-radius:4px; overflow:hidden; margin-top:3px; }
+  .bar > i { display:block; height:100%; background:var(--acc); }
+  button { background:#21262d; color:var(--fg); border:1px solid var(--line);
+           border-radius:5px; padding:5px 10px; cursor:pointer; font:inherit; }
+  button:hover { border-color:var(--acc); }
+  button.danger { border-color:var(--err); color:var(--err); }
+  button.warn   { border-color:var(--warn); color:var(--warn); }
+  input,select { background:#0d1117; color:var(--fg); border:1px solid var(--line);
+                 border-radius:5px; padding:4px 6px; font:inherit; width:100%; }
+  label { display:block; margin:6px 0 2px; color:var(--dim); font-size:11px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:90px; }
+  pre { background:#010409; border:1px solid var(--line); border-radius:5px;
+        padding:8px; margin:6px 0 0; max-height:240px; overflow:auto;
+        white-space:pre-wrap; font-size:11px; color:var(--dim); }
+  .pill { padding:1px 7px; border-radius:10px; font-size:11px; border:1px solid var(--line); }
+  .ok{color:var(--ok);border-color:var(--ok)} .err{color:var(--err);border-color:var(--err)}
+  .warnp{color:var(--warn);border-color:var(--warn)}
+  .inst { border:1px solid var(--line); border-radius:5px; padding:8px; margin-bottom:8px; }
+  .inst .hd { display:flex; justify-content:space-between; align-items:center; }
+  #toast { position:fixed; bottom:14px; right:14px; background:#21262d;
+           border:1px solid var(--line); border-radius:6px; padding:8px 12px;
+           max-width:380px; opacity:0; transition:opacity .2s; }
+  #toast.show { opacity:1; }
+  .full { grid-column:1/-1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>HEADLESS SHIM</h1>
+  <span class="dim" id="clock"></span>
+  <span class="dim">mode: <span id="mode" class="pill">…</span></span>
+  <span class="dim" style="margin-left:auto" id="tsbadge">tailscale …</span>
+</header>
+
+<div class="grid">
+
+  <!-- HOST METRICS -->
+  <div class="panel">
+    <h2>Host</h2>
+    <table>
+      <tr><td>memory</td><td id="mem">…</td></tr>
+      <tr><td></td><td><div class="bar"><i id="membar" style="width:0"></i></div></td></tr>
+      <tr><td>available</td><td id="avail">…</td></tr>
+      <tr><td>cpu load</td><td id="load">…</td></tr>
+      <tr><td>uptime</td><td id="uptime">…</td></tr>
+      <tr><td>disk (store)</td><td id="disk">…</td></tr>
+    </table>
+  </div>
+
+  <!-- TAILSCALE -->
+  <div class="panel">
+    <h2>Tailscale</h2>
+    <table id="tstable"><tr><td>…</td></tr></table>
+  </div>
+
+  <!-- HEADLESS CONTROL -->
+  <div class="panel">
+    <h2>Headless mode</h2>
+    <p class="dim" style="margin:0 0 8px">Enter: stop &amp; disable Docker, LLM Gateway,
+       ollama autostart — frees RAM for the model. Exit: re-enable &amp; reboot to GUI.</p>
+    <div class="row">
+      <button class="warn" onclick="enterHeadless()">Enter headless</button>
+      <button class="danger" onclick="exitHeadless()">Exit &amp; reboot to GUI</button>
+    </div>
+    <pre id="headlessout" style="display:none"></pre>
+  </div>
+
+  <!-- LAUNCH LLAMA -->
+  <div class="panel">
+    <h2>Launch llama.cpp</h2>
+    <label>model</label>
+    <select id="model"></select>
+    <div class="row">
+      <div><label>port</label><input id="port" value="8080"></div>
+      <div><label>ctx-size</label><input id="ctx" value="8192"></div>
+      <div><label>gpu-layers</label><input id="ngl" value="99"></div>
+    </div>
+    <div class="row">
+      <div><label>parallel</label><input id="parallel" value="1"></div>
+      <div><label>threads (0=auto)</label><input id="threads" value="0"></div>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <label style="flex:0 0 auto"><input type="checkbox" id="flash" checked style="width:auto"> flash-attn</label>
+      <label style="flex:0 0 auto"><input type="checkbox" id="mlock" style="width:auto"> mlock</label>
+      <label style="flex:0 0 auto"><input type="checkbox" id="nommap" style="width:auto"> no-mmap</label>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <button onclick="startLlama()">Start instance</button>
+    </div>
+  </div>
+
+  <!-- PULL MODEL -->
+  <div class="panel">
+    <h2>Pull model</h2>
+    <label>model ref (docker / huggingface)</label>
+    <input id="pullref" placeholder="huggingface.co/owner/repo:Q4_K_M">
+    <div class="row" style="margin-top:8px">
+      <button onclick="pullModel()">docker model pull</button>
+      <span id="pullstate" class="dim"></span>
+    </div>
+    <pre id="pulllog" style="display:none"></pre>
+  </div>
+
+  <!-- INSTANCES -->
+  <div class="panel full">
+    <h2>Running instances</h2>
+    <div id="instances" class="dim">none</div>
+  </div>
+
+  <!-- LOGS -->
+  <div class="panel full">
+    <h2>Logs</h2>
+    <div class="row">
+      <div style="flex:0 0 220px"><select id="logsel"></select></div>
+      <button onclick="loadLog()">refresh</button>
+      <label style="flex:0 0 auto"><input type="checkbox" id="logauto" style="width:auto"> auto</label>
+    </div>
+    <pre id="logout">—</pre>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+function fmtBytes(n){ if(!n) return "0"; const u=["B","K","M","G","T"]; let i=0;
+  while(n>=1024 && i<u.length-1){n/=1024;i++;} return n.toFixed(n<10?1:0)+u[i]; }
+function fmtDur(s){ s=Math.floor(s); const d=Math.floor(s/86400); s%=86400;
+  const h=Math.floor(s/3600); s%=3600; const m=Math.floor(s/60);
+  return (d?d+"d ":"")+(h?h+"h ":"")+m+"m"; }
+function toast(msg,bad){ const t=$("#toast"); t.textContent=msg;
+  t.style.borderColor = bad ? "var(--err)" : "var(--ok)"; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 4000); }
+
+async function api(path, method, body){
+  const opt = {method: method||"GET"};
+  if(body){ opt.headers={"Content-Type":"application/json"}; opt.body=JSON.stringify(body); }
+  const r = await fetch(path, opt);
+  const ct = r.headers.get("content-type")||"";
+  return ct.includes("json") ? r.json() : r.text();
+}
+
+let knownPorts = new Set();
+
+async function refresh(){
+  let m; try { m = await api("/api/metrics"); } catch(e){ return; }
+  const h = m.host || {}, mem = h.memory||{};
+  $("#mem").textContent = `${fmtBytes(mem.used)} / ${fmtBytes(mem.total)} (${mem.used_pct||0}%)`;
+  const mb=$("#membar"); mb.style.width=(mem.used_pct||0)+"%";
+  mb.style.background = mem.used_pct>90?"var(--err)":mem.used_pct>75?"var(--warn)":"var(--acc)";
+  $("#avail").textContent = fmtBytes(mem.available) + " (wired " + fmtBytes(mem.wired) + ")";
+  $("#load").textContent = (h.cpu&&h.cpu.load?h.cpu.load.join("  "):"—") + `  · ${h.cpu?h.cpu.count:"?"} cpu`;
+  $("#uptime").textContent = fmtDur(h.uptime_sec||0);
+  const dk=h.disk||{}; $("#disk").textContent = dk.total?`${fmtBytes(dk.free)} free / ${fmtBytes(dk.total)}`:"—";
+
+  // mode
+  const mode=$("#mode"); const hl=(m.headless&&m.headless.headless);
+  mode.textContent = hl?"HEADLESS":"normal"; mode.className="pill "+(hl?"warnp":"ok");
+
+  // tailscale
+  const ts=m.tailscale||{}; const tb=$("#tsbadge");
+  if(ts.ok){ tb.textContent="tailscale: "+(ts.state||"?"); tb.style.color=ts.state==="Running"?"var(--ok)":"var(--warn)"; }
+  else { tb.textContent="tailscale: down"; tb.style.color="var(--err)"; }
+  $("#tstable").innerHTML = ts.ok
+    ? `<tr><td>state</td><td>${ts.state||"?"}</td></tr>
+       <tr><td>host</td><td>${ts.hostname||"?"}</td></tr>
+       <tr><td>ips</td><td>${(ts.ips||[]).join("<br>")||"—"}</td></tr>
+       <tr><td>online</td><td>${ts.online}</td></tr>
+       <tr><td>peers</td><td>${ts.peers}</td></tr>`
+    : `<tr><td>error</td><td class="err">${ts.error||"?"}</td></tr>`;
+
+  // instances
+  renderInstances(m.instances||[]);
+
+  // pull
+  const ps=m.pull||{};
+  $("#pullstate").textContent = ps.state==="idle" ? "" :
+     `${ps.model}: ${ps.state} (${ps.elapsed}s)`;
+  $("#pullstate").className = ps.state==="error"?"err":ps.state==="done"?"ok":"dim";
+  if(ps.state==="running"){ $("#pulllog").style.display="block";
+     $("#pulllog").textContent = await api("/api/logs?name=pull&lines=40"); }
+
+  if($("#logauto").checked) loadLog();
+}
+
+function renderInstances(list){
+  const el=$("#instances");
+  if(!list.length){ el.innerHTML='<span class="dim">none</span>'; el.className=""; return; }
+  el.className="";
+  el.innerHTML = list.map(i=>{
+    const alive=i.alive;
+    return `<div class="inst"><div class="hd">
+      <span><b>:${i.port}</b> &nbsp; ${i.model}
+        <span class="pill ${alive?'ok':'err'}">${alive?'alive':'dead (rc '+i.returncode+')'}</span></span>
+      <span>
+        <button onclick="api('/api/llama/restart','POST',{port:${i.port}}).then(r=>toast(r.message,!r.ok)).then(refresh)">restart</button>
+        <button class="danger" onclick="api('/api/llama/stop','POST',{port:${i.port}}).then(r=>toast(r.message,!r.ok)).then(refresh)">stop</button>
+      </span></div>
+      <div class="dim" style="margin-top:4px">pid ${i.pid} · up ${fmtDur(i.uptime_sec)} · ctx ${i.args['--ctx-size']||'?'} · ngl ${i.args['--n-gpu-layers']||'?'}</div>
+    </div>`;
+  }).join("");
+  // keep log selector populated
+  const sel=$("#logsel"); const want=["shim","pull",...list.map(i=>"llama-"+i.port)];
+  if(sel.dataset.keys!==want.join()){ sel.dataset.keys=want.join();
+    const cur=sel.value; sel.innerHTML=want.map(k=>`<option>${k}</option>`).join("");
+    if(want.includes(cur)) sel.value=cur; }
+}
+
+async function startLlama(){
+  const args={
+    "--port": $("#port").value, "--ctx-size": $("#ctx").value,
+    "--n-gpu-layers": $("#ngl").value, "--parallel": $("#parallel").value,
+    "--threads": $("#threads").value,
+    "--flash-attn": $("#flash").checked?"on":"off", "--mlock": $("#mlock").checked,
+    "--no-mmap": $("#nommap").checked,
+  };
+  const r=await api("/api/llama/start","POST",{model:$("#model").value,args});
+  toast(r.message, !r.ok); refresh();
+}
+async function pullModel(){
+  const ref=$("#pullref").value.trim(); if(!ref) return toast("enter a model ref",1);
+  const r=await api("/api/models/pull","POST",{model:ref}); toast(r.message,!r.ok);
+}
+async function enterHeadless(){
+  if(!confirm("Stop & disable Docker / LLM Gateway / ollama to free RAM?")) return;
+  const o=$("#headlessout"); o.style.display="block"; o.textContent="working…";
+  const r=await api("/api/headless/enter","POST",{}); o.textContent=r.output||""; toast(r.ok?"entered headless":"failed",!r.ok); refresh();
+}
+async function exitHeadless(){
+  if(!confirm("Re-enable services and REBOOT back to GUI now?")) return;
+  const o=$("#headlessout"); o.style.display="block"; o.textContent="rebooting…";
+  try{ const r=await api("/api/headless/exit","POST",{}); o.textContent=(r.output||"")+"\n"+(r.note||""); }
+  catch(e){ o.textContent="connection dropped — host is rebooting."; }
+}
+async function loadLog(){ const n=$("#logsel").value; if(!n) return;
+  $("#logout").textContent = await api("/api/logs?name="+encodeURIComponent(n)+"&lines=300"); }
+
+async function loadModels(){
+  const m=await api("/api/models"); const sel=$("#model");
+  if(m.ok && m.models.length){ sel.innerHTML=m.models.map(x=>`<option>${x}</option>`).join(""); }
+  else { sel.innerHTML='<option value="">'+(m.error||"no models")+'</option>'; }
+}
+
+setInterval(()=>$("#clock").textContent=new Date().toLocaleTimeString(),1000);
+$("#logsel").onchange=loadLog;
+loadModels(); refresh(); setInterval(refresh, 3000);
+</script>
+</body>
+</html>
