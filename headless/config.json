@@ -1,0 +1,27 @@
+{
+  "host": "0.0.0.0",
+  "port": 8088,
+
+  "llama_server_bin": "/opt/homebrew/bin/llama-server",
+  "docker_bin": "/usr/local/bin/docker",
+  "tailscale_bin": "/opt/homebrew/bin/tailscale",
+
+  "docker_model_store": "~/.docker/models",
+  "log_dir": "~/.local/state/headless-shim/logs",
+
+  "headless_ctl": "headless_ctl.sh",
+  "headless_marker": "~/.headless_mode",
+
+  "llama_defaults": {
+    "--host": "0.0.0.0",
+    "--port": "8080",
+    "--n-gpu-layers": "99",
+    "--ctx-size": "8192",
+    "--threads": "0",
+    "--parallel": "1",
+    "--flash-attn": "on",
+    "--metrics": true,
+    "--no-mmap": false,
+    "--mlock": false
+  }
+}

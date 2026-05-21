@@ -1,0 +1,10 @@
+# Allow the headless shim (running as __USER__) to toggle headless mode and
+# reboot, without an interactive password. This is the entire privileged
+# surface of the shim — a single helper script plus the reboot it performs.
+#
+# Installed to /etc/sudoers.d/headless-shim (mode 0440, root:wheel) by install.sh.
+# Validate with: visudo -cf /etc/sudoers.d/headless-shim
+#
+# The helper is pinned by absolute path; the user may only invoke it with the
+# three known subcommands.
+__USER__ ALL=(root) NOPASSWD: __CTL__ enter, __CTL__ exit, __CTL__ status

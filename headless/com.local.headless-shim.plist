@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchDaemon (not a per-user Agent) so the shim starts at boot with no GUI
+  login. It runs *as the user* (UserName key) so it can manage that user's
+  Docker/launchctl session, and is granted the few privileged commands it
+  needs through /etc/sudoers.d/headless-shim.
+
+  install.sh rewrites the absolute paths below for this machine.
+-->
+<plist version="1.0">
+<dict>
+  <key>Label</key>            <string>com.local.headless-shim</string>
+  <key>UserName</key>         <string>__USER__</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>__SHIM__</string>
+  </array>
+  <key>WorkingDirectory</key> <string>__DIR__</string>
+  <key>RunAtLoad</key>        <true/>
+  <key>KeepAlive</key>        <true/>
+  <key>ThrottleInterval</key> <integer>5</integer>
+  <key>StandardOutPath</key>  <string>__LOGDIR__/shim.log</string>
+  <key>StandardErrorPath</key><string>__LOGDIR__/shim.log</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+</dict>
+</plist>
