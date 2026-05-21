@@ -116,3 +116,5 @@ phase,model,stage,elapsed_s,steps,input_tokens,output_tokens,finish_reason,test_
 9,B_32bcoder,implement,7512.63,40,656506,24878,api_error,,
 1,B_32bcoder16k,implement,440.86,4,18393,1354,done,,
 1,B_32bcoder16k,self_eval,274.92,13,36798,830,done,2,9
+2,B_32bcoder16k,implement,1844.84,80,831582,6764,step_cap,,
+2,B_32bcoder16k,self_eval,66.99,2,4093,79,done,3,21
