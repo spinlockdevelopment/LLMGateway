@@ -52,7 +52,7 @@ LITELLM_KEY = os.environ.get("LITELLM_MASTER_KEY", "sk-gateway-master-change-me"
 
 MODELS = {
     "A": {"display": "Sonnet 4", "litellm_id": "claude-sonnet"},
-    "B": {"display": "local-coding (qwen3.6-35b)", "litellm_id": "local-coding"},
+    "B": {"display": "local-coding", "litellm_id": "local-coding"},
 }
 
 STEP_CAP_IMPLEMENT = 80
@@ -1063,13 +1063,15 @@ def main():
             sys.exit(f"--extra-body-json: not valid JSON: {e}")
     if args.litellm_id:
         # When provided, applies to the model chosen in `phase --model`.
+        # Also update `display` so logs name the model actually being hit (not the
+        # static default), since the printed label reads from `display`.
         target = getattr(args, "model", None)
         if target in ("A", "B"):
-            MODELS[target] = {**MODELS[target], "litellm_id": args.litellm_id}
+            MODELS[target] = {**MODELS[target], "litellm_id": args.litellm_id, "display": args.litellm_id}
         else:
             # Without a specific --model, override both (useful in run-all single-model)
             for k in MODELS:
-                MODELS[k] = {**MODELS[k], "litellm_id": args.litellm_id}
+                MODELS[k] = {**MODELS[k], "litellm_id": args.litellm_id, "display": args.litellm_id}
 
     if args.cmd == "models":
         smoke_test_models()
