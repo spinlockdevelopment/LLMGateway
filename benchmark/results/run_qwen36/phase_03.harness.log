@@ -1,0 +1,8 @@
+
+=== phase 3  model B (qwen3.6-35b-a3b) — implement ===
+  implement: 4 steps, 1414.0s, finish=api_error
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_qwen36/phase_03/tests/
+=== phase 3  model B — self-eval ===
+  self-eval: 40 steps, 622.1s, finish=step_cap
+  pytest: 0 passed, 1 failed
+  ⚠ regressed 17 prior-phase test(s): tests.test_lexer::test_comments_stripped, tests.test_lexer::test_empty_input_just_eof, tests.test_lexer::test_eof_only_once, tests.test_lexer::test_keywords_vs_identifiers, tests.test_lexer::test_let_x_eq_1_plus_2...
