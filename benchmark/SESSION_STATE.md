@@ -3,6 +3,41 @@
 Last updated 2026-05-21. Branch `test/benchmark-tinylang` — **PARKED, will NOT be merged.**
 Working tree clean (everything below is committed on this branch for the record).
 
+## NEXT SESSION — run the benchmark against Qwen3.6-35B-A3B @ 64K (2026-05-22)
+
+**New direction; supersedes the headless-first forward plan below (headless deferred).**
+A new model changes the calculus: **Qwen3.6-35B-A3B** is a hybrid attention+SSM model —
+only ~10 of 40 layers carry a KV cache, so long context is nearly free. Full 256K fits at
+q8_0 on this 32 GB Mac (RSS 23.4 G / wired 26 G), no headless needed. Full headroom + NIAH
+writeup: [[project_qwen36_a3b_256k_headroom]].
+
+DO next session:
+1. **Preflight:** `ls /opt/storage/docker-models` (External2T now auto-mounts at
+   /Volumes/External2T; reading needs Warp Full Disk Access). `sysctl iogpu.wired_limit_mb`
+   → should be `28000` (now persisted via LaunchDaemon `com.local.iogpu-wired-limit`).
+2. **Launch model, headed, single slot, 64K ctx:**
+   ```
+   MODEL=/opt/storage/docker-models/blobs/sha256/ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61
+   llama-server -m "$MODEL" -a qwen3.6-35b-a3b --host 127.0.0.1 --port 8083 \
+     --parallel 1 -c 65536 -fa on -ctk q8_0 -ctv q8_0 -ngl 999 --jinja
+   ```
+   **Why 64K not 256K:** per-token speed is the same regardless of *allocated* ctx (unused
+   context is free on speed) — but a 256K KV reserves 2.7 GiB upfront vs 680 MiB at 64K, and
+   memory pressure is exactly what throttled past runs. 64K also fixes the old 16K overflow
+   (convos hit ~16.7K tokens by phase 3). 64K = enough headroom, lowest pressure. Bump only
+   if a phase overflows 64K.
+3. **Driver:** copy `run_32bcoder16k_1_to_3.sh` → `run_qwen36_1_to_12.sh`; set
+   `LITELLM_URL=http://127.0.0.1:8083/v1`, `LITELLM_ID=qwen3.6-35b-a3b`, `tool_choice=required`
+   via `--extra-body-json`, per-phase commits, `max_tokens >= 4096`
+   (see [[project_tinylang_bench_pitfalls]]).
+4. **Watch for parser-500s:** this is a thinking model (`<think>`/`reasoning_content`) with a
+   custom tool-call template; we saw occasional 500 "Failed to parse input" from `--jinja`.
+   Same failure class that aborted the qwen3-14b run.
+
+Throughput at the few-K–to-~16K contexts the benchmark actually uses: ~150–210 t/s prefill,
+~13–16 t/s gen. (Only collapses to 31–79 t/s when context is *filled* to 128K, which the
+benchmark won't do.)
+
 ## Status one-liner — branch parked
 
 This branch holds 5 benchmark runs (see "Runs on the books"). The local-model story is now
