@@ -1,0 +1,49 @@
+{
+  "phase": 2,
+  "model": "B_qwen36",
+  "workdir": "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_qwen36/phase_02",
+  "implement": {
+    "elapsed_s": 778.8786733150482,
+    "steps": 4,
+    "input_tokens": 17169,
+    "output_tokens": 330,
+    "finish_reason": "api_error",
+    "done_payload": null,
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_02_B_implement.json"
+  },
+  "self_eval": {
+    "elapsed_s": 2481.3538811206818,
+    "steps": 26,
+    "input_tokens": 202153,
+    "output_tokens": 6979,
+    "finish_reason": "api_error",
+    "done_payload": null,
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_02_B_selfeval.json"
+  },
+  "final_tests": {
+    "returncode": 1,
+    "passed": 17,
+    "failed": 7,
+    "passed_ids": [
+      "tests.test_lexer::test_comments_stripped",
+      "tests.test_lexer::test_empty_input_just_eof",
+      "tests.test_lexer::test_eof_only_once",
+      "tests.test_lexer::test_keywords_vs_identifiers",
+      "tests.test_lexer::test_let_x_eq_1_plus_2",
+      "tests.test_lexer::test_line_col_tracking",
+      "tests.test_lexer::test_multi_char_punct",
+      "tests.test_lexer::test_number_and_float",
+      "tests.test_lexer::test_single_char_punct_after_multi",
+      "tests.test_lexer::test_string_escapes",
+      "tests.test_lexer::test_unknown_char_errors",
+      "tests.test_parser::test_assign_to_index",
+      "tests.test_parser::test_call_and_index_chain",
+      "tests.test_parser::test_comparison_and_logical",
+      "tests.test_parser::test_invalid_assign_target_raises",
+      "tests.test_parser::test_let_stmt",
+      "tests.test_parser::test_precedence_mul_before_add"
+    ],
+    "stdout_tail": "n\n    left = self.parse_unary()\n           ^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:246: in parse_unary\n    return self.parse_primary_with_postfix()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:380: in parse_primary_with_postfix\n    raise ParseError(\nE   tinylang.parser.ParseError: line 1, col 17: unexpected token: }\n__________________________ test_else_if_chain_parses ___________________________\ntests/test_parser.py:112: in test_else_if_chain_parses\n    p = parse(\"if (a) { } else if (b) { } else { }\")\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:419: in parse\n    return parser.parse_program()\n           ^^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:65: in parse_program\n    stmts.append(self.parse_stmt())\n                 ^^^^^^^^^^^^^^^^^\ntinylang/parser.py:74: in parse_stmt\n    return self.parse_if_stmt()\n           ^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:103: in parse_if_stmt\n    then_block = self.parse_block()\n                 ^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:177: in parse_block\n    stmts.append(self.parse_stmt())\n                 ^^^^^^^^^^^^^^^^^\ntinylang/parser.py:88: in parse_stmt\n    return self.parse_expr_stmt()\n           ^^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:168: in parse_expr_stmt\n    expr = self.parse_expr()\n           ^^^^^^^^^^^^^^^^^\ntinylang/parser.py:184: in parse_expr\n    return self.parse_assign()\n           ^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:187: in parse_assign\n    left = self.parse_or()\n           ^^^^^^^^^^^^^^^\ntinylang/parser.py:202: in parse_or\n    left = self.parse_and()\n           ^^^^^^^^^^^^^^^^\ntinylang/parser.py:210: in parse_and\n    left = self.parse_comparison()\n           ^^^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:218: in parse_comparison\n    left = self.parse_addition()\n           ^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:226: in parse_addition\n    left = self.parse_multiplication()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:234: in parse_multiplication\n    left = self.parse_unary()\n           ^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:246: in parse_unary\n    return self.parse_primary_with_postfix()\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntinylang/parser.py:380: in parse_primary_with_postfix\n    raise ParseError(\nE   tinylang.parser.ParseError: line 1, col 10: unexpected token: }\n=========================== short test summary info ============================\nFAILED tests/test_parser.py::test_if_else - tinylang.parser.ParseError: line ...\nFAILED tests/test_parser.py::test_while_with_break_continue - tinylang.parser...\nFAILED tests/test_parser.py::test_fn_decl_is_fndecl_not_letstmt - tinylang.pa...\nFAILED tests/test_parser.py::test_fn_lit_in_let - tinylang.parser.ParseError:...\nFAILED tests/test_parser.py::test_list_and_dict_literals - tinylang.parser.Pa...\nFAILED tests/test_parser.py::test_for_stmt_one_and_two_names - tinylang.parse...\nFAILED tests/test_parser.py::test_else_if_chain_parses - tinylang.parser.Pars...\n7 failed, 17 passed in 0.25s\n",
+    "stderr_tail": ""
+  }
+}

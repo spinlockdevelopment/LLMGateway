@@ -1,0 +1,402 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="7" skipped="0" tests="24" time="0.246" timestamp="2026-05-22T16:17:11.972031-04:00" hostname="llmgateway"><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000" /><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000" /><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000" /><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000" /><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000" /><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000" /><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000" /><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000" /><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000" /><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000" /><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000" /><testcase classname="tests.test_parser" name="test_let_stmt" time="0.000" /><testcase classname="tests.test_parser" name="test_precedence_mul_before_add" time="0.000" /><testcase classname="tests.test_parser" name="test_comparison_and_logical" time="0.000" /><testcase classname="tests.test_parser" name="test_if_else" time="0.000"><failure message="tinylang.parser.ParseError: line 1, col 21: unexpected token: }">tests/test_parser.py:39: in test_if_else
+    p = parse("if (x) { let a = 1; } else { let b = 2; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:419: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:65: in parse_program
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:74: in parse_stmt
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:103: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:177: in parse_block
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:88: in parse_stmt
+    return self.parse_expr_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:168: in parse_expr_stmt
+    expr = self.parse_expr()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:184: in parse_expr
+    return self.parse_assign()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:187: in parse_assign
+    left = self.parse_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:202: in parse_or
+    left = self.parse_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:210: in parse_and
+    left = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:218: in parse_comparison
+    left = self.parse_addition()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:226: in parse_addition
+    left = self.parse_multiplication()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:234: in parse_multiplication
+    left = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:246: in parse_unary
+    return self.parse_primary_with_postfix()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:380: in parse_primary_with_postfix
+    raise ParseError(
+E   tinylang.parser.ParseError: line 1, col 21: unexpected token: }</failure></testcase><testcase classname="tests.test_parser" name="test_while_with_break_continue" time="0.000"><failure message="tinylang.parser.ParseError: line 1, col 30: unexpected token: }">tests/test_parser.py:47: in test_while_with_break_continue
+    p = parse("while (x) { break; continue; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:419: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:65: in parse_program
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:76: in parse_stmt
+    return self.parse_while_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:118: in parse_while_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:177: in parse_block
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:88: in parse_stmt
+    return self.parse_expr_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:168: in parse_expr_stmt
+    expr = self.parse_expr()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:184: in parse_expr
+    return self.parse_assign()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:187: in parse_assign
+    left = self.parse_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:202: in parse_or
+    left = self.parse_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:210: in parse_and
+    left = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:218: in parse_comparison
+    left = self.parse_addition()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:226: in parse_addition
+    left = self.parse_multiplication()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:234: in parse_multiplication
+    left = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:246: in parse_unary
+    return self.parse_primary_with_postfix()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:380: in parse_primary_with_postfix
+    raise ParseError(
+E   tinylang.parser.ParseError: line 1, col 30: unexpected token: }</failure></testcase><testcase classname="tests.test_parser" name="test_fn_decl_is_fndecl_not_letstmt" time="0.000"><failure message="tinylang.parser.ParseError: line 1, col 30: unexpected token: }">tests/test_parser.py:55: in test_fn_decl_is_fndecl_not_letstmt
+    p = parse("fn add(a, b) { return a + b; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:419: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:65: in parse_program
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:80: in parse_stmt
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:146: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:177: in parse_block
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:88: in parse_stmt
+    return self.parse_expr_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:168: in parse_expr_stmt
+    expr = self.parse_expr()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:184: in parse_expr
+    return self.parse_assign()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:187: in parse_assign
+    left = self.parse_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:202: in parse_or
+    left = self.parse_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:210: in parse_and
+    left = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:218: in parse_comparison
+    left = self.parse_addition()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:226: in parse_addition
+    left = self.parse_multiplication()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:234: in parse_multiplication
+    left = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:246: in parse_unary
+    return self.parse_primary_with_postfix()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:380: in parse_primary_with_postfix
+    raise ParseError(
+E   tinylang.parser.ParseError: line 1, col 30: unexpected token: }</failure></testcase><testcase classname="tests.test_parser" name="test_fn_lit_in_let" time="0.000"><failure message="tinylang.parser.ParseError: line 1, col 27: unexpected token: }">tests/test_parser.py:65: in test_fn_lit_in_let
+    p = parse("let f = fn(x) { return x; };")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:419: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:65: in parse_program
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:72: in parse_stmt
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:94: in parse_let_stmt
+    value = self.parse_expr()
+            ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:184: in parse_expr
+    return self.parse_assign()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:187: in parse_assign
+    left = self.parse_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:202: in parse_or
+    left = self.parse_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:210: in parse_and
+    left = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:218: in parse_comparison
+    left = self.parse_addition()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:226: in parse_addition
+    left = self.parse_multiplication()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:234: in parse_multiplication
+    left = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:246: in parse_unary
+    return self.parse_primary_with_postfix()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:374: in parse_primary_with_postfix
+    node = self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:339: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:177: in parse_block
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:88: in parse_stmt
+    return self.parse_expr_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:168: in parse_expr_stmt
+    expr = self.parse_expr()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:184: in parse_expr
+    return self.parse_assign()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:187: in parse_assign
+    left = self.parse_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:202: in parse_or
+    left = self.parse_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:210: in parse_and
+    left = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:218: in parse_comparison
+    left = self.parse_addition()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:226: in parse_addition
+    left = self.parse_multiplication()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:234: in parse_multiplication
+    left = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:246: in parse_unary
+    return self.parse_primary_with_postfix()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:380: in parse_primary_with_postfix
+    raise ParseError(
+E   tinylang.parser.ParseError: line 1, col 27: unexpected token: }</failure></testcase><testcase classname="tests.test_parser" name="test_list_and_dict_literals" time="0.000"><failure message="tinylang.parser.ParseError: line 1, col 19: unexpected token: ]">tests/test_parser.py:72: in test_list_and_dict_literals
+    p = parse('let xs = [1, 2, 3,]; let d = {"a": 1, "b": 2};')
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:419: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:65: in parse_program
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:72: in parse_stmt
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:94: in parse_let_stmt
+    value = self.parse_expr()
+            ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:184: in parse_expr
+    return self.parse_assign()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:187: in parse_assign
+    left = self.parse_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:202: in parse_or
+    left = self.parse_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:210: in parse_and
+    left = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:218: in parse_comparison
+    left = self.parse_addition()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:226: in parse_addition
+    left = self.parse_multiplication()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:234: in parse_multiplication
+    left = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:246: in parse_unary
+    return self.parse_primary_with_postfix()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:370: in parse_primary_with_postfix
+    node = self.parse_list_lit()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:306: in parse_list_lit
+    items.append(self.parse_expr())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:184: in parse_expr
+    return self.parse_assign()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:187: in parse_assign
+    left = self.parse_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:202: in parse_or
+    left = self.parse_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:210: in parse_and
+    left = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:218: in parse_comparison
+    left = self.parse_addition()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:226: in parse_addition
+    left = self.parse_multiplication()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:234: in parse_multiplication
+    left = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:246: in parse_unary
+    return self.parse_primary_with_postfix()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:380: in parse_primary_with_postfix
+    raise ParseError(
+E   tinylang.parser.ParseError: line 1, col 19: unexpected token: ]</failure></testcase><testcase classname="tests.test_parser" name="test_call_and_index_chain" time="0.000" /><testcase classname="tests.test_parser" name="test_assign_to_index" time="0.000" /><testcase classname="tests.test_parser" name="test_invalid_assign_target_raises" time="0.000" /><testcase classname="tests.test_parser" name="test_for_stmt_one_and_two_names" time="0.000"><failure message="tinylang.parser.ParseError: line 1, col 17: unexpected token: }">tests/test_parser.py:102: in test_for_stmt_one_and_two_names
+    p1 = parse("for (x) in xs { }")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:419: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:65: in parse_program
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:78: in parse_stmt
+    return self.parse_for_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:132: in parse_for_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:177: in parse_block
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:88: in parse_stmt
+    return self.parse_expr_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:168: in parse_expr_stmt
+    expr = self.parse_expr()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:184: in parse_expr
+    return self.parse_assign()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:187: in parse_assign
+    left = self.parse_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:202: in parse_or
+    left = self.parse_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:210: in parse_and
+    left = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:218: in parse_comparison
+    left = self.parse_addition()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:226: in parse_addition
+    left = self.parse_multiplication()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:234: in parse_multiplication
+    left = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:246: in parse_unary
+    return self.parse_primary_with_postfix()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:380: in parse_primary_with_postfix
+    raise ParseError(
+E   tinylang.parser.ParseError: line 1, col 17: unexpected token: }</failure></testcase><testcase classname="tests.test_parser" name="test_else_if_chain_parses" time="0.000"><failure message="tinylang.parser.ParseError: line 1, col 10: unexpected token: }">tests/test_parser.py:112: in test_else_if_chain_parses
+    p = parse("if (a) { } else if (b) { } else { }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:419: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:65: in parse_program
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:74: in parse_stmt
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:103: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:177: in parse_block
+    stmts.append(self.parse_stmt())
+                 ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:88: in parse_stmt
+    return self.parse_expr_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:168: in parse_expr_stmt
+    expr = self.parse_expr()
+           ^^^^^^^^^^^^^^^^^
+tinylang/parser.py:184: in parse_expr
+    return self.parse_assign()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:187: in parse_assign
+    left = self.parse_or()
+           ^^^^^^^^^^^^^^^
+tinylang/parser.py:202: in parse_or
+    left = self.parse_and()
+           ^^^^^^^^^^^^^^^^
+tinylang/parser.py:210: in parse_and
+    left = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:218: in parse_comparison
+    left = self.parse_addition()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:226: in parse_addition
+    left = self.parse_multiplication()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:234: in parse_multiplication
+    left = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:246: in parse_unary
+    return self.parse_primary_with_postfix()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:380: in parse_primary_with_postfix
+    raise ParseError(
+E   tinylang.parser.ParseError: line 1, col 10: unexpected token: }</failure></testcase></testsuite></testsuites>
