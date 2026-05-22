@@ -1,0 +1,7 @@
+
+=== phase 1  model B (qwen3.6-35b-a3b) — implement ===
+  implement: 9 steps, 273.5s, finish=done
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_qwen36/phase_01/tests/
+=== phase 1  model B — self-eval ===
+  self-eval: 14 steps, 102.1s, finish=done
+  pytest: 11 passed, 0 failed
