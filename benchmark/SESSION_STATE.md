@@ -1,8 +1,57 @@
 # Benchmark session state — handoff doc
 
-Last updated 2026-05-23. Branch `test/benchmark-tinylang` — **PARKED, will NOT be merged.**
+Last updated 2026-05-23 (late). Branch `test/benchmark-tinylang` — **PARKED, will NOT be merged.**
 
-## NEXT SESSION — re-run Qwen3.6-35B-A3B @ 64K with thinking OFF + per-phase fix iteration (B_qwen36_iter)
+## NEXT SESSION — try Gemma4-27B-E4B before escalating to headless
+
+Two Qwen3.6-35B-A3B runs both ended at 11/116. They bracket the parser-500 / planning
+trade-off:
+
+- **Run 6 (B_qwen36, thinking ON, max_tokens=4096):** every phase 2–12 died with
+  `peg-native` 500 from `<think>` exhausting the budget and tool-call XML truncating.
+  Writeup: `results/run_qwen36.md`.
+- **Run 7 (B_qwen36_iter, thinking OFF, max_tokens=8192, iterating driver):** zero
+  parser-500s, but the model can't plan — degenerated into repetitive `run_bash`
+  loops, **wrote zero files after phase 1**, never called `done`. Phase 2 implement
+  ran the IDENTICAL `find ... test_*` command 54/80 steps. Stopped by user at
+  phase 8. Writeup: `results/run_qwen36_iter.md`.
+
+The user's directive (2026-05-23): try **Gemma4-27B-E4B** before going headless. The
+27B / E4B (~4B active) class may handle the agent loop without the thinking-vs-truncation
+trap. Headless SSH (procedure preserved in the section below) is held in reserve for if
+Gemma also struggles.
+
+DO next session:
+1. Find / pull the Gemma4-27B-E4B GGUF (check `/opt/storage/docker-models/blobs/sha256/`
+   first; if absent, decide between docker-model-runner pull, HF download, or a
+   different quant). Note the blob path.
+2. Stop the still-running qwen llama-server (pid 19406 at last check, port 8083 — was
+   left up at stop for query convenience).
+3. Launch llama-server with Gemma. Suggested starting flags:
+   ```
+   llama-server -m <gemma blob> -a gemma4-27b-e4b --host 127.0.0.1 --port 8083 \
+     --parallel 1 -c 65536 -fa on -ctk q8_0 -ctv q8_0 -ngl 999 --jinja
+   ```
+   Verify `Chat format:` line in server log — if it's NOT `peg-native`, the
+   truncation-500 risk disappears entirely. If it IS peg-native, keep `max_tokens`
+   generous (8192+) and watch for the same failure class.
+4. Copy `run_qwen36_iter_1_to_12.sh` → `run_gemma4_1_to_12.sh`; change
+   `LITELLM_ID=gemma4-27b-e4b`, `SUFFIX=_gemma4`, `LABEL=B_gemma4`,
+   EXTRA_BODY back to `'{"tool_choice":"required"}'` (no `enable_thinking` flag —
+   Gemma is not a `<think>` model, so the qwen pitfall doesn't apply).
+5. Reuse the iterating fix loop — it's model-agnostic.
+6. Smoke-test tool-call grammar AND a large write (~10K chars) before launching the
+   full 12-phase run; we now know the small-`ls` smoke test hides real issues.
+
+If Gemma also stalls, then go headless via SSH per the procedure below.
+
+## Runs on the books — quick recap
+
+- Run 6 B_qwen36 (thinking on, mt=4096): 11/116, all parser-500s. `results/run_qwen36.md`.
+- Run 7 B_qwen36_iter (thinking off, mt=8192, iterating): 11/116, planning collapse.
+  `results/run_qwen36_iter.md`.
+
+## (Older) NEXT SESSION — re-run Qwen3.6-35B-A3B @ 64K with thinking OFF + per-phase fix iteration (B_qwen36_iter)
 
 Run 6 (B_qwen36) completed 2026-05-22 → -23, 8h42m wall, 12 phases committed. Result:
 **11/116 effective**. Phase 1 clean (11/11). Phases 2–12 all died from one failure class:
