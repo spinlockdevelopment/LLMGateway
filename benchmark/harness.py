@@ -667,6 +667,53 @@ def selfeval_user_prompt(phase: int, label: str = "") -> str:
     return base
 
 
+FIX_SYSTEM = """You are an autonomous coding agent FIXING one phase of the tinylang
+interpreter benchmark. The acceptance tests are already in tests/ and a prior pass
+left some failing. Your sole job is to make more of them pass without expanding scope
+beyond this phase.
+
+Run `pytest -q tests/` via run_bash to see the current state. Investigate failures,
+fix root causes (prefer minimal targeted edits over rewrites), re-run. Prior-phase
+regressions take priority over new failures.
+
+Stop when either (a) all tests pass, or (b) you've made your best attempt this
+iteration. Call done(summary) including the final pass/fail counts you observed.
+
+Do not write debug scripts at the workdir root — only `tests/` is graded.
+"""
+
+
+def fix_user_prompt(phase: int, label: str, prior_pytest: dict | None = None,
+                   attempt: int = 1) -> str:
+    base = (
+        f"## Phase {phase} brief (for reference)\n\n{read_brief(phase)}\n\n"
+        f"## Iteration {attempt}\n\n"
+        "A prior pass already attempted this phase and left tests failing. "
+        "Your task is to fix what you can in this iteration. Run pytest, "
+        "investigate, edit, re-run.\n"
+    )
+    if prior_pytest:
+        p = prior_pytest.get("passed", 0)
+        f_ = prior_pytest.get("failed", 0)
+        base += (
+            f"\n## Pytest before this iteration: {p} passed, {f_} failed.\n"
+        )
+    if label:
+        prior = load_prior_baseline(label, phase)
+        if prior:
+            shown = prior[:200]
+            base += (
+                f"\n## Regression baseline — {len(prior)} tests passed at end of "
+                f"phase {phase-1}\n\nThese must still pass. Regressions take "
+                "priority over new-phase failures.\n\n"
+            )
+            for tid in shown:
+                base += f"- {tid}\n"
+            if len(prior) > len(shown):
+                base += f"- ... and {len(prior) - len(shown)} more\n"
+    return base
+
+
 def crosseval_user_prompt(phase: int) -> str:
     return (
         "## Overall brief\n\n"
@@ -897,6 +944,87 @@ def run_phase_for_model(phase: int, model_key: str) -> dict:
     return record
 
 
+def run_fix_for_model(phase: int, model_key: str, attempt: int) -> dict:
+    """Re-run a selfeval-style loop on an EXISTING phase workdir.
+
+    Does NOT re-prepare the workdir, does NOT re-drop the tests/. Runs another
+    tool loop with a prompt that tells the model the prior pass left tests
+    failing and asks it to fix more this iteration. Records timings with stage
+    "fix_K" where K is `attempt`. Updates the regression baseline AND the
+    self_eval JSON in place.
+
+    Caller (the driver) is responsible for the iterate-while-progress loop
+    and for stopping when pass count plateaus.
+    """
+    model = MODELS[model_key]
+    label = label_for(model_key)
+    wd = phase_workdir(model_key, phase)
+    if not wd.exists():
+        raise SystemExit(f"fix: workdir does not exist (run `phase` first): {wd}")
+
+    # Read prior pytest from the most recent self_eval record for this phase.
+    prior_pytest = None
+    rec_path = RESULTS / "self_eval" / label / f"phase_{phase:02d}.json"
+    if rec_path.exists():
+        try:
+            prior_record = json.loads(rec_path.read_text())
+            prior_pytest = prior_record.get("final_tests")
+        except Exception:
+            prior_record = {}
+    else:
+        prior_record = {}
+
+    print(f"\n=== phase {phase}  model {model_key} ({model['display']}) — fix attempt {attempt} ===", flush=True)
+    transcript = TRANSCRIPTS / f"phase_{phase:02d}_{model_key}_fix_{attempt:02d}.json"
+    res = run_tool_loop(
+        model_id=model["litellm_id"],
+        system_prompt=FIX_SYSTEM,
+        user_prompt=fix_user_prompt(phase, label=label, prior_pytest=prior_pytest, attempt=attempt),
+        workdir=wd,
+        cap=STEP_CAP_SELFEVAL,
+        readonly=False,
+        transcript_path=transcript,
+        allow_done=True,
+    )
+    print(f"  fix#{attempt}: {res.steps} steps, {res.elapsed_s:.1f}s, finish={res.finish_reason}")
+
+    final = run_final_pytest(wd, junit_path=junit_path_for(label, phase))
+    print(f"  pytest after fix#{attempt}: {final['passed']} passed, {final['failed']} failed")
+    save_baseline(label, phase, final.get("passed_ids") or [])
+
+    prior_passed = set(load_prior_baseline(label, phase))
+    now_passed = set(final.get("passed_ids") or [])
+    regressed = sorted(prior_passed - now_passed)
+    if regressed:
+        print(f"  ⚠ regressed {len(regressed)} prior-phase test(s): "
+              f"{', '.join(regressed[:5])}{'...' if len(regressed) > 5 else ''}", flush=True)
+
+    append_timing(phase=phase, model=label, stage=f"fix_{attempt:02d}",
+                  elapsed=res.elapsed_s, steps=res.steps,
+                  in_tok=res.input_tokens, out_tok=res.output_tokens,
+                  finish=res.finish_reason,
+                  passed=final["passed"], failed=final["failed"])
+
+    fixes = prior_record.get("fixes") or []
+    fixes.append({
+        "attempt": attempt,
+        "elapsed_s": res.elapsed_s, "steps": res.steps,
+        "input_tokens": res.input_tokens, "output_tokens": res.output_tokens,
+        "finish_reason": res.finish_reason, "done_payload": res.done_payload,
+        "transcript": str(res.transcript_path),
+        "pytest": final,
+    })
+    prior_record["fixes"] = fixes
+    prior_record["final_tests"] = final
+    rec_path.parent.mkdir(parents=True, exist_ok=True)
+    rec_path.write_text(json.dumps(prior_record, indent=2, default=str))
+    return {
+        "phase": phase, "attempt": attempt,
+        "elapsed_s": res.elapsed_s, "steps": res.steps,
+        "finish_reason": res.finish_reason, "pytest": final,
+    }
+
+
 def cross_eval_one_direction(reviewer_key: str, target_key: str, phase: int) -> dict:
     reviewer = MODELS[reviewer_key]
     target_wd = phase_workdir(target_key, phase)
@@ -1036,6 +1164,13 @@ def main():
     p_phase.add_argument("--num", type=int, required=True)
     p_phase.add_argument("--model", choices=["A", "B", "both"], default="both")
 
+    p_fix = sub.add_parser("fix",
+        help="re-run selfeval-style on EXISTING phase workdir (no re-implement)")
+    p_fix.add_argument("--num", type=int, required=True)
+    p_fix.add_argument("--model", choices=["A", "B"], default="B")
+    p_fix.add_argument("--attempt", type=int, required=True,
+                       help="iteration number K — used in transcript filename + timing stage fix_KK")
+
     p_cross = sub.add_parser("cross-eval", help="cross-evaluate one phase")
     p_cross.add_argument("--phase", type=int, required=True)
 
@@ -1081,6 +1216,10 @@ def main():
         keys = ["A", "B"] if args.model == "both" else [args.model]
         for k in keys:
             run_phase_for_model(args.num, k)
+        return
+
+    if args.cmd == "fix":
+        run_fix_for_model(args.num, args.model, args.attempt)
         return
 
     if args.cmd == "cross-eval":

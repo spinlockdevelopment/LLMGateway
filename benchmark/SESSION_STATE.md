@@ -1,42 +1,95 @@
 # Benchmark session state — handoff doc
 
-Last updated 2026-05-21. Branch `test/benchmark-tinylang` — **PARKED, will NOT be merged.**
-Working tree clean (everything below is committed on this branch for the record).
+Last updated 2026-05-23. Branch `test/benchmark-tinylang` — **PARKED, will NOT be merged.**
 
-## NEXT SESSION — run the benchmark against Qwen3.6-35B-A3B @ 64K (2026-05-22)
+## NEXT SESSION — re-run Qwen3.6-35B-A3B @ 64K with thinking OFF + per-phase fix iteration (B_qwen36_iter)
 
-**New direction; supersedes the headless-first forward plan below (headless deferred).**
-A new model changes the calculus: **Qwen3.6-35B-A3B** is a hybrid attention+SSM model —
-only ~10 of 40 layers carry a KV cache, so long context is nearly free. Full 256K fits at
-q8_0 on this 32 GB Mac (RSS 23.4 G / wired 26 G), no headless needed. Full headroom + NIAH
-writeup: [[project_qwen36_a3b_256k_headroom]].
+Run 6 (B_qwen36) completed 2026-05-22 → -23, 8h42m wall, 12 phases committed. Result:
+**11/116 effective**. Phase 1 clean (11/11). Phases 2–12 all died from one failure class:
+`peg-native` parser-500 — `max_tokens=4096` is consumed by the thinking model's `<think>`
+block, the trailing tool-call XML gets cut off mid-tag at ~12.6–16.4K bytes of output,
+and the server's `peg-native` parser 500s on truncated input instead of returning
+`finish_reason="length"`. Phase 2's selfeval wrote a partial parser.py before its own
+500, which then poisoned every later phase's seed → 0/0/0/… cascade. Full writeup:
+`results/run_qwen36.md`. Pitfall memo updated: [[project_tinylang_bench_pitfalls]] #4.
+
+**Re-run setup is on disk, ready to launch:**
+
+- Server (same launch as last time, still healthy):
+  ```
+  MODEL=/opt/storage/docker-models/blobs/sha256/ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61
+  llama-server -m "$MODEL" -a qwen3.6-35b-a3b --host 127.0.0.1 --port 8083 \
+    --parallel 1 -c 65536 -fa on -ctk q8_0 -ctv q8_0 -ngl 999 --jinja
+  ```
+- Driver: `benchmark/run_qwen36_iter_1_to_12.sh` (label `B_qwen36_iter`, suffix
+  `_qwen36_iter`). Key differences vs `run_qwen36_1_to_12.sh`:
+  - `EXTRA_BODY='{"tool_choice":"required","chat_template_kwargs":{"enable_thinking":false}}'`
+    — pitfall #2's escape hatch: disables `<think>` emission so the `max_tokens` budget
+    is spent on the tool call, not reasoning. Smoke-tested against the live server on
+    2026-05-23: zero `<think>`, clean tool calls, 2.5K-byte writes — well under the
+    ~13K-byte peg-native threshold.
+  - `MAX_TOKENS=8192` belt-and-suspenders for legitimately long writes.
+  - Fresh `ModelB_qwen36_iter/` root so the prior poisoned seed cannot leak.
+  - **Iterates per-phase fix attempts while pass count strictly increases**, stops on
+    no-progress (cap `MAX_FIX=4`). Per-iteration wall time + pass count recorded in
+    `results/run_qwen36_iter/iterations.tsv` AND `results/timings.csv`
+    (stages: `phase`, `self_eval`, `fix_01`, `fix_02`, ...).
+- Harness change: new `fix` subcommand (`python harness.py fix --num N --model B --attempt K`)
+  runs a selfeval-style tool loop on the EXISTING phase workdir (no re-implement, no
+  test-redrop), re-runs pytest, updates baseline + self_eval JSON, records timing as
+  `fix_KK`. Same `--label`, `--workdir-suffix`, `--extra-body-json` flags as `phase`.
 
 DO next session:
-1. **Preflight:** `ls /opt/storage/docker-models` (External2T now auto-mounts at
-   /Volumes/External2T; reading needs Warp Full Disk Access). `sysctl iogpu.wired_limit_mb`
-   → should be `28000` (now persisted via LaunchDaemon `com.local.iogpu-wired-limit`).
-2. **Launch model, headed, single slot, 64K ctx:**
-   ```
-   MODEL=/opt/storage/docker-models/blobs/sha256/ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61
-   llama-server -m "$MODEL" -a qwen3.6-35b-a3b --host 127.0.0.1 --port 8083 \
-     --parallel 1 -c 65536 -fa on -ctk q8_0 -ctv q8_0 -ngl 999 --jinja
-   ```
-   **Why 64K not 256K:** per-token speed is the same regardless of *allocated* ctx (unused
-   context is free on speed) — but a 256K KV reserves 2.7 GiB upfront vs 680 MiB at 64K, and
-   memory pressure is exactly what throttled past runs. 64K also fixes the old 16K overflow
-   (convos hit ~16.7K tokens by phase 3). 64K = enough headroom, lowest pressure. Bump only
-   if a phase overflows 64K.
-3. **Driver:** copy `run_32bcoder16k_1_to_3.sh` → `run_qwen36_1_to_12.sh`; set
-   `LITELLM_URL=http://127.0.0.1:8083/v1`, `LITELLM_ID=qwen3.6-35b-a3b`, `tool_choice=required`
-   via `--extra-body-json`, per-phase commits, `max_tokens >= 4096`
-   (see [[project_tinylang_bench_pitfalls]]).
-4. **Watch for parser-500s:** this is a thinking model (`<think>`/`reasoning_content`) with a
-   custom tool-call template; we saw occasional 500 "Failed to parse input" from `--jinja`.
-   Same failure class that aborted the qwen3-14b run.
+1. Preflight (same as before — `sysctl iogpu.wired_limit_mb` = 28000, blob present, port 8083
+   free).
+2. Launch llama-server with the command above.
+3. `cd benchmark && ./run_qwen36_iter_1_to_12.sh` (or in background with `nohup`).
+4. Watch: `tail -f /tmp/run_qwen36_iter_driver.log` + `git log --oneline | head`
+   (commits are tagged `B_qwen36_iter phase NN`).
 
-Throughput at the few-K–to-~16K contexts the benchmark actually uses: ~150–210 t/s prefill,
-~13–16 t/s gen. (Only collapses to 31–79 t/s when context is *filled* to 128K, which the
-benchmark won't do.)
+**If parser-500s STILL appear** (e.g. on phases 8–12 with legitimately long writes
+producing >13K-byte outputs even without thinking), the next escalation is **headless
+via SSH (GUI on, no user logged in)** — see "Headless SSH fallback" section below.
+The bigger context window option is `-c 131072`; the hybrid SSM model has the headroom
+(see [[project_qwen36_a3b_256k_headroom]]), but the binding constraint is `peg-native`
+parser fragility, not ctx — so just bumping ctx won't help. The right escalation is to
+free up RAM (headless), then bump `max_tokens` further if the run shows it's needed.
+
+### Headless SSH fallback (next-after-next move)
+
+Goal: keep llama-server able to grow `max_tokens` and KV without macOS GUI/Docker eating
+wired RAM. Don't fully shut down loginwindow (we still want SSH + screen-on UI for sanity);
+just stop the *interactive user session* so WindowServer compositing + Dock + Spotlight +
+all userland apps are not loaded.
+
+1. Pre-arrange: ensure SSH server is on (`sudo systemsetup -setremotelogin on`),
+   confirm `ssh llmadmin@<box>` works from a second machine BEFORE you log out.
+2. Stop anything memory-heavy now: kill Docker Desktop (the VM is ~6 GiB wired), close
+   Warp/Chrome/etc.
+3. Log out of the active GUI session (Apple menu → Log Out). This leaves the system at
+   the loginwindow screen; no user is logged in but the OS is up. WindowServer overhead
+   drops dramatically (the per-user GUI session is what's costly, not the login screen).
+4. From the second machine, `ssh llmadmin@<box>`. From there:
+   ```
+   sysctl iogpu.wired_limit_mb       # should still report 28000 (persisted LaunchDaemon)
+   cd ~/src/LLMGateway/benchmark
+   MODEL=/opt/storage/docker-models/blobs/sha256/ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61
+   nohup llama-server -m "$MODEL" -a qwen3.6-35b-a3b --host 127.0.0.1 --port 8083 \
+     --parallel 1 -c 131072 -fa on -ctk q8_0 -ctv q8_0 -ngl 999 --jinja \
+     > /tmp/llama_qwen36_headless.log 2>&1 &
+   ```
+   Note `-c 131072` to give plenty of room and to test whether 128K behaves as headroom
+   predicts; bump back down only if memory pressure resurfaces.
+5. Launch the iterating driver the same way: `nohup ./run_qwen36_iter_1_to_12.sh > /tmp/run_qwen36_iter.log 2>&1 &`.
+6. Detach the ssh session with `screen` / `tmux` (or just keep the ssh open while the
+   second box is on a charger). Per-phase commits + `iterations.tsv` give a resumable
+   trail; if the ssh drops mid-phase the driver keeps going.
+7. After the run, log back into the GUI normally; nothing about the launchd LaunchDaemons
+   or the persisted wired limit changes.
+
+Throughput notes from prior runs: at the few-K–to-~16K contexts the benchmark uses,
+~150–210 t/s prefill, ~13–16 t/s gen. Only collapses to 31–79 t/s when context is
+*filled* to 128K, which the benchmark won't do.
 
 ## Status one-liner — branch parked
 
@@ -114,6 +167,18 @@ See [[project_tinylang_bench_14b_class]] for the 14B context and [[project_tinyl
 Sonnet baseline (12/12 phases @ 100% via subagent) is complete and committed.
 
 ## Runs on the books
+
+### Run 6 — Qwen3.6-35B-A3B @ 64K (`B_qwen36`) — 12 phases finished, 11/116 effective (2026-05-22 → -23)
+- 8h42m wall (`total=31303s`). All 12 phases committed (`7eed7ab..c4b5746`).
+- Phase 1 clean (9 impl steps, done, 11/11). Phases 2–12 all `api_error` (peg-native 500).
+- One failure class: parser-500 from `max_tokens=4096` truncation; thinking model burns
+  the budget on `<think>`, tool-call XML gets cut off at ~12.6–16.4K bytes of output,
+  `peg-native` 500s on the truncated tail (literally fails at `pos 13486: <`).
+- Phase 2 selfeval wrote partial `parser.py` before its own 500 → poisoned phase 3+ seed
+  → 17/24, then 0/0/… cascade.
+- Re-run setup ready: `run_qwen36_iter_1_to_12.sh` + harness `fix` subcommand with
+  thinking off, `max_tokens=8192`, per-phase fix iteration on progress. See "NEXT SESSION"
+  above. Full writeup: `results/run_qwen36.md`.
 
 ### Run 5 — Qwen2.5-Coder-32B Q4_K_M (`B_32bcoder`) — ABORTED ph9 (2026-05-20)
 - ~15 h wall to phase 9/12, then killed. 8 phases committed (`b16ebf4`..`e9554bf`),
