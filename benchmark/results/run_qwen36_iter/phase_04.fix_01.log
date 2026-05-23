@@ -1,0 +1,4 @@
+
+=== phase 4  model B (qwen3.6-35b-a3b) — fix attempt 1 ===
+  fix#1: 40 steps, 182.7s, finish=step_cap
+  pytest after fix#1: 0 passed, 3 failed
