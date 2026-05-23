@@ -156,3 +156,6 @@ phase,model,stage,elapsed_s,steps,input_tokens,output_tokens,finish_reason,test_
 4,B_qwen36_iter,implement,1024.43,80,1393228,7807,step_cap,,
 4,B_qwen36_iter,self_eval,903.92,40,330206,2626,step_cap,0,3
 4,B_qwen36_iter,fix_01,182.67,40,350277,1942,step_cap,0,3
+5,B_qwen36_iter,implement,325.06,80,1233402,3328,step_cap,,
+5,B_qwen36_iter,self_eval,157.19,40,334815,1685,step_cap,0,4
+5,B_qwen36_iter,fix_01,154.23,40,318809,1585,step_cap,0,4
