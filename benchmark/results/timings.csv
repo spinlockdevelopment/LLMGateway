@@ -144,3 +144,6 @@ phase,model,stage,elapsed_s,steps,input_tokens,output_tokens,finish_reason,test_
 11,B_qwen36,self_eval,768.56,7,15429,363,api_error,0,9
 12,B_qwen36,implement,799.05,5,21729,298,api_error,,
 12,B_qwen36,self_eval,768.94,7,14096,361,api_error,0,10
+1,B_qwen36_iter,implement,616.94,80,1179943,8202,step_cap,,
+1,B_qwen36_iter,self_eval,54.24,12,54109,446,done,11,0
+1,B_qwen36_iter,fix_01,63.92,14,56134,594,done,11,0
