@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="1" failures="0" skipped="0" tests="1" time="0.049" timestamp="2026-05-23T15:20:48.877837-04:00" hostname="llmgateway"><testcase classname="" name="tests.test_parser" time="0.000"><error message="collection failure">ImportError while importing test module '/Users/llmadmin/src/LLMGateway/benchmark/ModelB_qwen36_iter/phase_02/tests/test_parser.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_parser.py:1: in &lt;module&gt;
+    from tinylang.parser import parse
+E   ModuleNotFoundError: No module named 'tinylang.parser'</error></testcase></testsuite></testsuites>
