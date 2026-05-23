@@ -1,0 +1,31 @@
+{
+  "phase": 8,
+  "model": "B_qwen36",
+  "workdir": "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_qwen36/phase_08",
+  "implement": {
+    "elapsed_s": 756.1198189258575,
+    "steps": 3,
+    "input_tokens": 11898,
+    "output_tokens": 199,
+    "finish_reason": "api_error",
+    "done_payload": null,
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_08_B_implement.json"
+  },
+  "self_eval": {
+    "elapsed_s": 1654.3005001544952,
+    "steps": 35,
+    "input_tokens": 359247,
+    "output_tokens": 5534,
+    "finish_reason": "api_error",
+    "done_payload": null,
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_08_B_selfeval.json"
+  },
+  "final_tests": {
+    "returncode": 2,
+    "passed": 0,
+    "failed": 6,
+    "passed_ids": [],
+    "stdout_tail": "e_08/tests/test_eval_basic.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n../phase_03/tests/test_eval_basic.py:1: in <module>\n    from tinylang.evaluator import run\nE   ModuleNotFoundError: No module named 'tinylang.evaluator'\n___________________ ERROR collecting tests/test_functions.py ___________________\nImportError while importing test module '/Users/llmadmin/src/LLMGateway/benchmark/ModelB_qwen36/phase_08/tests/test_functions.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n../phase_06/tests/test_functions.py:1: in <module>\n    from tinylang.evaluator import run\nE   ModuleNotFoundError: No module named 'tinylang.evaluator'\n_____________________ ERROR collecting tests/test_lists.py _____________________\nImportError while importing test module '/Users/llmadmin/src/LLMGateway/benchmark/ModelB_qwen36/phase_08/tests/test_lists.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\ntests/test_lists.py:1: in <module>\n    from tinylang.evaluator import run\nE   ModuleNotFoundError: No module named 'tinylang.evaluator'\n_____________________ ERROR collecting tests/test_scope.py _____________________\nImportError while importing test module '/Users/llmadmin/src/LLMGateway/benchmark/ModelB_qwen36/phase_08/tests/test_scope.py'.\nHint: make sure your test modules/packages have valid Python names.\nTraceback:\n/opt/homebrew/Cellar/python@3.14/3.14.3_1/Frameworks/Python.framework/Versions/3.14/lib/python3.14/importlib/__init__.py:88: in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n../phase_04/tests/test_scope.py:1: in <module>\n    from tinylang.evaluator import run\nE   ModuleNotFoundError: No module named 'tinylang.evaluator'\n=========================== short test summary info ============================\nERROR tests/test_closures.py\nERROR tests/test_control_flow.py\nERROR tests/test_eval_basic.py\nERROR tests/test_functions.py\nERROR tests/test_lists.py\nERROR tests/test_scope.py\n!!!!!!!!!!!!!!!!!!! Interrupted: 6 errors during collection !!!!!!!!!!!!!!!!!!!!\n6 errors in 0.06s\n",
+    "stderr_tail": ""
+  }
+}
