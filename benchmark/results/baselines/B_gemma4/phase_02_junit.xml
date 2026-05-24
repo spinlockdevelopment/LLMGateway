@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="12" skipped="0" tests="24" time="0.063" timestamp="2026-05-24T01:15:24.965600-04:00" hostname="llmgateway"><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000" /><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000" /><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000" /><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000" /><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000" /><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000" /><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000" /><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000" /><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000" /><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000" /><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000" /><testcase classname="tests.test_parser" name="test_let_stmt" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'expression'">tests/test_parser.py:9: in test_let_stmt
+    p = parse("let x = 1;")
+        ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:64: in statement
+    value = self.expression()
+            ^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'expression'</failure></testcase><testcase classname="tests.test_parser" name="test_precedence_mul_before_add" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'expression'">tests/test_parser.py:18: in test_precedence_mul_before_add
+    p = parse("let x = 1 + 2 * 3;")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:64: in statement
+    value = self.expression()
+            ^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'expression'</failure></testcase><testcase classname="tests.test_parser" name="test_comparison_and_logical" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'statement_impl'">tests/test_parser.py:29: in test_comparison_and_logical
+    p = parse("x = 1 &lt; 2 &amp;&amp; y;")
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in statement
+    return self.statement_impl()
+           ^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'statement_impl'</failure></testcase><testcase classname="tests.test_parser" name="test_if_else" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'expression'">tests/test_parser.py:39: in test_if_else
+    p = parse("if (x) { let a = 1; } else { let b = 2; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in statement
+    return self.if_stmt()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:148: in if_stmt
+    cond = self.expression()
+           ^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'expression'</failure></testcase><testcase classname="tests.test_parser" name="test_while_with_break_continue" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'expression'">tests/test_parser.py:47: in test_while_with_break_continue
+    p = parse("while (x) { break; continue; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:73: in statement
+    cond = self.expression()
+           ^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'expression'</failure></testcase><testcase classname="tests.test_parser" name="test_fn_decl_is_fndecl_not_letstmt" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'params'">tests/test_parser.py:55: in test_fn_decl_is_fndecl_not_letstmt
+    p = parse("fn add(a, b) { return a + b; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:95: in statement
+    params = self.params()
+             ^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'params'</failure></testcase><testcase classname="tests.test_parser" name="test_fn_lit_in_let" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'expression'">tests/test_parser.py:65: in test_fn_lit_in_let
+    p = parse("let f = fn(x) { return x; };")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:64: in statement
+    value = self.expression()
+            ^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'expression'</failure></testcase><testcase classname="tests.test_parser" name="test_list_and_dict_literals" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'expression'">tests/test_parser.py:72: in test_list_and_dict_literals
+    p = parse('let xs = [1, 2, 3,]; let d = {"a": 1, "b": 2};')
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:64: in statement
+    value = self.expression()
+            ^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'expression'</failure></testcase><testcase classname="tests.test_parser" name="test_call_and_index_chain" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'statement_impl'">tests/test_parser.py:82: in test_call_and_index_chain
+    p = parse("f(1, 2)[0];")
+        ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in statement
+    return self.statement_impl()
+           ^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'statement_impl'</failure></testcase><testcase classname="tests.test_parser" name="test_assign_to_index" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'statement_impl'">tests/test_parser.py:89: in test_assign_to_index
+    p = parse("xs[1] = 9;")
+        ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in statement
+    return self.statement_impl()
+           ^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'statement_impl'</failure></testcase><testcase classname="tests.test_parser" name="test_invalid_assign_target_raises" time="0.000" /><testcase classname="tests.test_parser" name="test_for_stmt_one_and_two_names" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'expression'">tests/test_parser.py:102: in test_for_stmt_one_and_two_names
+    p1 = parse("for (x) in xs { }")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:86: in statement
+    iterable = self.expression()
+               ^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'expression'</failure></testcase><testcase classname="tests.test_parser" name="test_else_if_chain_parses" time="0.000"><failure message="AttributeError: 'Parser' object has no attribute 'expression'">tests/test_parser.py:112: in test_else_if_chain_parses
+    p = parse("if (a) { } else if (b) { } else { }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse
+    return Parser(tokens).parse()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:57: in parse
+    stmts.append(self.statement())
+                 ^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in statement
+    return self.if_stmt()
+           ^^^^^^^^^^^^^^
+tinylang/parser.py:148: in if_stmt
+    cond = self.expression()
+           ^^^^^^^^^^^^^^^
+E   AttributeError: 'Parser' object has no attribute 'expression'</failure></testcase></testsuite></testsuites>
