@@ -1,17 +1,23 @@
 # Consolidated benchmark results — 2026-05-24
 
-Snapshot taken mid-flight: the Gemma-4-26B-A4B run is at **phase 10/12 in progress**;
-**phases 1–9 are committed**. This doc rolls up everything done in the last 3 days
-(Runs 6, 7, 8 of the benchmark) plus the older baselines/runs for comparison.
+Snapshot updated mid-flight: the Gemma-4-26B-A4B run is at **phase 12/12 in
+progress**; **phases 1–11 are committed**. This doc rolls up everything done in
+the last 3 days (Runs 6, 7, 8 of the benchmark) plus the older baselines/runs
+for comparison.
 
 ## Headline
 
 **Gemma-4-26B-A4B Q4_K_M @ 64K is by a wide margin the best local model the
-benchmark has ever seen on this hardware.** Through phase 9 it matches Sonnet
-exactly on phases 1, 3, 4, 5, 6, 7 (six of nine phases at 100%) and is at **83 of
-the 92 cumulative tests** (~90%) at end-of-phase-9. The previous local-model
-ceiling was Qwen2.5-Coder-32B aborting at phase 9 with ~peak 8 passes and
-ultimately 0/116 effective; everything else hit ≤25 of 116.
+benchmark has ever seen on this hardware.** Through phase 11 it matches Sonnet
+exactly on six phases (1, 3, 4, 5, 6, 7 all 100%) and stands at **86 of 109
+cumulative tests** (~79%) at end-of-phase-11 — 1 phase of work still to go.
+Previous local-model ceiling was Qwen2.5-Coder-32B aborting at phase 9 with
+peak 8 passes and 0/116 effective; everything else hit ≤25 of 116.
+
+The early run was tight against Sonnet (phases 1–7 hold a 5-phase 100% streak),
+then the gap opens as the model is asked to layer more onto a growing codebase:
+phase 8 –4, phase 9 –9, phase 10 –13, phase 11 –23 (and a prior-phase regression
+on `test_while_basic` that wasn't fixed by iteration).
 
 ## Side-by-side: per-phase passing tests vs Sonnet baseline
 
@@ -19,26 +25,27 @@ The benchmark's `tests/` is cumulative — each phase drops a new batch of tests
 top of the prior ones. So the "expected" pass count grows monotonically. Sonnet
 hits the expected count at every phase.
 
-| phase | Sonnet (A_subagent) | **Gemma-4 26B-A4B** | qwen3.6 (B_qwen36) | qwen3.6-iter (B_qwen36_iter) | qwen2.5-coder-32b (B_32bcoder) |
-|---:|---:|---:|---:|---:|---:|
-| 01 |  11 / 11 | **11 / 11** ✓ | 11 / 0 ✓  | 11 / 0 ✓  | 2 / 9 |
-| 02 |  24 / 24 | **12 / 12**   | 17 / 7    | 0 / 1     | 3 / 21 |
-| 03 |  39 / 39 | **39 / 39** ✓ | 0 / 1     | 0 / 2     | 6 / 33 |
-| 04 |  47 / 47 | **47 / 47** ✓ | 0 / 2     | 0 / 3     | (peak 8 here) |
-| 05 |  55 / 55 | **55 / 55** ✓ | 0 / 3     | 0 / 4     | … |
-| 06 |  65 / 65 | **65 / 65** ✓ | 0 / 4     | 0 / 5     | … |
-| 07 |  71 / 71 | **71 / 71** ✓ | 0 / 5     | 0 / 6     | … |
-| 08 |  82 / 82 | **78 / 82**   | 0 / 6     | 0 / 7     | (aborted infra-side, p9 partial) |
-| 09 |  92 / 92 | **83 / 92**   | 0 / 7     | (stopped at p8) | aborted |
-| 10 |  99 / 99 | _in progress_ | 0 / 8     |           |  |
-| 11 | 109 /109 | _pending_     | 0 / 9     |           |  |
-| 12 | 116 /116 | _pending_     | 0 / 10    |           |  |
+| phase | Sonnet (A_subagent) | **Gemma-4 26B-A4B** | gap | qwen3.6 (B_qwen36) | qwen3.6-iter (B_qwen36_iter) | qwen2.5-coder-32b (B_32bcoder) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 01 |  11 / 11 | **11 / 11** ✓  |    0 | 11 / 0 ✓  | 11 / 0 ✓  | 2 / 9 |
+| 02 |  24 / 24 | **12 / 12**    |  −12 | 17 / 7    | 0 / 1     | 3 / 21 |
+| 03 |  39 / 39 | **39 / 39** ✓  |    0 | 0 / 1     | 0 / 2     | 6 / 33 |
+| 04 |  47 / 47 | **47 / 47** ✓  |    0 | 0 / 2     | 0 / 3     | (peak 8 here) |
+| 05 |  55 / 55 | **55 / 55** ✓  |    0 | 0 / 3     | 0 / 4     | … |
+| 06 |  65 / 65 | **65 / 65** ✓  |    0 | 0 / 4     | 0 / 5     | … |
+| 07 |  71 / 71 | **71 / 71** ✓  |    0 | 0 / 5     | 0 / 6     | … |
+| 08 |  82 / 82 | **78 / 82**    |   −4 | 0 / 6     | 0 / 7     | (aborted infra, p9 partial) |
+| 09 |  92 / 92 | **83 / 92**    |   −9 | 0 / 7     | (stopped at p8) | aborted |
+| 10 |  99 / 99 | **86 / 99**    |  −13 | 0 / 8     |           |  |
+| 11 | 109 /109 | **86 / 109**   |  −23 | 0 / 9     |           |  |
+| 12 | 116 /116 | _in progress_  |    — | 0 / 10    |           |  |
 
 ## Gemma-4 per-phase wall time
 
-13 h 18 m of wall to land phases 1–9. Phase 10 in progress. Gemma is much slower
-per phase than Sonnet (Sonnet baseline was ~30 min total for all 12 phases via
-subagent) but it is *making real code* like Sonnet would.
+17 h 38 m of wall to land phases 1–11. Phase 12 in progress (driver pid 47951
+elapsed 17:37:48 at snapshot). Gemma is much slower per phase than Sonnet
+(Sonnet baseline was ~53 min total for all 12 phases via subagent) but it is
+making real code like Sonnet would.
 
 | phase | total wall (min) | impl finish | sev finish | fix attempts | final passed/failed |
 |---:|---:|---|---|---:|---:|
@@ -51,11 +58,24 @@ subagent) but it is *making real code* like Sonnet would.
 | 07 |  29.7 | done       | done       | 1         | 71 / 0 ✓ |
 | 08 |  96.1 | step_cap   | step_cap   | 1         | 78 / 4   |
 | 09 |  85.2 | api_error  | step_cap   | 1         | 83 / 9   |
+| 10 |  81.0 | step_cap   | done       | 1 (3 steps) | 86 / 13 |
+| 11 | 193.6 | step_cap   | api_error  | 1         | 86 / 23 ⚠ regressed `test_while_basic` |
 
 The **per-phase fix-iteration loop earned its keep on phase 3**: the initial
 selfeval ended with 37/2 (two failing tests); fix_01 brought it to 39/0; fix_02
 confirmed no further progress and stopped. That's exactly the design intent —
-let the model iterate while pass count strictly increases, then quit.
+let the model iterate while pass count strictly increases, then quit. For
+phases 8–11, the fix iteration tried but didn't improve — pass count never
+budged, so the no-progress rule fired correctly. Phase 11's fix attempt was
+6,023 s (1.7 h) of wall and produced zero new passing tests; that was wasted
+time. The cap (MAX_FIX=4) didn't matter — no-progress fired after just one
+attempt every time.
+
+Phase 11 introduced the first **prior-phase regression** that iteration could
+NOT fix: `tests.test_control_flow::test_while_basic` was passing through
+phase 10 (since phase 6) but broke when phase-11 changes were applied, and the
+fix attempt couldn't restore it. That's a real bug in the model's phase-11
+output, not an infrastructure issue.
 
 ## Failure modes seen on Gemma (much less catastrophic than qwen3.6)
 
@@ -83,10 +103,14 @@ hits *some* phases (1, 7, 5) cleanly with no api_errors at all.
 
 ## Status one-liner
 
-**Run 8 (B_gemma4) is mid-flight, phase 10/12 in progress. 9 phases committed,
-83/92 cumulative tests passing.** Driver pid 47951, server pid 47613 (RSS 18.6 GB,
-healthy). ETA for phases 10–12 at the observed average ~1.5h/phase = ~4–5 more
-hours of wall time.
+**Run 8 (B_gemma4) is mid-flight, phase 12/12 in progress. 11 phases committed,
+86/109 cumulative tests passing (~79%).** Driver pid 47951 (17 h 37 m wall),
+server pid 47613 (RSS 18.7 GB, healthy, 26% RAM free). Phase 12 just started;
+expected to finish in ~1–3 more hours of wall (phase-11 took 3.2 h though, so
+add slack).
+
+Latest committed commits: `dc05a21` (p10), `ed488da` (p11). Pre-update
+consolidation commit: `23c86b7`.
 
 ## All runs on the books (chronological in this session)
 
@@ -110,8 +134,9 @@ hours of wall time.
 ### Run 8 — Gemma-4-26B-A4B Q4_K_M (B_gemma4), 2026-05-23→24 [IN PROGRESS]
 - Setup: thinking on (Gemma's design — surfaces correctly as `reasoning_content`),
   max_tokens=8192, iterating fix loop, `peg-gemma4` parser.
-- Result so far: phases 1–9 committed, 83/92 cumulative tests passing (~90%);
-  six phases at exactly Sonnet's pass count. Phase 10 in progress.
+- Result so far: phases 1–11 committed, 86/109 cumulative tests passing (~79%);
+  six phases (1, 3-7) at exactly Sonnet's pass count, then degrading gap from
+  phase 8 onward (-4, -9, -13, -23). Phase 12 in progress.
 - This doc.
 
 ### (Earlier runs, for reference)
