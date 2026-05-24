@@ -1,0 +1,8 @@
+
+=== phase 4  model B (gemma-4-26b-a4b) — implement ===
+  swept 1 scratch files from new phase 04 workdir: test_manual.py
+  implement: 27 steps, 1900.3s, finish=api_error
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_gemma4/phase_04/tests/
+=== phase 4  model B — self-eval ===
+  self-eval: 25 steps, 1517.3s, finish=done
+  pytest: 47 passed, 0 failed
