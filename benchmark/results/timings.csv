@@ -182,3 +182,6 @@ phase,model,stage,elapsed_s,steps,input_tokens,output_tokens,finish_reason,test_
 5,B_gemma4,implement,1510.40,80,1549910,25667,step_cap,,
 5,B_gemma4,self_eval,949.86,15,88335,18253,done,55,0
 5,B_gemma4,fix_01,766.99,15,90735,13756,done,55,0
+6,B_gemma4,implement,1989.10,72,2170796,28262,api_error,,
+6,B_gemma4,self_eval,2061.22,34,404694,35941,done,65,0
+6,B_gemma4,fix_01,1172.14,18,123577,21895,done,65,0
