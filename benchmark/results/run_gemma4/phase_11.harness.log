@@ -1,0 +1,8 @@
+
+=== phase 11  model B (gemma-4-26b-a4b) — implement ===
+  implement: 80 steps, 2636.4s, finish=step_cap
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_gemma4/phase_11/tests/
+=== phase 11  model B — self-eval ===
+  self-eval: 25 steps, 2954.3s, finish=api_error
+  pytest: 86 passed, 23 failed
+  ⚠ regressed 1 prior-phase test(s): tests.test_control_flow::test_while_basic
