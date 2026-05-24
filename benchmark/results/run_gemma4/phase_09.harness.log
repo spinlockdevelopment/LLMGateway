@@ -1,0 +1,7 @@
+
+=== phase 9  model B (gemma-4-26b-a4b) — implement ===
+  implement: 63 steps, 1573.2s, finish=api_error
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_gemma4/phase_09/tests/
+=== phase 9  model B — self-eval ===
+  self-eval: 40 steps, 2165.4s, finish=step_cap
+  pytest: 83 passed, 9 failed
