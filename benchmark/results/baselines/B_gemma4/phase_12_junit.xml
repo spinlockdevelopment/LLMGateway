@@ -1,0 +1,680 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="23" skipped="0" tests="121" time="0.529" timestamp="2026-05-24T17:19:12.770838-04:00" hostname="llmgateway"><testcase classname="tests.test_cli" name="test_run_subcommand_prints_output" time="0.003" /><testcase classname="tests.test_cli" name="test_check_subcommand_ok" time="0.000" /><testcase classname="tests.test_cli" name="test_check_subcommand_parse_error" time="0.000" /><testcase classname="tests.test_cli" name="test_run_missing_file" time="0.000" /><testcase classname="tests.test_cli" name="test_run_runtime_error_nonzero_exit" time="0.000" /><testcase classname="tests.test_cli" name="test_repl_simple_session" time="0.000" /><testcase classname="tests.test_cli" name="test_repl_preserves_state_across_inputs" time="0.000" /><testcase classname="tests.test_cli_fix" name="test_run_subcommand_prints_output" time="0.000" /><testcase classname="tests.test_cli_fix" name="test_check_subcommand_ok" time="0.000" /><testcase classname="tests.test_cli_fix" name="test_run_missing_file" time="0.000" /><testcase classname="tests.test_cli_fix" name="test_repl_simple_session" time="0.000" /><testcase classname="tests.test_cli_fix" name="test_repl_preserves_state_across_inputs" time="0.000" /><testcase classname="tests.test_closures" name="test_counter_closure_remembers_state" time="0.001" /><testcase classname="tests.test_closures" name="test_two_counters_have_independent_state" time="0.001" /><testcase classname="tests.test_closures" name="test_make_adder" time="0.001" /><testcase classname="tests.test_closures" name="test_closure_captures_by_reference_not_value" time="0.001" /><testcase classname="tests.test_closures" name="test_inner_function_uses_outer_param_after_outer_returned" time="0.001" /><testcase classname="tests.test_closures" name="test_recursive_closure_via_let_then_assign" time="0.001" /><testcase classname="tests.test_control_flow" name="test_if_true_branch" time="0.001" /><testcase classname="tests.test_control_flow" name="test_if_else" time="0.001" /><testcase classname="tests.test_control_flow" name="test_else_if_chain" time="0.001" /><testcase classname="tests.test_control_flow" name="test_while_basic" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Redeclaration of 'sum'">../phase_05/tests/test_control_flow.py:35: in test_while_basic
+    assert run(src) == "10\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:89: in evaluate_statement
+    self.environment.define(stmt.name, value)
+tinylang/environment.py:11: in define
+    raise TinyRuntimeError(f"Redeclaration of '{name}'")
+E   tinylang.errors.TinyRuntimeError: Redeclaration of 'sum'</failure></testcase><testcase classname="tests.test_control_flow" name="test_break_exits_loop" time="0.001" /><testcase classname="tests.test_control_flow" name="test_continue_skips_iteration" time="0.001" /><testcase classname="tests.test_control_flow" name="test_nested_loops_break_only_inner" time="0.001" /><testcase classname="tests.test_control_flow" name="test_truthiness_in_condition" time="0.001" /><testcase classname="tests.test_dicts" name="test_dict_literal_and_index" time="0.001" /><testcase classname="tests.test_dicts" name="test_missing_key_errors" time="0.001" /><testcase classname="tests.test_dicts" name="test_set_new_key" time="0.001" /><testcase classname="tests.test_dicts" name="test_keys_values_has_del" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'keys'">../phase_09/tests/test_dicts.py:45: in test_keys_values_has_del
+    assert run(src) == expected
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:326: in evaluate_call
+    args = [self.evaluate_expr(arg) for arg in expr.args]
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'keys'</failure></testcase><testcase classname="tests.test_dicts" name="test_for_over_list_one_var" time="0.001"><failure message="AttributeError: 'ForStmt' object has no attribute 'iterators'">../phase_09/tests/test_dicts.py:53: in test_for_over_list_one_var
+    assert run(src) == "10\n20\n30\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:141: in evaluate_statement
+    if len(stmt.iterators) == 1:
+           ^^^^^^^^^^^^^^
+E   AttributeError: 'ForStmt' object has no attribute 'iterators'</failure></testcase><testcase classname="tests.test_dicts" name="test_for_over_list_enumerate" time="0.001"><failure message="AttributeError: 'ForStmt' object has no attribute 'iterators'">../phase_09/tests/test_dicts.py:61: in test_for_over_list_enumerate
+    assert run(src) == "0 10\n1 20\n2 30\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:141: in evaluate_statement
+    if len(stmt.iterators) == 1:
+           ^^^^^^^^^^^^^^
+E   AttributeError: 'ForStmt' object has no attribute 'iterators'</failure></testcase><testcase classname="tests.test_dicts" name="test_for_over_dict" time="0.001"><failure message="AttributeError: 'ForStmt' object has no attribute 'iterators'">../phase_09/tests/test_dicts.py:69: in test_for_over_dict
+    assert run(src) == "a 1\nb 2\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:125: in evaluate_statement
+    if len(stmt.iterators) == 1:
+           ^^^^^^^^^^^^^^
+E   AttributeError: 'ForStmt' object has no attribute 'iterators'</failure></testcase><testcase classname="tests.test_dicts" name="test_for_break_continue" time="0.001"><failure message="AttributeError: 'ForStmt' object has no attribute 'iterators'">../phase_09/tests/test_dicts.py:81: in test_for_break_continue
+    assert run(src) == "1\n3\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:141: in evaluate_statement
+    if len(stmt.iterators) == 1:
+           ^^^^^^^^^^^^^^
+E   AttributeError: 'ForStmt' object has no attribute 'iterators'</failure></testcase><testcase classname="tests.test_dicts" name="test_dict_print_format" time="0.001" /><testcase classname="tests.test_dicts" name="test_del_missing_key_errors" time="0.001" /><testcase classname="tests.test_errors" name="test_lex_error_is_typed" time="0.000"><failure message="Exception: Unrecognized character '@' at line 1, col 9">../phase_10/tests/test_errors.py:23: in test_lex_error_is_typed
+    tokenize("let x = @;")
+tinylang/lexer.py:158: in tokenize
+    raise Exception(f"Unrecognized character '{char}' at line {line}, col {col}")
+E   Exception: Unrecognized character '@' at line 1, col 9</failure></testcase><testcase classname="tests.test_errors" name="test_parse_error_is_typed" time="0.000" /><testcase classname="tests.test_errors" name="test_runtime_error_is_typed_and_has_line" time="0.001"><failure message="assert None is not None&#10; +  where None = TinyRuntimeError(&quot;Undefined variable 'missing_var'&quot;).line&#10; +    where TinyRuntimeError(&quot;Undefined variable 'missing_var'&quot;) = &lt;ExceptionInfo TinyRuntimeError(&quot;Undefined variable 'missing_var'&quot;) tblen=10&gt;.value">../phase_10/tests/test_errors.py:40: in test_runtime_error_is_typed_and_has_line
+    assert exc.value.line is not None  # parser tracked line/col on Identifier or Call
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert None is not None
+E    +  where None = TinyRuntimeError("Undefined variable 'missing_var'").line
+E    +    where TinyRuntimeError("Undefined variable 'missing_var'") = &lt;ExceptionInfo TinyRuntimeError("Undefined variable 'missing_var'") tblen=10&gt;.value</failure></testcase><testcase classname="tests.test_errors" name="test_runtime_error_stack_includes_function_names" time="0.001"><failure message="AssertionError: assert ('f' in [])">../phase_10/tests/test_errors.py:56: in test_runtime_error_stack_includes_function_names
+    assert "f" in names and "g" in names and "h" in names
+E   AssertionError: assert ('f' in [])</failure></testcase><testcase classname="tests.test_errors" name="test_runtime_error_str_contains_useful_info" time="0.001" /><testcase classname="tests.test_errors" name="test_index_oob_is_runtime_error_typed" time="0.001" /><testcase classname="tests.test_errors" name="test_division_by_zero_is_runtime_error_typed" time="0.001"><failure message="Exception: Division by zero">../phase_10/tests/test_errors.py:76: in test_division_by_zero_is_runtime_error_typed
+    run("print(1 / 0);")
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:326: in evaluate_call
+    args = [self.evaluate_expr(arg) for arg in expr.args]
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:196: in evaluate_expr
+    return self.evaluate_binary_op(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:268: in evaluate_binary_op
+    raise Exception("Division by zero")
+E   Exception: Division by zero</failure></testcase><testcase classname="tests.test_eval_basic" name="test_print_integer_no_decimal" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_arithmetic_precedence" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_subtraction_and_unary_minus" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_float_division" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_modulo" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_divide_by_zero" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_string_concat" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_compare_numbers" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_compare_equal_unlike_types_is_false" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_logical_short_circuit_returns_operand" time="0.002" /><testcase classname="tests.test_eval_basic" name="test_negation_returns_bool" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_nil_prints_as_nil" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_bool_prints_as_lowercase" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_string_plus_number_errors" time="0.001" /><testcase classname="tests.test_eval_basic" name="test_compare_string_and_number_errors" time="0.001" /><testcase classname="tests.test_functions" name="test_fn_decl_and_call" time="0.001" /><testcase classname="tests.test_functions" name="test_fn_lit_assigned_and_called" time="0.001" /><testcase classname="tests.test_functions" name="test_return_nil_when_falls_off_end" time="0.001" /><testcase classname="tests.test_functions" name="test_recursion_factorial" time="0.001" /><testcase classname="tests.test_functions" name="test_first_class_function_as_argument" time="0.001" /><testcase classname="tests.test_functions" name="test_arity_error_too_few" time="0.001" /><testcase classname="tests.test_functions" name="test_arity_error_too_many" time="0.001" /><testcase classname="tests.test_functions" name="test_call_non_function_errors" time="0.001" /><testcase classname="tests.test_functions" name="test_return_early_exits_fn_not_program" time="0.001" /><testcase classname="tests.test_functions" name="test_recursion_fibonacci" time="0.001" /><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000" /><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000" /><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000" /><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000" /><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000" /><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000" /><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000" /><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000" /><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000" /><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000" /><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000" /><testcase classname="tests.test_lists" name="test_list_literal_and_print" time="0.001" /><testcase classname="tests.test_lists" name="test_empty_list" time="0.001" /><testcase classname="tests.test_lists" name="test_index_read" time="0.001" /><testcase classname="tests.test_lists" name="test_index_out_of_bounds_errors" time="0.001" /><testcase classname="tests.test_lists" name="test_index_write" time="0.001" /><testcase classname="tests.test_lists" name="test_len_of_list" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'len'">../phase_08/tests/test_lists.py:32: in test_len_of_list
+    assert run("print(len([1, 2, 3, 4]));") == "4\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:326: in evaluate_call
+    args = [self.evaluate_expr(arg) for arg in expr.args]
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'len'</failure></testcase><testcase classname="tests.test_lists" name="test_push_appends_and_mutates" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'push'">../phase_08/tests/test_lists.py:43: in test_push_appends_and_mutates
+    assert run(src) == "[1, 2, 3]\n3\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'push'</failure></testcase><testcase classname="tests.test_lists" name="test_pop_returns_and_shrinks" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'pop'">../phase_08/tests/test_lists.py:53: in test_pop_returns_and_shrinks
+    assert run(src) == "30\n[10, 20]\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:88: in evaluate_statement
+    value = self.evaluate_expr(stmt.value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'pop'</failure></testcase><testcase classname="tests.test_lists" name="test_pop_empty_errors" time="0.001" /><testcase classname="tests.test_lists" name="test_nested_lists" time="0.001" /><testcase classname="tests.test_lists" name="test_list_passed_to_fn_mutates_caller_view" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'push'">../phase_08/tests/test_lists.py:78: in test_list_passed_to_fn_mutates_caller_view
+    assert run(src) == "[1, 1]\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'push'</failure></testcase><testcase classname="tests.test_parser" name="test_let_stmt" time="0.000" /><testcase classname="tests.test_parser" name="test_precedence_mul_before_add" time="0.000" /><testcase classname="tests.test_parser" name="test_comparison_and_logical" time="0.000" /><testcase classname="tests.test_parser" name="test_if_else" time="0.000" /><testcase classname="tests.test_parser" name="test_while_with_break_continue" time="0.000" /><testcase classname="tests.test_parser" name="test_fn_decl_is_fndecl_not_letstmt" time="0.000" /><testcase classname="tests.test_parser" name="test_fn_lit_in_let" time="0.000" /><testcase classname="tests.test_parser" name="test_list_and_dict_literals" time="0.000" /><testcase classname="tests.test_parser" name="test_call_and_index_chain" time="0.000" /><testcase classname="tests.test_parser" name="test_assign_to_index" time="0.000" /><testcase classname="tests.test_parser" name="test_invalid_assign_target_raises" time="0.000" /><testcase classname="tests.test_parser" name="test_for_stmt_one_and_two_names" time="0.000" /><testcase classname="tests.test_parser" name="test_else_if_chain_parses" time="0.000" /><testcase classname="tests.test_scope" name="test_let_and_use" time="0.001" /><testcase classname="tests.test_scope" name="test_shadowing_inside_block_does_not_affect_outer" time="0.001" /><testcase classname="tests.test_scope" name="test_block_local_not_visible_outside" time="0.001" /><testcase classname="tests.test_scope" name="test_assign_to_outer_binding" time="0.001" /><testcase classname="tests.test_scope" name="test_undefined_variable_errors" time="0.001" /><testcase classname="tests.test_scope" name="test_assign_to_undefined_errors" time="0.001" /><testcase classname="tests.test_scope" name="test_redeclare_in_same_scope_errors" time="0.001" /><testcase classname="tests.test_scope" name="test_nested_blocks_chain_lookup" time="0.001" /><testcase classname="tests.test_stdlib" name="test_range1_basic" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'push'">../phase_11/tests/test_stdlib.py:5: in test_range1_basic
+    assert run("print(range1(5));") == "[0, 1, 2, 3, 4]\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:326: in evaluate_call
+    args = [self.evaluate_expr(arg) for arg in expr.args]
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:160: in evaluate_statement
+    raise _ReturnSignal(self.evaluate_expr(stmt.value))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:105: in evaluate_statement
+    self.evaluate_statement(stmt.body)
+tinylang/evaluator.py:94: in evaluate_statement
+    self.evaluate_statement(s)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'push'</failure></testcase><testcase classname="tests.test_stdlib" name="test_range_two_args" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'push'">../phase_11/tests/test_stdlib.py:9: in test_range_two_args
+    assert run("print(range(2, 6));") == "[2, 3, 4, 5]\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:326: in evaluate_call
+    args = [self.evaluate_expr(arg) for arg in expr.args]
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:105: in evaluate_statement
+    self.evaluate_statement(stmt.body)
+tinylang/evaluator.py:94: in evaluate_statement
+    self.evaluate_statement(s)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'push'</failure></testcase><testcase classname="tests.test_stdlib" name="test_map_double" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'push'">../phase_11/tests/test_stdlib.py:18: in test_map_double
+    assert run(src) == "[0, 2, 4, 6]\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:88: in evaluate_statement
+    value = self.evaluate_expr(stmt.value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:160: in evaluate_statement
+    raise _ReturnSignal(self.evaluate_expr(stmt.value))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:105: in evaluate_statement
+    self.evaluate_statement(stmt.body)
+tinylang/evaluator.py:94: in evaluate_statement
+    self.evaluate_statement(s)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'push'</failure></testcase><testcase classname="tests.test_stdlib" name="test_filter_evens" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'push'">../phase_11/tests/test_stdlib.py:27: in test_filter_evens
+    assert run(src) == "[0, 2, 4, 6]\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:88: in evaluate_statement
+    value = self.evaluate_expr(stmt.value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:160: in evaluate_statement
+    raise _ReturnSignal(self.evaluate_expr(stmt.value))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:105: in evaluate_statement
+    self.evaluate_statement(stmt.body)
+tinylang/evaluator.py:94: in evaluate_statement
+    self.evaluate_statement(s)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'push'</failure></testcase><testcase classname="tests.test_stdlib" name="test_reduce_sum" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'push'">../phase_11/tests/test_stdlib.py:35: in test_reduce_sum
+    assert run(src) == "10\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:88: in evaluate_statement
+    value = self.evaluate_expr(stmt.value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:160: in evaluate_statement
+    raise _ReturnSignal(self.evaluate_expr(stmt.value))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:105: in evaluate_statement
+    self.evaluate_statement(stmt.body)
+tinylang/evaluator.py:94: in evaluate_statement
+    self.evaluate_statement(s)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'push'</failure></testcase><testcase classname="tests.test_stdlib" name="test_sum_builtin_in_stdlib" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'push'">../phase_11/tests/test_stdlib.py:39: in test_sum_builtin_in_stdlib
+    assert run("print(sum(range1(5)));") == "10\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:326: in evaluate_call
+    args = [self.evaluate_expr(arg) for arg in expr.args]
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:340: in evaluate_call
+    args = [self.evaluate_expr(arg) for arg in expr.args]
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:160: in evaluate_statement
+    raise _ReturnSignal(self.evaluate_expr(stmt.value))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:105: in evaluate_statement
+    self.evaluate_statement(stmt.body)
+tinylang/evaluator.py:94: in evaluate_statement
+    self.evaluate_statement(s)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'push'</failure></testcase><testcase classname="tests.test_stdlib" name="test_contains" time="0.001"><failure message="AttributeError: 'ForStmt' object has no attribute 'iterators'">../phase_11/tests/test_stdlib.py:48: in test_contains
+    assert run(src) == "true\nfalse\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:326: in evaluate_call
+    args = [self.evaluate_expr(arg) for arg in expr.args]
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:141: in evaluate_statement
+    if len(stmt.iterators) == 1:
+           ^^^^^^^^^^^^^^
+E   AttributeError: 'ForStmt' object has no attribute 'iterators'</failure></testcase><testcase classname="tests.test_stdlib" name="test_reverse" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'len'">../phase_11/tests/test_stdlib.py:52: in test_reverse
+    assert run("print(reverse([1, 2, 3]));") == "[3, 2, 1]\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:326: in evaluate_call
+    args = [self.evaluate_expr(arg) for arg in expr.args]
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:88: in evaluate_statement
+    value = self.evaluate_expr(stmt.value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'len'</failure></testcase><testcase classname="tests.test_stdlib" name="test_min2_max2" time="0.001" /><testcase classname="tests.test_stdlib" name="test_composing_stdlib" time="0.001"><failure message="tinylang.errors.TinyRuntimeError: Undefined variable 'push'">../phase_11/tests/test_stdlib.py:67: in test_composing_stdlib
+    assert run(src) == "40\n"
+           ^^^^^^^^
+tinylang/evaluator.py:377: in run
+    evaluator.run_with_stdlib(source, default_stdlib)
+tinylang/evaluator.py:77: in run_with_stdlib
+    self.run(source)
+tinylang/evaluator.py:54: in run
+    self.evaluate_program(program)
+tinylang/evaluator.py:82: in evaluate_program
+    self.evaluate_statement(stmt)
+tinylang/evaluator.py:88: in evaluate_statement
+    value = self.evaluate_expr(stmt.value)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:160: in evaluate_statement
+    raise _ReturnSignal(self.evaluate_expr(stmt.value))
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:353: in evaluate_call
+    self.evaluate_statement(s)
+tinylang/evaluator.py:105: in evaluate_statement
+    self.evaluate_statement(stmt.body)
+tinylang/evaluator.py:94: in evaluate_statement
+    self.evaluate_statement(s)
+tinylang/evaluator.py:86: in evaluate_statement
+    self.evaluate_expr(stmt.expr)
+tinylang/evaluator.py:200: in evaluate_expr
+    return self.evaluate_call(expr)
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:336: in evaluate_call
+    callee_val = self.evaluate_expr(expr.callee)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:202: in evaluate_expr
+    return self.environment.get(expr.name)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:27: in get
+    return self.parent.get(name)
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/environment.py:28: in get
+    raise TinyRuntimeError(f"Undefined variable '{name}'")
+E   tinylang.errors.TinyRuntimeError: Undefined variable 'push'</failure></testcase></testsuite></testsuites>
