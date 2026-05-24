@@ -1,0 +1,5 @@
+
+=== phase 11  model B (gemma-4-26b-a4b) — fix attempt 1 ===
+  fix#1: 37 steps, 6023.1s, finish=api_error
+  pytest after fix#1: 86 passed, 23 failed
+  ⚠ regressed 1 prior-phase test(s): tests.test_control_flow::test_while_basic
