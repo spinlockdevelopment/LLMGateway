@@ -1,0 +1,4 @@
+
+=== phase 8  model B (gemma-4-26b-a4b) — fix attempt 1 ===
+  fix#1: 40 steps, 3720.9s, finish=step_cap
+  pytest after fix#1: 78 passed, 4 failed
