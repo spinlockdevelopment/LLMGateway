@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="0" tests="24" time="0.069" timestamp="2026-05-25T01:11:36.370968-04:00" hostname="llmgateway"><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000" /><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000" /><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000" /><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000" /><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000" /><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000" /><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000" /><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000" /><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000" /><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000" /><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000" /><testcase classname="tests.test_parser" name="test_let_stmt" time="0.000" /><testcase classname="tests.test_parser" name="test_precedence_mul_before_add" time="0.000" /><testcase classname="tests.test_parser" name="test_comparison_and_logical" time="0.000" /><testcase classname="tests.test_parser" name="test_if_else" time="0.000" /><testcase classname="tests.test_parser" name="test_while_with_break_continue" time="0.000" /><testcase classname="tests.test_parser" name="test_fn_decl_is_fndecl_not_letstmt" time="0.000" /><testcase classname="tests.test_parser" name="test_fn_lit_in_let" time="0.000" /><testcase classname="tests.test_parser" name="test_list_and_dict_literals" time="0.000"><failure message="tinylang.errors.ParseError: Unexpected token PUNCT ] at line 1, col 19">tests/test_parser.py:72: in test_list_and_dict_literals
+    p = parse('let xs = [1, 2, 3,]; let d = {"a": 1, "b": 2};')
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:349: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:41: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:76: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:188: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:196: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:204: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:212: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:220: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:228: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:240: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:243: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:297: in parse_primary
+    items.append(self.parse_expression())
+                 ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:175: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:188: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:196: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:204: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:212: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:220: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:228: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:240: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:243: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:307: in parse_primary
+    raise ParseError(f"Unexpected token {token.kind} {token.value}", token.line, token.col)
+E   tinylang.errors.ParseError: Unexpected token PUNCT ] at line 1, col 19</failure></testcase><testcase classname="tests.test_parser" name="test_call_and_index_chain" time="0.000" /><testcase classname="tests.test_parser" name="test_assign_to_index" time="0.000" /><testcase classname="tests.test_parser" name="test_invalid_assign_target_raises" time="0.000" /><testcase classname="tests.test_parser" name="test_for_stmt_one_and_two_names" time="0.000"><failure message="tinylang.errors.ParseError: Expected IDENT None, got PUNCT ( at line 1, col 5">tests/test_parser.py:102: in test_for_stmt_one_and_two_names
+    p1 = parse("for (x) in xs { }")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:349: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:47: in parse_statement
+    return self.parse_for_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:104: in parse_for_stmt
+    name_token = self.expect("IDENT")
+                 ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:24: in expect
+    raise ParseError(
+E   tinylang.errors.ParseError: Expected IDENT None, got PUNCT ( at line 1, col 5</failure></testcase><testcase classname="tests.test_parser" name="test_else_if_chain_parses" time="0.000" /></testsuite></testsuites>
