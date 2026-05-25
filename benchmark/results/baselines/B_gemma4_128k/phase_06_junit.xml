@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="20" skipped="0" tests="65" time="0.090" timestamp="2026-05-25T06:05:10.643182-04:00" hostname="llmgateway"><testcase classname="tests.test_control_flow" name="test_if_true_branch" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.IfStmt'&gt;">../phase_05/tests/test_control_flow.py:5: in test_if_true_branch
+    assert run("if (1 &lt; 2) { print(\"yes\"); }") == "yes\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.IfStmt'&gt;</failure></testcase><testcase classname="tests.test_control_flow" name="test_if_else" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.IfStmt'&gt;">../phase_05/tests/test_control_flow.py:12: in test_if_else
+    assert run(src) == "b\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.IfStmt'&gt;</failure></testcase><testcase classname="tests.test_control_flow" name="test_else_if_chain" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">../phase_05/tests/test_control_flow.py:22: in test_else_if_chain
+    assert run(src) == "two\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase><testcase classname="tests.test_control_flow" name="test_while_basic" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">../phase_05/tests/test_control_flow.py:35: in test_while_basic
+    assert run(src) == "10\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase><testcase classname="tests.test_control_flow" name="test_break_exits_loop" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">../phase_05/tests/test_control_flow.py:47: in test_break_exits_loop
+    assert run(src) == "0\n1\n2\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase><testcase classname="tests.test_control_flow" name="test_continue_skips_iteration" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">../phase_05/tests/test_control_flow.py:59: in test_continue_skips_iteration
+    assert run(src) == "1\n2\n4\n5\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase><testcase classname="tests.test_control_flow" name="test_nested_loops_break_only_inner" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">../phase_05/tests/test_control_flow.py:75: in test_nested_loops_break_only_inner
+    assert run(src) == "0 0\n0 1\n1 0\n1 1\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase><testcase classname="tests.test_control_flow" name="test_truthiness_in_condition" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.IfStmt'&gt;">../phase_05/tests/test_control_flow.py:85: in test_truthiness_in_condition
+    assert run(src) == "b\nd\ne\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.IfStmt'&gt;</failure></testcase><testcase classname="tests.test_eval_basic" name="test_print_integer_no_decimal" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_arithmetic_precedence" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_subtraction_and_unary_minus" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_float_division" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_modulo" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_divide_by_zero" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_string_concat" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_compare_numbers" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_compare_equal_unlike_types_is_false" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_logical_short_circuit_returns_operand" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_negation_returns_bool" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_nil_prints_as_nil" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_bool_prints_as_lowercase" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_string_plus_number_errors" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_compare_string_and_number_errors" time="0.000" /><testcase classname="tests.test_functions" name="test_fn_decl_and_call" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;">tests/test_functions.py:10: in test_fn_decl_and_call
+    assert run(src) == "5\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;</failure></testcase><testcase classname="tests.test_functions" name="test_fn_lit_assigned_and_called" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">tests/test_functions.py:18: in test_fn_lit_assigned_and_called
+    assert run(src) == "11\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase><testcase classname="tests.test_functions" name="test_return_nil_when_falls_off_end" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;">tests/test_functions.py:26: in test_return_nil_when_falls_off_end
+    assert run(src) == "nil\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;</failure></testcase><testcase classname="tests.test_functions" name="test_recursion_factorial" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;">tests/test_functions.py:37: in test_recursion_factorial
+    assert run(src) == "120\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;</failure></testcase><testcase classname="tests.test_functions" name="test_first_class_function_as_argument" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;">tests/test_functions.py:46: in test_first_class_function_as_argument
+    assert run(src) == "14\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;</failure></testcase><testcase classname="tests.test_functions" name="test_arity_error_too_few" time="0.000" /><testcase classname="tests.test_functions" name="test_arity_error_too_many" time="0.000" /><testcase classname="tests.test_functions" name="test_call_non_function_errors" time="0.000" /><testcase classname="tests.test_functions" name="test_return_early_exits_fn_not_program" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;">tests/test_functions.py:74: in test_return_early_exits_fn_not_program
+    assert run(src) == "pos\nzero_or_neg\nafter\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;</failure></testcase><testcase classname="tests.test_functions" name="test_recursion_fibonacci" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;">tests/test_functions.py:85: in test_recursion_fibonacci
+    assert run(src) == "55\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.FnDecl'&gt;</failure></testcase><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000" /><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000" /><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000" /><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000" /><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000" /><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000" /><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000" /><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000" /><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000" /><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000" /><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000" /><testcase classname="tests.test_parser" name="test_let_stmt" time="0.000" /><testcase classname="tests.test_parser" name="test_precedence_mul_before_add" time="0.000" /><testcase classname="tests.test_parser" name="test_comparison_and_logical" time="0.000" /><testcase classname="tests.test_parser" name="test_if_else" time="0.000" /><testcase classname="tests.test_parser" name="test_while_with_break_continue" time="0.000" /><testcase classname="tests.test_parser" name="test_fn_decl_is_fndecl_not_letstmt" time="0.000" /><testcase classname="tests.test_parser" name="test_fn_lit_in_let" time="0.000" /><testcase classname="tests.test_parser" name="test_list_and_dict_literals" time="0.000" /><testcase classname="tests.test_parser" name="test_call_and_index_chain" time="0.000" /><testcase classname="tests.test_parser" name="test_assign_to_index" time="0.000" /><testcase classname="tests.test_parser" name="test_invalid_assign_target_raises" time="0.000" /><testcase classname="tests.test_parser" name="test_for_stmt_one_and_two_names" time="0.000" /><testcase classname="tests.test_parser" name="test_else_if_chain_parses" time="0.000" /><testcase classname="tests.test_scope" name="test_let_and_use" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">../phase_04/tests/test_scope.py:6: in test_let_and_use
+    assert run("let x = 5; print(x);") == "5\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase><testcase classname="tests.test_scope" name="test_shadowing_inside_block_does_not_affect_outer" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">../phase_04/tests/test_scope.py:19: in test_shadowing_inside_block_does_not_affect_outer
+    assert run(src) == "99\n1\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase><testcase classname="tests.test_scope" name="test_block_local_not_visible_outside" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.Block'&gt;">../phase_04/tests/test_scope.py:29: in test_block_local_not_visible_outside
+    assert run(src) == "7\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.Block'&gt;</failure></testcase><testcase classname="tests.test_scope" name="test_assign_to_outer_binding" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">../phase_04/tests/test_scope.py:42: in test_assign_to_outer_binding
+    assert run(src) == "11\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase><testcase classname="tests.test_scope" name="test_undefined_variable_errors" time="0.000" /><testcase classname="tests.test_scope" name="test_assign_to_undefined_errors" time="0.000" /><testcase classname="tests.test_scope" name="test_redeclare_in_same_scope_errors" time="0.000" /><testcase classname="tests.test_scope" name="test_nested_blocks_chain_lookup" time="0.000"><failure message="Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;">../phase_04/tests/test_scope.py:71: in test_nested_blocks_chain_lookup
+    assert run(src) == "1 2 3\n"
+           ^^^^^^^^
+tinylang/evaluator.py:135: in run
+    evaluator.evaluate(program)
+tinylang/evaluator.py:24: in evaluate
+    self.evaluate(stmt)
+tinylang/evaluator.py:56: in evaluate
+    raise Exception(f"Unknown AST node: {type(node)}")
+E   Exception: Unknown AST node: &lt;class 'tinylang.ast.LetStmt'&gt;</failure></testcase></testsuite></testsuites>
