@@ -13,3 +13,5 @@ phase	stage	attempt	elapsed_s	passed	failed	finish
 06	fix	1	506.79	45	20	fix_01
 07	phase	0	543.35	45	26	initial
 07	fix	1	701.06	45	26	fix_01
+08	phase	0	480.36	47	35	initial
+08	fix	1	597.45	47	35	fix_01
