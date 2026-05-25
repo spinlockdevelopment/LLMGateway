@@ -1,0 +1,783 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.3, pytest-9.0.3, pluggy-1.6.0 -- /Users/llmadmin/src/LLMGateway/benchmark/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/llmadmin/src/LLMGateway/benchmark/ModelB_gemma4_128k/phase_10
+plugins: anyio-4.13.0
+collecting ... collected 6 items
+
+tests/test_closures.py::test_counter_closure_remembers_state <- ../phase_07/tests/test_closures.py FAILED [ 16%]
+tests/test_closures.py::test_two_counters_have_independent_state <- ../phase_07/tests/test_closures.py FAILED [ 33%]
+tests/test_closures.py::test_make_adder <- ../phase_07/tests/test_closures.py FAILED [ 50%]
+tests/test_closures.py::test_closure_captures_by_reference_not_value <- ../phase_07/tests/test_closures.py FAILED [ 66%]
+tests/test_closures.py::test_inner_function_uses_outer_param_after_outer_returned <- ../phase_07/tests/test_closures.py FAILED [ 83%]
+tests/test_closures.py::test_recursive_closure_via_let_then_assign <- ../phase_07/tests/test_closures.py FAILED [100%]
+
+=================================== FAILURES ===================================
+_____________________ test_counter_closure_remembers_state _____________________
+
+    def test_counter_closure_remembers_state():
+        src = """
+    let make_counter = fn() {
+      let n = 0;
+      return fn() { n = n + 1; return n; };
+    };
+    let c = make_counter();
+    print(c());
+    print(c());
+    print(c());
+    """
+>       assert run(src) == "1\n2\n3\n"
+               ^^^^^^^^
+
+../phase_07/tests/test_closures.py:15: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:141: in parse_return_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tinylang.parser.Parser object at 0x1096274d0>
+
+    def parse_assignment(self) -> Expr:
+        # Assignment is right-associative
+        # We need to check if the left side is an identifier or index
+        # But we can't easily look ahead without parsing the expression.
+        # However, the grammar says target is Identifier | Index.
+    
+        # Let's try to parse the left side as a primary expression.
+        # If it's an identifier or index, and the next token is '=', then it's an assignment.
+    
+        # To handle right-associativity and precedence correctly:
+        # assignment -> logical_or "=" assignment | logical_or
+    
+        # But we need to know if the logical_or is actually an assignment target.
+        # This is tricky in recursive descent.
+    
+        # Let's use a different approach:
+        # parse_assignment calls parse_logical_or.
+        # If parse_logical_or returns an Identifier or Index, and the next token is '=',
+        # then we treat it as an assignment.
+    
+        # Wait, the target of assignment can be an Index.
+        # Index is postfix.
+    
+        # Let's try this:
+        expr = self.parse_logical_or()
+        if self.peek().kind == "PUNCT" and self.peek().value == "=":
+            self.consume()
+            value = self.parse_assignment()
+            if isinstance(expr, Identifier):
+>               return Assign(expr, value)
+                       ^^^^^^^^^^^^^^^^^^^
+E               TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'
+
+tinylang/parser.py:185: TypeError
+___________________ test_two_counters_have_independent_state ___________________
+
+    def test_two_counters_have_independent_state():
+        src = """
+    let make_counter = fn() {
+      let n = 0;
+      return fn() { n = n + 1; return n; };
+    };
+    let a = make_counter();
+    let b = make_counter();
+    print(a());
+    print(a());
+    print(b());
+    print(a());
+    print(b());
+    """
+>       assert run(src) == "1\n2\n1\n3\n2\n"
+               ^^^^^^^^
+
+../phase_07/tests/test_closures.py:32: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:141: in parse_return_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tinylang.parser.Parser object at 0x109685810>
+
+    def parse_assignment(self) -> Expr:
+        # Assignment is right-associative
+        # We need to check if the left side is an identifier or index
+        # But we can't easily look ahead without parsing the expression.
+        # However, the grammar says target is Identifier | Index.
+    
+        # Let's try to parse the left side as a primary expression.
+        # If it's an identifier or index, and the next token is '=', then it's an assignment.
+    
+        # To handle right-associativity and precedence correctly:
+        # assignment -> logical_or "=" assignment | logical_or
+    
+        # But we need to know if the logical_or is actually an assignment target.
+        # This is tricky in recursive descent.
+    
+        # Let's use a different approach:
+        # parse_assignment calls parse_logical_or.
+        # If parse_logical_or returns an Identifier or Index, and the next token is '=',
+        # then we treat it as an assignment.
+    
+        # Wait, the target of assignment can be an Index.
+        # Index is postfix.
+    
+        # Let's try this:
+        expr = self.parse_logical_or()
+        if self.peek().kind == "PUNCT" and self.peek().value == "=":
+            self.consume()
+            value = self.parse_assignment()
+            if isinstance(expr, Identifier):
+>               return Assign(expr, value)
+                       ^^^^^^^^^^^^^^^^^^^
+E               TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'
+
+tinylang/parser.py:185: TypeError
+_______________________________ test_make_adder ________________________________
+
+    def test_make_adder():
+        src = """
+    let make_adder = fn(x) {
+      return fn(y) { return x + y; };
+    };
+    let add5 = make_adder(5);
+    let add10 = make_adder(10);
+    print(add5(3));
+    print(add10(3));
+    print(add5(100));
+    """
+>       assert run(src) == "8\n13\n105\n"
+               ^^^^^^^^
+
+../phase_07/tests/test_closures.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:141: in parse_return_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tinylang.parser.Parser object at 0x1096874d0>
+
+    def parse_return_stmt(self) -> ReturnStmt:
+        self.expect("KEYWORD", "return")
+        value = None
+        if self.peek().kind != "PUNCT" or self.peek().value != ";":
+            value = self.parse_expression()
+        self.expect("PUNCT", ";")
+>       return ReturnStmt(value)
+               ^^^^^^^^^^^^^^^^^
+E       TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'
+
+tinylang/parser.py:143: TypeError
+_________________ test_closure_captures_by_reference_not_value _________________
+
+    def test_closure_captures_by_reference_not_value():
+        src = """
+    let x = 1;
+    let get_x = fn() { return x; };
+    x = 99;
+    print(get_x());
+    """
+>       assert run(src) == "99\n"
+               ^^^^^^^^
+
+../phase_07/tests/test_closures.py:56: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tinylang.parser.Parser object at 0x10965a520>
+
+    def parse_return_stmt(self) -> ReturnStmt:
+        self.expect("KEYWORD", "return")
+        value = None
+        if self.peek().kind != "PUNCT" or self.peek().value != ";":
+            value = self.parse_expression()
+        self.expect("PUNCT", ";")
+>       return ReturnStmt(value)
+               ^^^^^^^^^^^^^^^^^
+E       TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'
+
+tinylang/parser.py:143: TypeError
+__________ test_inner_function_uses_outer_param_after_outer_returned ___________
+
+    def test_inner_function_uses_outer_param_after_outer_returned():
+        # Outer scope must persist via closure even after outer returns.
+        src = """
+    let outer = fn(msg) {
+      return fn() { return msg + "!"; };
+    };
+    let f = outer("hi");
+    print(f());
+    print(f());
+    """
+>       assert run(src) == "hi!\nhi!\n"
+               ^^^^^^^^
+
+../phase_07/tests/test_closures.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:141: in parse_return_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tinylang.parser.Parser object at 0x1097b83e0>
+
+    def parse_return_stmt(self) -> ReturnStmt:
+        self.expect("KEYWORD", "return")
+        value = None
+        if self.peek().kind != "PUNCT" or self.peek().value != ";":
+            value = self.parse_expression()
+        self.expect("PUNCT", ";")
+>       return ReturnStmt(value)
+               ^^^^^^^^^^^^^^^^^
+E       TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'
+
+tinylang/parser.py:143: TypeError
+__________________ test_recursive_closure_via_let_then_assign __________________
+
+    def test_recursive_closure_via_let_then_assign():
+        # Demonstrates the closure captures the binding, so reassignment is visible.
+        src = """
+    let f = nil;
+    f = fn(n) {
+      if (n <= 0) { return 0; }
+      return n + f(n - 1);
+    };
+    print(f(5));
+    """
+>       assert run(src) == "15\n"
+               ^^^^^^^^
+
+../phase_07/tests/test_closures.py:82: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:183: in parse_assignment
+    value = self.parse_assignment()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <tinylang.parser.Parser object at 0x10968f410>
+
+    def parse_return_stmt(self) -> ReturnStmt:
+        self.expect("KEYWORD", "return")
+        value = None
+        if self.peek().kind != "PUNCT" or self.peek().value != ";":
+            value = self.parse_expression()
+        self.expect("PUNCT", ";")
+>       return ReturnStmt(value)
+               ^^^^^^^^^^^^^^^^^
+E       TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'
+
+tinylang/parser.py:143: TypeError
+=========================== short test summary info ============================
+FAILED tests/test_closures.py::test_counter_closure_remembers_state - TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'
+FAILED tests/test_closures.py::test_two_counters_have_independent_state - TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'
+FAILED tests/test_closures.py::test_make_adder - TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'
+FAILED tests/test_closures.py::test_closure_captures_by_reference_not_value - TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'
+FAILED tests/test_closures.py::test_inner_function_uses_outer_param_after_outer_returned - TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'
+FAILED tests/test_closures.py::test_recursive_closure_via_let_then_assign - TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'
+============================== 6 failed in 0.30s ===============================

@@ -1,0 +1,60 @@
+{
+  "phase": 10,
+  "model": "B_gemma4_128k",
+  "workdir": "/Users/llmadmin/src/LLMGateway/benchmark/ModelB_gemma4_128k/phase_10",
+  "implement": {
+    "elapsed_s": 2955.5239310264587,
+    "steps": 80,
+    "input_tokens": 2307545,
+    "output_tokens": 23209,
+    "finish_reason": "step_cap",
+    "done_payload": null,
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_10_B_implement.json"
+  },
+  "self_eval": {
+    "elapsed_s": 1102.8828058242798,
+    "steps": 40,
+    "input_tokens": 721683,
+    "output_tokens": 17349,
+    "finish_reason": "step_cap",
+    "done_payload": null,
+    "transcript": "/Users/llmadmin/src/LLMGateway/benchmark/results/transcripts/phase_10_B_selfeval.json"
+  },
+  "final_tests": {
+    "returncode": 1,
+    "passed": 28,
+    "failed": 71,
+    "passed_ids": [
+      "tests.test_dicts::test_del_missing_key_errors",
+      "tests.test_dicts::test_missing_key_errors",
+      "tests.test_errors::test_lex_error_is_typed",
+      "tests.test_errors::test_parse_error_is_typed",
+      "tests.test_eval_basic::test_compare_string_and_number_errors",
+      "tests.test_eval_basic::test_divide_by_zero",
+      "tests.test_eval_basic::test_string_plus_number_errors",
+      "tests.test_functions::test_arity_error_too_few",
+      "tests.test_functions::test_arity_error_too_many",
+      "tests.test_functions::test_call_non_function_errors",
+      "tests.test_lexer::test_comments_stripped",
+      "tests.test_lexer::test_empty_input_just_eof",
+      "tests.test_lexer::test_eof_only_once",
+      "tests.test_lexer::test_keywords_vs_identifiers",
+      "tests.test_lexer::test_let_x_eq_1_plus_2",
+      "tests.test_lexer::test_line_col_tracking",
+      "tests.test_lexer::test_multi_char_punct",
+      "tests.test_lexer::test_number_and_float",
+      "tests.test_lexer::test_single_char_punct_after_multi",
+      "tests.test_lexer::test_string_escapes",
+      "tests.test_lexer::test_unknown_char_errors",
+      "tests.test_lists::test_index_out_of_bounds_errors",
+      "tests.test_lists::test_pop_empty_errors",
+      "tests.test_parser::test_invalid_assign_target_raises",
+      "tests.test_parser::test_let_stmt",
+      "tests.test_parser::test_precedence_mul_before_add",
+      "tests.test_scope::test_assign_to_undefined_errors",
+      "tests.test_scope::test_undefined_variable_errors"
+    ],
+    "stdout_tail": "val_basic.py::test_compare_equal_unlike_types_is_false - T...\nFAILED tests/test_eval_basic.py::test_logical_short_circuit_returns_operand\nFAILED tests/test_eval_basic.py::test_negation_returns_bool - TypeError: Unar...\nFAILED tests/test_eval_basic.py::test_nil_prints_as_nil - TypeError: Call.__i...\nFAILED tests/test_eval_basic.py::test_bool_prints_as_lowercase - TypeError: C...\nFAILED tests/test_functions.py::test_fn_decl_and_call - TypeError: ReturnStmt...\nFAILED tests/test_functions.py::test_fn_lit_assigned_and_called - TypeError: ...\nFAILED tests/test_functions.py::test_return_nil_when_falls_off_end - TypeErro...\nFAILED tests/test_functions.py::test_recursion_factorial - TypeError: ReturnS...\nFAILED tests/test_functions.py::test_first_class_function_as_argument - TypeE...\nFAILED tests/test_functions.py::test_return_early_exits_fn_not_program - Type...\nFAILED tests/test_functions.py::test_recursion_fibonacci - TypeError: ReturnS...\nFAILED tests/test_lists.py::test_list_literal_and_print - TypeError: Call.__i...\nFAILED tests/test_lists.py::test_empty_list - TypeError: Call.__init__() miss...\nFAILED tests/test_lists.py::test_index_read - TypeError: Index.__init__() mis...\nFAILED tests/test_lists.py::test_index_write - TypeError: Index.__init__() mi...\nFAILED tests/test_lists.py::test_len_of_list - TypeError: Call.__init__() mis...\nFAILED tests/test_lists.py::test_push_appends_and_mutates - TypeError: Call._...\nFAILED tests/test_lists.py::test_pop_returns_and_shrinks - TypeError: Call.__...\nFAILED tests/test_lists.py::test_nested_lists - TypeError: Index.__init__() m...\nFAILED tests/test_lists.py::test_list_passed_to_fn_mutates_caller_view - Type...\nFAILED tests/test_parser.py::test_comparison_and_logical - TypeError: BinaryO...\nFAILED tests/test_parser.py::test_if_else - TypeError: Block.__init__() missi...\nFAILED tests/test_parser.py::test_while_with_break_continue - TypeError: Bloc...\nFAILED tests/test_parser.py::test_fn_decl_is_fndecl_not_letstmt - TypeError: ...\nFAILED tests/test_parser.py::test_fn_lit_in_let - TypeError: ReturnStmt.__ini...\nFAILED tests/test_parser.py::test_list_and_dict_literals - TypeError: DictLit...\nFAILED tests/test_parser.py::test_call_and_index_chain - TypeError: Call.__in...\nFAILED tests/test_parser.py::test_assign_to_index - TypeError: Index.__init__...\nFAILED tests/test_parser.py::test_for_stmt_one_and_two_names - TypeError: Blo...\nFAILED tests/test_parser.py::test_else_if_chain_parses - TypeError: Block.__i...\nFAILED tests/test_scope.py::test_let_and_use - TypeError: Call.__init__() mis...\nFAILED tests/test_scope.py::test_shadowing_inside_block_does_not_affect_outer\nFAILED tests/test_scope.py::test_block_local_not_visible_outside - TypeError:...\nFAILED tests/test_scope.py::test_assign_to_outer_binding - TypeError: Assign....\nFAILED tests/test_scope.py::test_redeclare_in_same_scope_errors - Failed: DID...\nFAILED tests/test_scope.py::test_nested_blocks_chain_lookup - TypeError: Call...\n71 failed, 28 passed in 1.76s\n",
+    "stderr_tail": ""
+  }
+}
