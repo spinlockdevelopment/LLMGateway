@@ -1,0 +1,8 @@
+
+=== phase 10  model B (gemma-4-26b-a4b) — implement ===
+  implement: 80 steps, 2955.5s, finish=step_cap
+  tests dropped into /Users/llmadmin/src/LLMGateway/benchmark/ModelB_gemma4_128k/phase_10/tests/
+=== phase 10  model B — self-eval ===
+  self-eval: 40 steps, 1102.9s, finish=step_cap
+  pytest: 28 passed, 71 failed
+  ⚠ regressed 23 prior-phase test(s): tests.test_eval_basic::test_arithmetic_precedence, tests.test_eval_basic::test_bool_prints_as_lowercase, tests.test_eval_basic::test_compare_equal_unlike_types_is_false, tests.test_eval_basic::test_compare_numbers, tests.test_eval_basic::test_float_division...

@@ -1,0 +1,3293 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="71" skipped="0" tests="99" time="1.750" timestamp="2026-05-25T09:55:05.962435-04:00" hostname="llmgateway"><testcase classname="tests.test_closures" name="test_counter_closure_remembers_state" time="0.000"><failure message="TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'">../phase_07/tests/test_closures.py:15: in test_counter_closure_remembers_state
+    assert run(src) == "1\n2\n3\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:141: in parse_return_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:185: in parse_assignment
+    return Assign(expr, value)
+           ^^^^^^^^^^^^^^^^^^^
+E   TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'</failure></testcase><testcase classname="tests.test_closures" name="test_two_counters_have_independent_state" time="0.000"><failure message="TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'">../phase_07/tests/test_closures.py:32: in test_two_counters_have_independent_state
+    assert run(src) == "1\n2\n1\n3\n2\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:141: in parse_return_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:185: in parse_assignment
+    return Assign(expr, value)
+           ^^^^^^^^^^^^^^^^^^^
+E   TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'</failure></testcase><testcase classname="tests.test_closures" name="test_make_adder" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_07/tests/test_closures.py:46: in test_make_adder
+    assert run(src) == "8\n13\n105\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:141: in parse_return_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_closures" name="test_closure_captures_by_reference_not_value" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_07/tests/test_closures.py:56: in test_closure_captures_by_reference_not_value
+    assert run(src) == "99\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_closures" name="test_inner_function_uses_outer_param_after_outer_returned" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_07/tests/test_closures.py:69: in test_inner_function_uses_outer_param_after_outer_returned
+    assert run(src) == "hi!\nhi!\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:141: in parse_return_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_closures" name="test_recursive_closure_via_let_then_assign" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_07/tests/test_closures.py:82: in test_recursive_closure_via_let_then_assign
+    assert run(src) == "15\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:183: in parse_assignment
+    value = self.parse_assignment()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_control_flow" name="test_if_true_branch" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_05/tests/test_control_flow.py:5: in test_if_true_branch
+    assert run("if (1 &lt; 2) { print(\"yes\"); }") == "yes\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_control_flow" name="test_if_else" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_05/tests/test_control_flow.py:12: in test_if_else
+    assert run(src) == "b\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_control_flow" name="test_else_if_chain" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_05/tests/test_control_flow.py:22: in test_else_if_chain
+    assert run(src) == "two\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_control_flow" name="test_while_basic" time="0.000"><failure message="TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'">../phase_05/tests/test_control_flow.py:35: in test_while_basic
+    assert run(src) == "10\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:46: in parse_statement
+    return self.parse_while_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:98: in parse_while_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:185: in parse_assignment
+    return Assign(expr, value)
+           ^^^^^^^^^^^^^^^^^^^
+E   TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'</failure></testcase><testcase classname="tests.test_control_flow" name="test_break_exits_loop" time="0.000"><failure message="TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'">../phase_05/tests/test_control_flow.py:47: in test_break_exits_loop
+    assert run(src) == "0\n1\n2\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:46: in parse_statement
+    return self.parse_while_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:98: in parse_while_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:151: in parse_block
+    return Block(stmts)
+           ^^^^^^^^^^^^
+E   TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'</failure></testcase><testcase classname="tests.test_control_flow" name="test_continue_skips_iteration" time="0.000"><failure message="TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'">../phase_05/tests/test_control_flow.py:59: in test_continue_skips_iteration
+    assert run(src) == "1\n2\n4\n5\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:46: in parse_statement
+    return self.parse_while_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:98: in parse_while_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:185: in parse_assignment
+    return Assign(expr, value)
+           ^^^^^^^^^^^^^^^^^^^
+E   TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'</failure></testcase><testcase classname="tests.test_control_flow" name="test_nested_loops_break_only_inner" time="0.000"><failure message="TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'">../phase_05/tests/test_control_flow.py:75: in test_nested_loops_break_only_inner
+    assert run(src) == "0 0\n0 1\n1 0\n1 1\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:46: in parse_statement
+    return self.parse_while_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:98: in parse_while_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:46: in parse_statement
+    return self.parse_while_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:98: in parse_while_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:151: in parse_block
+    return Block(stmts)
+           ^^^^^^^^^^^^
+E   TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'</failure></testcase><testcase classname="tests.test_control_flow" name="test_truthiness_in_condition" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_05/tests/test_control_flow.py:85: in test_truthiness_in_condition
+    assert run(src) == "b\nd\ne\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_dicts" name="test_dict_literal_and_index" time="0.000"><failure message="TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'">../phase_09/tests/test_dicts.py:11: in test_dict_literal_and_index
+    assert run(src) == "1\n2\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:317: in parse_primary
+    return self.parse_dict_lit()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:355: in parse_dict_lit
+    return DictLit(pairs)
+           ^^^^^^^^^^^^^^
+E   TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'</failure></testcase><testcase classname="tests.test_dicts" name="test_missing_key_errors" time="0.000" /><testcase classname="tests.test_dicts" name="test_set_new_key" time="0.000"><failure message="TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'">../phase_09/tests/test_dicts.py:25: in test_set_new_key
+    assert run(src) == "10\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:317: in parse_primary
+    return self.parse_dict_lit()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:355: in parse_dict_lit
+    return DictLit(pairs)
+           ^^^^^^^^^^^^^^
+E   TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'</failure></testcase><testcase classname="tests.test_dicts" name="test_keys_values_has_del" time="0.000"><failure message="TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'">../phase_09/tests/test_dicts.py:45: in test_keys_values_has_del
+    assert run(src) == expected
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:317: in parse_primary
+    return self.parse_dict_lit()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:355: in parse_dict_lit
+    return DictLit(pairs)
+           ^^^^^^^^^^^^^^
+E   TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'</failure></testcase><testcase classname="tests.test_dicts" name="test_for_over_list_one_var" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_09/tests/test_dicts.py:53: in test_for_over_list_one_var
+    assert run(src) == "10\n20\n30\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:48: in parse_statement
+    return self.parse_for_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:117: in parse_for_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_dicts" name="test_for_over_list_enumerate" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_09/tests/test_dicts.py:61: in test_for_over_list_enumerate
+    assert run(src) == "0 10\n1 20\n2 30\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:48: in parse_statement
+    return self.parse_for_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:117: in parse_for_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_dicts" name="test_for_over_dict" time="0.000"><failure message="TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'">../phase_09/tests/test_dicts.py:69: in test_for_over_dict
+    assert run(src) == "a 1\nb 2\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:317: in parse_primary
+    return self.parse_dict_lit()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:355: in parse_dict_lit
+    return DictLit(pairs)
+           ^^^^^^^^^^^^^^
+E   TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'</failure></testcase><testcase classname="tests.test_dicts" name="test_for_break_continue" time="0.000"><failure message="TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'">../phase_09/tests/test_dicts.py:81: in test_for_break_continue
+    assert run(src) == "1\n3\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:48: in parse_statement
+    return self.parse_for_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:117: in parse_for_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:151: in parse_block
+    return Block(stmts)
+           ^^^^^^^^^^^^
+E   TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'</failure></testcase><testcase classname="tests.test_dicts" name="test_dict_print_format" time="0.000"><failure message="TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'">../phase_09/tests/test_dicts.py:86: in test_dict_print_format
+    assert run(src) == '{"a": 1, "b": "x"}\n'
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:317: in parse_primary
+    return self.parse_dict_lit()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:355: in parse_dict_lit
+    return DictLit(pairs)
+           ^^^^^^^^^^^^^^
+E   TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'</failure></testcase><testcase classname="tests.test_dicts" name="test_del_missing_key_errors" time="0.000" /><testcase classname="tests.test_errors" name="test_lex_error_is_typed" time="0.000" /><testcase classname="tests.test_errors" name="test_parse_error_is_typed" time="0.000" /><testcase classname="tests.test_errors" name="test_runtime_error_is_typed_and_has_line" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">tests/test_errors.py:39: in test_runtime_error_is_typed_and_has_line
+    run("print(missing_var);")
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_errors" name="test_runtime_error_stack_includes_function_names" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">tests/test_errors.py:52: in test_runtime_error_stack_includes_function_names
+    run(src)
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:50: in parse_statement
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:134: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_errors" name="test_runtime_error_str_contains_useful_info" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">tests/test_errors.py:62: in test_runtime_error_str_contains_useful_info
+    run("print(zz);")
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_errors" name="test_index_oob_is_runtime_error_typed" time="0.000"><failure message="TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'">tests/test_errors.py:70: in test_index_oob_is_runtime_error_typed
+    run("let xs = [1]; print(xs[10]);")
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:255: in parse_postfix
+    args.append(self.parse_expression())
+                ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:268: in parse_postfix
+    expr = Index(expr, key)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'</failure></testcase><testcase classname="tests.test_errors" name="test_division_by_zero_is_runtime_error_typed" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">tests/test_errors.py:76: in test_division_by_zero_is_runtime_error_typed
+    run("print(1 / 0);")
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_print_integer_no_decimal" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:6: in test_print_integer_no_decimal
+    assert run("print(5);") == "5\n"
+           ^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_arithmetic_precedence" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:10: in test_arithmetic_precedence
+    assert run("print(1 + 2 * 3);") == "7\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_subtraction_and_unary_minus" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:15: in test_subtraction_and_unary_minus
+    assert run("print(10 - 3);") == "7\n"
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_float_division" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:20: in test_float_division
+    assert run("print(3 / 2);") == "1.5\n"
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_modulo" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:24: in test_modulo
+    assert run("print(7 % 3);") == "1\n"
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_divide_by_zero" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_string_concat" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:33: in test_string_concat
+    assert run('print("hi" + " " + "you");') == "hi you\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_compare_numbers" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:37: in test_compare_numbers
+    assert run("print(1 &lt; 2, 2 &lt; 1);") == "true false\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_compare_equal_unlike_types_is_false" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:41: in test_compare_equal_unlike_types_is_false
+    assert run('print(1 == "1");') == "false\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_logical_short_circuit_returns_operand" time="0.000"><failure message="TypeError: BinaryOp.__init__() missing 2 required positional arguments: 'left' and 'right'">../phase_03/tests/test_eval_basic.py:46: in test_logical_short_circuit_returns_operand
+    assert run('print(true &amp;&amp; "x");') == "x\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:255: in parse_postfix
+    args.append(self.parse_expression())
+                ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:205: in parse_logical_and
+    expr = BinaryOp("&amp;&amp;", expr, right)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: BinaryOp.__init__() missing 2 required positional arguments: 'left' and 'right'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_negation_returns_bool" time="0.000"><failure message="TypeError: UnaryOp.__init__() missing 2 required positional arguments: 'op' and 'operand'">../phase_03/tests/test_eval_basic.py:52: in test_negation_returns_bool
+    assert run("print(!true, !false, !0, !1);") == "false true true false\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:255: in parse_postfix
+    args.append(self.parse_expression())
+                ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:244: in parse_unary
+    return UnaryOp(op, operand)
+           ^^^^^^^^^^^^^^^^^^^^
+E   TypeError: UnaryOp.__init__() missing 2 required positional arguments: 'op' and 'operand'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_nil_prints_as_nil" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:56: in test_nil_prints_as_nil
+    assert run("print(nil);") == "nil\n"
+           ^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_bool_prints_as_lowercase" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_03/tests/test_eval_basic.py:60: in test_bool_prints_as_lowercase
+    assert run("print(true, false);") == "true false\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_eval_basic" name="test_string_plus_number_errors" time="0.000" /><testcase classname="tests.test_eval_basic" name="test_compare_string_and_number_errors" time="0.000" /><testcase classname="tests.test_functions" name="test_fn_decl_and_call" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_06/tests/test_functions.py:10: in test_fn_decl_and_call
+    assert run(src) == "5\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:50: in parse_statement
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:134: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_functions" name="test_fn_lit_assigned_and_called" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_06/tests/test_functions.py:18: in test_fn_lit_assigned_and_called
+    assert run(src) == "11\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_functions" name="test_return_nil_when_falls_off_end" time="0.000"><failure message="TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'">../phase_06/tests/test_functions.py:26: in test_return_nil_when_falls_off_end
+    assert run(src) == "nil\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:50: in parse_statement
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:134: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:151: in parse_block
+    return Block(stmts)
+           ^^^^^^^^^^^^
+E   TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'</failure></testcase><testcase classname="tests.test_functions" name="test_recursion_factorial" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_06/tests/test_functions.py:37: in test_recursion_factorial
+    assert run(src) == "120\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:50: in parse_statement
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:134: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_functions" name="test_first_class_function_as_argument" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_06/tests/test_functions.py:46: in test_first_class_function_as_argument
+    assert run(src) == "14\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:50: in parse_statement
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:134: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:141: in parse_return_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_functions" name="test_arity_error_too_few" time="0.000" /><testcase classname="tests.test_functions" name="test_arity_error_too_many" time="0.000" /><testcase classname="tests.test_functions" name="test_call_non_function_errors" time="0.000" /><testcase classname="tests.test_functions" name="test_return_early_exits_fn_not_program" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_06/tests/test_functions.py:74: in test_return_early_exits_fn_not_program
+    assert run(src) == "pos\nzero_or_neg\nafter\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:50: in parse_statement
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:134: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_functions" name="test_recursion_fibonacci" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_06/tests/test_functions.py:85: in test_recursion_fibonacci
+    assert run(src) == "55\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:50: in parse_statement
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:134: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_lexer" name="test_empty_input_just_eof" time="0.000" /><testcase classname="tests.test_lexer" name="test_let_x_eq_1_plus_2" time="0.000" /><testcase classname="tests.test_lexer" name="test_keywords_vs_identifiers" time="0.000" /><testcase classname="tests.test_lexer" name="test_multi_char_punct" time="0.000" /><testcase classname="tests.test_lexer" name="test_single_char_punct_after_multi" time="0.000" /><testcase classname="tests.test_lexer" name="test_string_escapes" time="0.000" /><testcase classname="tests.test_lexer" name="test_comments_stripped" time="0.000" /><testcase classname="tests.test_lexer" name="test_line_col_tracking" time="0.000" /><testcase classname="tests.test_lexer" name="test_unknown_char_errors" time="0.000" /><testcase classname="tests.test_lexer" name="test_number_and_float" time="0.000" /><testcase classname="tests.test_lexer" name="test_eof_only_once" time="0.000" /><testcase classname="tests.test_lists" name="test_list_literal_and_print" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_08/tests/test_lists.py:6: in test_list_literal_and_print
+    assert run("print([1, 2, 3]);") == "[1, 2, 3]\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_lists" name="test_empty_list" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_08/tests/test_lists.py:10: in test_empty_list
+    assert run("print([]);") == "[]\n"
+           ^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_lists" name="test_index_read" time="0.000"><failure message="TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'">../phase_08/tests/test_lists.py:14: in test_index_read
+    assert run("let xs = [10, 20, 30]; print(xs[0], xs[1], xs[2]);") == "10 20 30\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:255: in parse_postfix
+    args.append(self.parse_expression())
+                ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:268: in parse_postfix
+    expr = Index(expr, key)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'</failure></testcase><testcase classname="tests.test_lists" name="test_index_out_of_bounds_errors" time="0.000" /><testcase classname="tests.test_lists" name="test_index_write" time="0.000"><failure message="TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'">../phase_08/tests/test_lists.py:28: in test_index_write
+    assert run(src) == "[1, 99, 3]\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:268: in parse_postfix
+    expr = Index(expr, key)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'</failure></testcase><testcase classname="tests.test_lists" name="test_len_of_list" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_08/tests/test_lists.py:32: in test_len_of_list
+    assert run("print(len([1, 2, 3, 4]));") == "4\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:255: in parse_postfix
+    args.append(self.parse_expression())
+                ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_lists" name="test_push_appends_and_mutates" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_08/tests/test_lists.py:43: in test_push_appends_and_mutates
+    assert run(src) == "[1, 2, 3]\n3\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_lists" name="test_pop_returns_and_shrinks" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_08/tests/test_lists.py:53: in test_pop_returns_and_shrinks
+    assert run(src) == "30\n[10, 20]\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_lists" name="test_pop_empty_errors" time="0.000" /><testcase classname="tests.test_lists" name="test_nested_lists" time="0.000"><failure message="TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'">../phase_08/tests/test_lists.py:67: in test_nested_lists
+    assert run(src) == "2\n3\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:255: in parse_postfix
+    args.append(self.parse_expression())
+                ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:268: in parse_postfix
+    expr = Index(expr, key)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'</failure></testcase><testcase classname="tests.test_lists" name="test_list_passed_to_fn_mutates_caller_view" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_08/tests/test_lists.py:78: in test_list_passed_to_fn_mutates_caller_view
+    assert run(src) == "[1, 1]\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:50: in parse_statement
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:134: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_parser" name="test_let_stmt" time="0.000" /><testcase classname="tests.test_parser" name="test_precedence_mul_before_add" time="0.000" /><testcase classname="tests.test_parser" name="test_comparison_and_logical" time="0.000"><failure message="TypeError: BinaryOp.__init__() missing 2 required positional arguments: 'left' and 'right'">../phase_02/tests/test_parser.py:29: in test_comparison_and_logical
+    p = parse("x = 1 &lt; 2 &amp;&amp; y;")
+        ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:183: in parse_assignment
+    value = self.parse_assignment()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:205: in parse_logical_and
+    expr = BinaryOp("&amp;&amp;", expr, right)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: BinaryOp.__init__() missing 2 required positional arguments: 'left' and 'right'</failure></testcase><testcase classname="tests.test_parser" name="test_if_else" time="0.000"><failure message="TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'">../phase_02/tests/test_parser.py:39: in test_if_else
+    p = parse("if (x) { let a = 1; } else { let b = 2; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:151: in parse_block
+    return Block(stmts)
+           ^^^^^^^^^^^^
+E   TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'</failure></testcase><testcase classname="tests.test_parser" name="test_while_with_break_continue" time="0.000"><failure message="TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'">../phase_02/tests/test_parser.py:47: in test_while_with_break_continue
+    p = parse("while (x) { break; continue; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:46: in parse_statement
+    return self.parse_while_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:98: in parse_while_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:151: in parse_block
+    return Block(stmts)
+           ^^^^^^^^^^^^
+E   TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'</failure></testcase><testcase classname="tests.test_parser" name="test_fn_decl_is_fndecl_not_letstmt" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_02/tests/test_parser.py:55: in test_fn_decl_is_fndecl_not_letstmt
+    p = parse("fn add(a, b) { return a + b; }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:50: in parse_statement
+    return self.parse_fn_decl()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:134: in parse_fn_decl
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_parser" name="test_fn_lit_in_let" time="0.000"><failure message="TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'">../phase_02/tests/test_parser.py:65: in test_fn_lit_in_let
+    p = parse("let f = fn(x) { return x; };")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:286: in parse_primary
+    return self.parse_fn_lit()
+           ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:336: in parse_fn_lit
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:52: in parse_statement
+    return self.parse_return_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:143: in parse_return_stmt
+    return ReturnStmt(value)
+           ^^^^^^^^^^^^^^^^^
+E   TypeError: ReturnStmt.__init__() missing 2 required positional arguments: 'col' and 'value'</failure></testcase><testcase classname="tests.test_parser" name="test_list_and_dict_literals" time="0.000"><failure message="TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'">../phase_02/tests/test_parser.py:72: in test_list_and_dict_literals
+    p = parse('let xs = [1, 2, 3,]; let d = {"a": 1, "b": 2};')
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:42: in parse_statement
+    return self.parse_let_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:77: in parse_let_stmt
+    value = self.parse_expression()
+            ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:248: in parse_postfix
+    expr = self.parse_primary()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:317: in parse_primary
+    return self.parse_dict_lit()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:355: in parse_dict_lit
+    return DictLit(pairs)
+           ^^^^^^^^^^^^^^
+E   TypeError: DictLit.__init__() missing 2 required positional arguments: 'col' and 'pairs'</failure></testcase><testcase classname="tests.test_parser" name="test_call_and_index_chain" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_02/tests/test_parser.py:82: in test_call_and_index_chain
+    p = parse("f(1, 2)[0];")
+        ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_parser" name="test_assign_to_index" time="0.000"><failure message="TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'">../phase_02/tests/test_parser.py:89: in test_assign_to_index
+    p = parse("xs[1] = 9;")
+        ^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:268: in parse_postfix
+    expr = Index(expr, key)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Index.__init__() missing 2 required positional arguments: 'target' and 'key'</failure></testcase><testcase classname="tests.test_parser" name="test_invalid_assign_target_raises" time="0.000" /><testcase classname="tests.test_parser" name="test_for_stmt_one_and_two_names" time="0.000"><failure message="TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'">../phase_02/tests/test_parser.py:102: in test_for_stmt_one_and_two_names
+    p1 = parse("for (x) in xs { }")
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:48: in parse_statement
+    return self.parse_for_stmt()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:117: in parse_for_stmt
+    body = self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:151: in parse_block
+    return Block(stmts)
+           ^^^^^^^^^^^^
+E   TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'</failure></testcase><testcase classname="tests.test_parser" name="test_else_if_chain_parses" time="0.000"><failure message="TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'">../phase_02/tests/test_parser.py:112: in test_else_if_chain_parses
+    p = parse("if (a) { } else if (b) { } else { }")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:363: in parse
+    return parser.parse_program()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:44: in parse_statement
+    return self.parse_if_stmt()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:84: in parse_if_stmt
+    then_block = self.parse_block()
+                 ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:151: in parse_block
+    return Block(stmts)
+           ^^^^^^^^^^^^
+E   TypeError: Block.__init__() missing 2 required positional arguments: 'col' and 'stmts'</failure></testcase><testcase classname="tests.test_scope" name="test_let_and_use" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_04/tests/test_scope.py:6: in test_let_and_use
+    assert run("let x = 5; print(x);") == "5\n"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_scope" name="test_shadowing_inside_block_does_not_affect_outer" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_04/tests/test_scope.py:19: in test_shadowing_inside_block_does_not_affect_outer
+    assert run(src) == "99\n1\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:66: in parse_statement
+    return self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_scope" name="test_block_local_not_visible_outside" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_04/tests/test_scope.py:29: in test_block_local_not_visible_outside
+    assert run(src) == "7\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:66: in parse_statement
+    return self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase><testcase classname="tests.test_scope" name="test_assign_to_outer_binding" time="0.000"><failure message="TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'">../phase_04/tests/test_scope.py:42: in test_assign_to_outer_binding
+    assert run(src) == "11\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:66: in parse_statement
+    return self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:185: in parse_assignment
+    return Assign(expr, value)
+           ^^^^^^^^^^^^^^^^^^^
+E   TypeError: Assign.__init__() missing 2 required positional arguments: 'target' and 'value'</failure></testcase><testcase classname="tests.test_scope" name="test_undefined_variable_errors" time="0.000" /><testcase classname="tests.test_scope" name="test_assign_to_undefined_errors" time="0.000" /><testcase classname="tests.test_scope" name="test_redeclare_in_same_scope_errors" time="0.000"><failure message="Failed: DID NOT RAISE &lt;class 'Exception'&gt;">../phase_04/tests/test_scope.py:56: in test_redeclare_in_same_scope_errors
+    with pytest.raises(Exception):
+         ^^^^^^^^^^^^^^^^^^^^^^^^
+E   Failed: DID NOT RAISE &lt;class 'Exception'&gt;</failure></testcase><testcase classname="tests.test_scope" name="test_nested_blocks_chain_lookup" time="0.000"><failure message="TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'">../phase_04/tests/test_scope.py:71: in test_nested_blocks_chain_lookup
+    assert run(src) == "1 2 3\n"
+           ^^^^^^^^
+tinylang/evaluator.py:145: in run
+    program = parser.parse_program()
+              ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:34: in parse_program
+    stmt = self.parse_statement()
+           ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:66: in parse_statement
+    return self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:66: in parse_statement
+    return self.parse_block()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:149: in parse_block
+    stmts.append(self.parse_statement())
+                 ^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:69: in parse_statement
+    expr = self.parse_expression()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:154: in parse_expression
+    return self.parse_assignment()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:180: in parse_assignment
+    expr = self.parse_logical_or()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:193: in parse_logical_or
+    expr = self.parse_logical_and()
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:201: in parse_logical_and
+    expr = self.parse_equality()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:209: in parse_equality
+    expr = self.parse_comparison()
+           ^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:217: in parse_comparison
+    expr = self.parse_additive()
+           ^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:225: in parse_additive
+    expr = self.parse_multiplicative()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:233: in parse_multiplicative
+    expr = self.parse_unary()
+           ^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:245: in parse_unary
+    return self.parse_postfix()
+           ^^^^^^^^^^^^^^^^^^^^
+tinylang/parser.py:263: in parse_postfix
+    expr = Call(expr, args)
+           ^^^^^^^^^^^^^^^^
+E   TypeError: Call.__init__() missing 2 required positional arguments: 'callee' and 'args'</failure></testcase></testsuite></testsuites>
