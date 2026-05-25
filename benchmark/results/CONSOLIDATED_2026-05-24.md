@@ -1,23 +1,23 @@
 # Consolidated benchmark results — 2026-05-24
 
-Snapshot updated mid-flight: the Gemma-4-26B-A4B run is at **phase 12/12 in
-progress**; **phases 1–11 are committed**. This doc rolls up everything done in
-the last 3 days (Runs 6, 7, 8 of the benchmark) plus the older baselines/runs
-for comparison.
+**Run complete.** All 12 phases of Gemma-4-26B-A4B committed. This doc rolls up
+everything done in the last 3 days (Runs 6, 7, 8 of the benchmark) plus the
+older baselines/runs for comparison.
 
 ## Headline
 
-**Gemma-4-26B-A4B Q4_K_M @ 64K is by a wide margin the best local model the
-benchmark has ever seen on this hardware.** Through phase 11 it matches Sonnet
-exactly on six phases (1, 3, 4, 5, 6, 7 all 100%) and stands at **86 of 109
-cumulative tests** (~79%) at end-of-phase-11 — 1 phase of work still to go.
-Previous local-model ceiling was Qwen2.5-Coder-32B aborting at phase 9 with
-peak 8 passes and 0/116 effective; everything else hit ≤25 of 116.
+**Gemma-4-26B-A4B Q4_K_M @ 64K finished at 98 / 116 cumulative tests (~84.5%) —
+by a wide margin the best local model the benchmark has ever seen on this
+hardware.** It matches Sonnet exactly on six phases (1, 3, 4, 5, 6, 7 — all 100%),
+then opens a widening gap from phase 8 onward, then **partially recovers on phase
+12** (added 12 new passing tests of which up to 7 were brand-new phase-12
+tests). Previous local-model ceiling was Qwen2.5-Coder-32B aborting at phase 9
+with peak 8 passes and 0/116 effective; everything else hit ≤25 of 116.
 
-The early run was tight against Sonnet (phases 1–7 hold a 5-phase 100% streak),
-then the gap opens as the model is asked to layer more onto a growing codebase:
-phase 8 –4, phase 9 –9, phase 10 –13, phase 11 –23 (and a prior-phase regression
-on `test_while_basic` that wasn't fixed by iteration).
+Sonnet baseline (via subagent, max plan) for the same benchmark = 116/116 in
+~53 min total wall. Gemma's 98/116 took **~25 hours wall** — same family of
+problems solvable, but at ~28× slower on this hardware. The cost trade is the
+real story: $0 in API spend vs Sonnet's ~$1.50–$2.90 equivalent.
 
 ## Side-by-side: per-phase passing tests vs Sonnet baseline
 
@@ -38,14 +38,13 @@ hits the expected count at every phase.
 | 09 |  92 / 92 | **83 / 92**    |   −9 | 0 / 7     | (stopped at p8) | aborted |
 | 10 |  99 / 99 | **86 / 99**    |  −13 | 0 / 8     |           |  |
 | 11 | 109 /109 | **86 / 109**   |  −23 | 0 / 9     |           |  |
-| 12 | 116 /116 | _in progress_  |    — | 0 / 10    |           |  |
+| 12 | 116 /116 | **98 / 116**   |  −18 | 0 / 10    |           |  |
 
 ## Gemma-4 per-phase wall time
 
-17 h 38 m of wall to land phases 1–11. Phase 12 in progress (driver pid 47951
-elapsed 17:37:48 at snapshot). Gemma is much slower per phase than Sonnet
-(Sonnet baseline was ~53 min total for all 12 phases via subagent) but it is
-making real code like Sonnet would.
+**Total ~25 h wall** to land phases 1–12. Gemma is much slower per phase than
+Sonnet (Sonnet baseline was ~53 min total for all 12 phases via subagent) but
+it is making real code like Sonnet would.
 
 | phase | total wall (min) | impl finish | sev finish | fix attempts | final passed/failed |
 |---:|---:|---|---|---:|---:|
@@ -60,6 +59,7 @@ making real code like Sonnet would.
 | 09 |  85.2 | api_error  | step_cap   | 1         | 83 / 9   |
 | 10 |  81.0 | step_cap   | done       | 1 (3 steps) | 86 / 13 |
 | 11 | 193.6 | step_cap   | api_error  | 1         | 86 / 23 ⚠ regressed `test_while_basic` |
+| 12 | 110.9 | api_error  | api_error  | 1         | **98 / 23** ↑ |
 
 The **per-phase fix-iteration loop earned its keep on phase 3**: the initial
 selfeval ended with 37/2 (two failing tests); fix_01 brought it to 39/0; fix_02
@@ -103,14 +103,28 @@ hits *some* phases (1, 7, 5) cleanly with no api_errors at all.
 
 ## Status one-liner
 
-**Run 8 (B_gemma4) is mid-flight, phase 12/12 in progress. 11 phases committed,
-86/109 cumulative tests passing (~79%).** Driver pid 47951 (17 h 37 m wall),
-server pid 47613 (RSS 18.7 GB, healthy, 26% RAM free). Phase 12 just started;
-expected to finish in ~1–3 more hours of wall (phase-11 took 3.2 h though, so
-add slack).
+**Run 8 (B_gemma4) is COMPLETE. 12 phases committed, 98/116 cumulative tests
+passing (~84.5%).** Driver pid 47951 exited at 21:50:17 EDT 2026-05-24. Total
+wall ~25 h. Server pid 47613 still running on :8083 (currently idle, RSS
+14.7 GB) — held warm for the 128K-headroom test next.
 
-Latest committed commits: `dc05a21` (p10), `ed488da` (p11). Pre-update
-consolidation commit: `23c86b7`.
+Committed run tail: `dc05a21` (p10), `ed488da` (p11), `4c43cf6` (p12).
+Consolidation snapshots: `23c86b7` (p1–9), `332363f` (p10–11), this commit (p12 final).
+
+## Ctx-overflow events from server log (motivating the 128K test)
+
+Two `request exceeds available context size` errors during the run, both at
+just past 64K:
+
+```
+phase  6 impl step 72:  65618 tokens > 65536 (overflow by 82 tokens)
+phase  9 impl step 63:  66584 tokens > 65536 (overflow by 1048 tokens)
+```
+
+Both were *barely* over the limit — phase 6 by 82 tokens, phase 9 by ~1K. **A
+128K ctx would have eliminated both of these aborts entirely**, which may close
+some of the gap to Sonnet on phase 9 in particular. This is independent of
+whether 128K fits in RAM on this box; the next step is to measure.
 
 ## All runs on the books (chronological in this session)
 
@@ -131,12 +145,12 @@ consolidation commit: `23c86b7`.
   agent planning. **Effective 11/116.** Stopped by user at phase 8.
 - Writeup: `results/run_qwen36_iter.md`.
 
-### Run 8 — Gemma-4-26B-A4B Q4_K_M (B_gemma4), 2026-05-23→24 [IN PROGRESS]
+### Run 8 — Gemma-4-26B-A4B Q4_K_M (B_gemma4), 2026-05-23→24 [COMPLETE]
 - Setup: thinking on (Gemma's design — surfaces correctly as `reasoning_content`),
   max_tokens=8192, iterating fix loop, `peg-gemma4` parser.
-- Result so far: phases 1–11 committed, 86/109 cumulative tests passing (~79%);
-  six phases (1, 3-7) at exactly Sonnet's pass count, then degrading gap from
-  phase 8 onward (-4, -9, -13, -23). Phase 12 in progress.
+- Result: 12 phases committed, **98/116 cumulative (~84.5%)**. Six phases (1, 3-7)
+  at exactly Sonnet's pass count; widening gap from phase 8 (-4, -9, -13, -23),
+  then phase 12 partial recovery (-18). Total wall ~25 h.
 - This doc.
 
 ### (Earlier runs, for reference)
