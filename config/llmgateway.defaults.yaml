@@ -33,63 +33,76 @@ services:
   # / local-reason LiteLLM routes (they all share this backend; the thinking
   # mode is controlled per-route via chat_template_kwargs in litellm-config).
   #
-  # Tuned for M4 / 32 GB unified memory. Assumes a 30–35B MoE model like
-  # Qwen3.6-35B-A3B at Q4_K_M (~17 GB weights on disk). Sized to leave the
-  # Docker stack (LiteLLM, Postgres, Grafana, Prometheus, Loki) room to run.
+  # Tuned for M4 / 32 GB unified memory. Currently runs Gemma-4-26B-A4B
+  # (hybrid/recurrent MoE, ~4B active params) at UD-Q4_K_M (~16 GB weights
+  # on disk). Verified at 128K ctx with default KV cache: idle 17.4 GB,
+  # peak 17.75 GB under realistic 11K-prompt + 8K-tool + 3K-reasoning load,
+  # ~10 GB headroom for the Docker stack (LiteLLM, Postgres, Grafana,
+  # Prometheus, Loki). See memory `gemma4-a4b-128k-headroom`.
   #
   #   threads: 4        — base M4 perf-core count. M4 Pro has more perf
   #                       cores, but with -ngl 99 the GPU does the work and
   #                       llama.cpp never benefits from spilling onto
   #                       efficiency cores.
-  #   ctx-size: 131072  — 128K with q4_0-quantized KV cache. q4_0 halves
-  #                       per-token KV (~24 KB/token vs ~48 KB at q8_0), so
-  #                       128K adds ~3 GB on top of the ~17 GB weights →
-  #                       ~20 GB resident. Trades a small attention-
-  #                       quantization quality cost for ~6 GB headroom.
-  #   parallel: 1       — single in-flight request keeps the full 128K
-  #                       window addressable per request (intended for
-  #                       single-agent coding plans, not concurrent agents).
+  #   ctx-size: 131072  — total KV budget across all parallel slots.
+  #   parallel: 2       — two in-flight request slots, so with ctx-size
+  #                       131072 each slot addresses 64K. Two slots lets
+  #                       a primary agent and a subagent (or a streaming
+  #                       reply + a quick lookup) run concurrently
+  #                       without the 128K-single-slot tradeoff of
+  #                       blocking one on the other.
+  #                       Bump parallel back to 1 (and keep ctx-size at
+  #                       131072) if you genuinely need 128K-per-request.
+  #   no --mlock        — --mlock + large --ctx-size has panicked the
+  #                       kernel on this 32 GB Mac; let macOS page weights.
+  #   cache-type-k/v: q8_0 — quantized KV cache. Safe with --flash-attn on;
+  #                       roughly halves KV memory at ~1% quality cost.
+  #   batch-size 2048,    — bigger prefill batches improve prompt-processing
+  #   ubatch-size 512       throughput on Metal without affecting decode RAM.
+  #   threads-batch 8     — use efficiency cores during prefill (CPU-bound
+  #                       tokenize/embed step) even though decode keeps
+  #                       --threads at 4 perf-cores.
   local:
-    enabled: false
+    enabled: true
     type: "llamacpp"
-    model: "qwen3.6-35b"
-    description: "Local model — llama-server (Qwen3.6-35B class)"
+    model: "gemma-4-26b-a4b"
+    description: "Local model — llama-server (Gemma-4-26B-A4B UD-Q4_K_M, 64K×2 ctx)"
     binary: "llama-server"
     args:
       --host: "0.0.0.0"
       --port: "8082"
-      --model: ""              # REQUIRED: path to the local model GGUF
+      --model: "/opt/storage/gguf/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf"
       --n-gpu-layers: "99"
       --ctx-size: "131072"
       --threads: "4"
-      --parallel: "1"
-      --temp: "0.6"
+      --threads-batch: "8"
+      --parallel: "2"
+      --batch-size: "2048"
+      --ubatch-size: "512"
+      --cache-type-k: "q8_0"
+      --cache-type-v: "q8_0"
+      --temp: "1.0"
       --top-p: "0.95"
-      --top-k: "20"
+      --top-k: "64"
       --min-p: "0"
     extra_args:
       - "--jinja"
-      - "--reasoning-format"
-      - "deepseek"
       - "--flash-attn"
       - "on"
-      - "--cache-type-k"
-      - "q4_0"
-      - "--cache-type-v"
-      - "q4_0"
       - "--cont-batching"
-      - "--mlock"
       - "--no-context-shift"
     health_check_url: "http://localhost:8082/health"
-    expected_memory_gb: 20.0
+    expected_memory_gb: 18.0
 
-  # Primary STT. Whisper Large-v3.
+  # High-quality STT — Whisper Large-v3 via whisper.cpp. Enable for batch
+  # transcription jobs (long-form audio, archives) where accuracy matters
+  # more than latency.
   # MUTEX `whisper`: only one of {whisper-large, whisper-fast} runs.
   whisper-large:
     enabled: false
     type: "whisper"
     model: "whisper-large-v3"
-    description: "Whisper Large-v3 (primary STT) — whisper-server"
+    description: "Whisper Large-v3 — high-quality STT for batch processing"
     mutex_group: "whisper"
     binary: "whisper-server"
     args:
