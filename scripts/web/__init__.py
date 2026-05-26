@@ -4,11 +4,16 @@ FastAPI application factory for the LLM Gateway web UI and REST API.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from .api import create_api_router
 from .ui import create_ui_router
+
+_STATIC_DIR = Path(__file__).parent / "static"
 
 
 def create_app(config_manager, service_registry, repo_dir, data_dir=None) -> FastAPI:
@@ -48,6 +53,10 @@ def create_app(config_manager, service_registry, repo_dir, data_dir=None) -> Fas
         create_ui_router(),
         tags=["ui"],
     )
+
+    # Static assets (app icon, favicons)
+    if _STATIC_DIR.is_dir():
+        app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
     # Global error handler
     @app.exception_handler(Exception)
