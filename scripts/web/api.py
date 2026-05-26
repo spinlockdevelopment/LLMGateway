@@ -42,6 +42,11 @@ _MODEL_SIGS = (
     "ollama", "model-runner", "modelrunner",
     "vllm", "mlx-", "mlx_lm",
     "lmstudio", "lm-studio",
+    # Audio models (whisper.cpp STT, Kokoro TTS). Faster-whisper /
+    # whisper-cpp processes load model weights into RSS too — count them
+    # alongside the LLM ones so the bar reflects total model memory.
+    "whisper-server", "whisper.cpp", "whisper_cpp", "faster-whisper",
+    "faster_whisper", "kokoro", "piper",
 )
 _SERVICE_SIGS = (
     "docker", "dockerd",                              # Docker Desktop / engine

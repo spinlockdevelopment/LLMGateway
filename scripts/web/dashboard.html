@@ -935,8 +935,18 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
       <span id="gateway-uptime">loading…</span>
     </div>
     <span class="spacer"></span>
+    <!-- Single global Refresh — re-runs whichever loader matches the
+         currently active tab. Per-section Refresh buttons were removed
+         in favor of this one. -->
+    <button type="button" class="topnav-link" onclick="refreshActiveTab()" title="Refresh current tab" style="background:none;border:none;cursor:pointer">↻ Refresh</button>
     <a class="topnav-link" href="http://localhost:4000/ui" target="_blank" rel="noopener">LiteLLM</a>
-    <a class="topnav-link" href="http://localhost:3000" target="_blank" rel="noopener">Grafana</a>
+    <!-- Logs: in-UI alternative to Grafana. Click → opens the Logs panel
+         (data-tab is read by the same delegated handler that drives the
+         sidebar). -->
+    <a class="topnav-link" href="#logs" data-tab="logs" role="button">Logs</a>
+    <!-- Grafana topnav link is hidden by default and revealed by
+         refreshObservabilityCard() when the observability stack is on. -->
+    <a class="topnav-link" id="topnav-grafana" href="http://localhost:3000" target="_blank" rel="noopener" style="display:none">Grafana</a>
   </nav>
 
   <div class="main">
@@ -956,6 +966,13 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
             <circle cx="3.5" cy="4" r="1.5"/><circle cx="3.5" cy="12" r="1.5"/><circle cx="12.5" cy="8" r="1.5"/><path d="M5 4h3.5a2 2 0 012 2v0a2 2 0 002 2M5 12h3.5a2 2 0 002-2v0a2 2 0 012-2"/>
           </svg>
           Routes
+        </div>
+        <div class="nav-item" data-tab="logs">
+          <svg class="nav-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 2h7l3 3v9a1 1 0 01-1 1H3a1 1 0 01-1-1V3a1 1 0 011-1z"/>
+            <path d="M5.5 8h5M5.5 10.5h5M5.5 5.5h2.5"/>
+          </svg>
+          Logs
         </div>
       </div>
 
@@ -1036,9 +1053,6 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
 
     <div class="section-header">
       <h3>Services</h3>
-      <div class="section-actions">
-        <button type="button" onclick="refreshDashboard()">Refresh</button>
-      </div>
     </div>
     <div id="dashboard-cards">
       <div class="card-meta">Loading…</div>
@@ -1047,7 +1061,6 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
     <div class="section-header">
       <h3>Docker Services</h3>
       <div class="section-actions">
-        <button type="button" onclick="refreshDockerServices()">Refresh</button>
         <button type="button" onclick="restartStack()">Restart all</button>
       </div>
     </div>
@@ -1058,6 +1071,42 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
     <div id="docker-service-list">
       <div class="card-meta">Loading…</div>
     </div>
+
+    <div class="section-header">
+      <h3>Observability stack (optional)</h3>
+    </div>
+    <p class="muted" style="margin-bottom:12px">
+      Grafana + Prometheus + Loki + Alloy. Off by default — the Logs tab
+      and LiteLLM's built-in /ui cover day-to-day inspection. Enable when
+      you need PromQL/LogQL or dashboards.
+    </p>
+    <div id="observability-card">
+      <div class="card-meta">Loading…</div>
+    </div>
+  </div>
+
+  <!-- ══════════ Logs (in-UI alternative to Grafana) ══════════ -->
+  <div class="panel" id="panel-logs">
+    <div class="page-header">
+      <h2>Logs</h2>
+      <div class="page-actions">
+        <label for="logs-source" class="muted" style="font-size:12.5px">Source</label>
+        <select id="logs-source" onchange="onLogsSourceChange()" style="padding:4px 8px;font-size:13px"></select>
+        <label for="logs-lines" class="muted" style="font-size:12.5px;margin-left:8px">Lines</label>
+        <select id="logs-lines" onchange="refreshLogsView()" style="padding:4px 8px;font-size:13px">
+          <option value="100">100</option>
+          <option value="200" selected>200</option>
+          <option value="500">500</option>
+          <option value="1000">1000</option>
+        </select>
+        <label style="display:inline-flex;align-items:center;gap:6px;color:var(--fg2);font-size:12.5px;margin-left:8px">
+          <input type="checkbox" id="logs-auto" checked onchange="toggleLogsAutoRefresh()">
+          Auto-refresh
+        </label>
+      </div>
+    </div>
+    <p class="muted" id="logs-meta" style="margin-bottom:8px">Pick a source.</p>
+    <pre id="logs-content" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:12px;font-family:var(--mono);font-size:12px;line-height:1.5;white-space:pre-wrap;overflow:auto;max-height:70vh;min-height:300px;margin:0">Select a source above.</pre>
   </div>
 
   <!-- ══════════ Models ══════════ -->
@@ -1067,9 +1116,6 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
     <div class="subpanel active" id="subpanel-routes">
       <div class="page-header">
         <h2>Routes</h2>
-        <div class="page-actions">
-          <button type="button" onclick="loadLitellmRoutes()">Refresh</button>
-        </div>
       </div>
       <p class="muted" style="margin-bottom:16px;max-width:760px">
         Pseudo-model routes to LiteLLM Proxy. Parsed from <code>litellm-config.yaml</code>.
@@ -1097,9 +1143,6 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
 
       <div class="section-header">
         <h3>Pulled models</h3>
-        <div class="section-actions">
-          <button type="button" onclick="loadDmrModels()">Refresh</button>
-        </div>
       </div>
       <div id="dmr-models">
         <div class="card-meta">Loading…</div>
@@ -1110,9 +1153,6 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
     <div class="subpanel" id="subpanel-recommendations">
       <div class="page-header">
         <h2>Recommendations</h2>
-        <div class="page-actions">
-          <button type="button" onclick="loadLlmfitRecommendations()">Refresh</button>
-        </div>
       </div>
       <div id="llmfit-banner" style="display:none"></div>
       <p class="muted" style="margin-bottom:16px;max-width:760px">
@@ -1220,24 +1260,63 @@ applyTheme(localStorage.getItem('llmgw-theme') || 'light');
 
 // ── Sidebar navigation ─────────────────────────────────────────────────────
 // Each sidebar item has data-tab (panel id) and optionally data-subtab (subpanel
-// id, used to deep-link to a specific Models subpanel). Top-nav external links
-// (LiteLLM, Grafana) are plain <a target="_blank"> elements — not handled here.
+// id, used to deep-link to a specific Models subpanel). Top-nav also reuses
+// data-tab on internal anchors (the Logs link) — switchToTab is shared.
+function switchToTab(tab, subtab) {
+  if (!tab) return;
+  const panel = document.getElementById('panel-' + tab);
+  if (!panel) return;
+  // Mark whichever sidebar nav-item matches as active (so the sidebar
+  // reflects state when navigation came from the topnav).
+  document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  const sidebarMatch = document.querySelector('.nav-item[data-tab="' + tab + '"]');
+  if (sidebarMatch) sidebarMatch.classList.add('active');
+  panel.classList.add('active');
+
+  if (tab === 'config') loadConfigEditor();
+  if (tab === 'secrets') loadSecrets();
+  if (tab === 'system') { refreshDashboard(); refreshDockerServices(); refreshObservabilityCard(); }
+  if (tab === 'models') { switchModelsSubtab(subtab || modelsSubtab || 'routes'); }
+  if (tab === 'logs') { initLogsPanel(); }
+}
+
 document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
-  item.addEventListener('click', () => {
-    const tab = item.dataset.tab;
-    const subtab = item.dataset.subtab;
+  item.addEventListener('click', () => switchToTab(item.dataset.tab, item.dataset.subtab));
+});
 
-    document.querySelectorAll('.nav-item').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    item.classList.add('active');
-    document.getElementById('panel-' + tab).classList.add('active');
-
-    if (tab === 'config') loadConfigEditor();
-    if (tab === 'secrets') loadSecrets();
-    if (tab === 'system') { refreshDashboard(); refreshDockerServices(); }
-    if (tab === 'models') { switchModelsSubtab(subtab || modelsSubtab || 'routes'); }
+// Topnav internal anchors (the Logs link uses data-tab). External topnav
+// links (LiteLLM, Grafana) are plain <a target="_blank"> and bypass this.
+document.querySelectorAll('.topnav-link[data-tab]').forEach(item => {
+  item.addEventListener('click', (e) => {
+    e.preventDefault();
+    switchToTab(item.dataset.tab);
   });
 });
+
+// ── Global refresh ─────────────────────────────────────────────────────────
+// Single Refresh button in the topnav — replaces the per-section buttons.
+// Inspects which panel is currently active and re-runs its loaders.
+function refreshActiveTab() {
+  const activePanel = document.querySelector('.panel.active');
+  if (!activePanel) return;
+  const id = activePanel.id || '';
+  if (id === 'panel-system') {
+    refreshDashboard(); refreshDockerServices();
+    refreshObservabilityCard();
+  } else if (id === 'panel-logs') {
+    initLogsPanel();
+  } else if (id === 'panel-models') {
+    // Re-run whichever subpanel is active.
+    if (typeof switchModelsSubtab === 'function') {
+      switchModelsSubtab(modelsSubtab || 'routes');
+    }
+  } else if (id === 'panel-config') {
+    if (typeof loadConfigEditor === 'function') loadConfigEditor();
+  } else if (id === 'panel-secrets') {
+    if (typeof loadSecrets === 'function') loadSecrets();
+  }
+}
 
 // ── API helpers ────────────────────────────────────────────────────────────
 async function api(path, opts) {
@@ -1311,7 +1390,19 @@ async function refreshDashboard() {
   const dmr = await api('/ui/dmr/ps').catch(() => null);
 
   const container = document.getElementById('dashboard-cards');
-  const gatewayRows = (data.services || []).map(renderGatewayCard).join('');
+  // Sort: running first (or starting/unhealthy — anything live), then
+  // enabled-but-stopped, then disabled. Within each tier, alphabetical.
+  const _tier = (s) => {
+    const st = (s.state || '').toLowerCase();
+    if (st === 'disabled') return 2;
+    if (st === 'stopped' || st === 'failed') return 1;
+    return 0;  // running / starting / unhealthy
+  };
+  const services = (data.services || []).slice().sort((a, b) => {
+    const t = _tier(a) - _tier(b);
+    return t !== 0 ? t : (a.name || '').localeCompare(b.name || '');
+  });
+  const gatewayRows = services.map(renderGatewayCard).join('');
   const dmrRows = renderDmrRunningCards(dmr && dmr.running ? dmr.running : []);
 
   if (!gatewayRows && !dmrRows) {
@@ -1359,7 +1450,10 @@ function renderGatewayCard(s) {
   const disabled = s.state === 'disabled';
   let actions;
   if (disabled) {
-    actions = '<span style="color:var(--fg3);font-size:12px">disabled in config</span>';
+    // Disabled means `enabled: false` in the user YAML. Enabling
+    // persists the flip and starts the service (and disables any mutex
+    // sibling so whisper-fast ↔ whisper-large flip cleanly).
+    actions = `<button type="button" onclick="svcAction('${s.name}', 'enable')">Enable</button>`;
   } else {
     let buttons = '';
     if (canStart) buttons += `<button type="button" onclick="svcAction('${s.name}', 'start')">Start</button>`;
@@ -1367,7 +1461,10 @@ function renderGatewayCard(s) {
       buttons += `<button type="button" onclick="svcAction('${s.name}', 'stop')">Stop</button>`;
       buttons += `<button type="button" onclick="svcAction('${s.name}', 'restart')">Restart</button>`;
     }
-    actions = buttons || '<span style="color:var(--fg3);font-size:12px">no actions</span>';
+    // Disable persists `enabled: false` so the service stays off across
+    // management restarts. Available whether currently running or not.
+    buttons += `<button type="button" class="danger" onclick="svcAction('${s.name}', 'disable')">Disable</button>`;
+    actions = buttons;
   }
   return `
     <div class="svc-row">
@@ -1503,13 +1600,170 @@ async function refreshDockerServices() {
   }
   const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
   litellmGroup.sort(byName);
-  loggingGroup.sort(byName);
   otherGroup.sort(byName);
 
+  // The Observability section is rendered in its own dedicated card
+  // (refreshObservabilityCard) so it can show "disabled with Enable
+  // button" even when no containers exist. We classify those into
+  // `loggingGroup` here so the for-loop is exhaustive but don't render it.
+  void loggingGroup;
   container.innerHTML =
     renderDockerSection('LiteLLM', 'Proxy and its backing database.', litellmGroup) +
-    renderDockerSection('Logging (optional)', 'Observability stack — safe to stop if you don\'t need dashboards.', loggingGroup) +
     renderDockerSection('Other', '', otherGroup);
+}
+
+// ── Observability stack card (Grafana + Prometheus + Loki + Alloy) ──────────
+let _obsBusy = false;
+
+function _obsServiceChips(states) {
+  return Object.entries(states).map(([svc, st]) => {
+    const cls = st === 'running' ? 'local' : 'key-none';
+    return `<span class="chip ${cls}" title="${escapeAttr(svc)}: ${escapeAttr(st)}">${escapeHtml(svc)}</span>`;
+  }).join(' ');
+}
+
+async function refreshObservabilityCard() {
+  const el = document.getElementById('observability-card');
+  if (!el) return;
+  const r = await api('/ui/observability/status');
+  if (!r) {
+    el.innerHTML = '<div class="card-meta">Failed to load observability status.</div>';
+    return;
+  }
+
+  // Reveal/hide the topnav Grafana link based on whether the stack is up.
+  const topnavGrafana = document.getElementById('topnav-grafana');
+  if (topnavGrafana) {
+    topnavGrafana.style.display = (r.enabled && r.all_running) ? '' : 'none';
+  }
+
+  const chips = _obsServiceChips(r.container_states || {});
+  const stateLabel = r.enabled
+    ? (r.all_running ? '<span class="chip local">● running</span>'
+       : r.any_running ? '<span class="chip" style="background:#facc15;color:#1f2937">partial</span>'
+       : '<span class="chip key-none">starting…</span>')
+    : '<span class="chip key-none">disabled</span>';
+  const button = r.enabled
+    ? `<button type="button" class="danger" onclick="disableObservability()">Disable</button>`
+    : `<button type="button" onclick="enableObservability()">Enable</button>`;
+  const grafanaLink = (r.enabled && r.all_running)
+    ? `<a href="${escapeAttr(r.grafana_url || 'http://localhost:3000')}" target="_blank" rel="noopener" style="margin-left:8px;font-size:13px">Open Grafana →</a>`
+    : '';
+  const note = r.enabled
+    ? ''
+    : `<div class="card-meta" style="margin-top:8px;font-size:12px">⚠ Enabling will use ${escapeHtml(r.memory_note || '~500 MB additional RAM')} The four containers come up via <code>docker compose --profile observability up -d</code>.</div>`;
+  el.innerHTML = `
+    <div class="svc-row">
+      <div class="svc-info">
+        <div class="svc-name">Observability stack ${stateLabel}${grafanaLink}</div>
+        <div class="svc-desc" style="margin-top:4px">${chips}</div>
+        ${note}
+      </div>
+      <div class="svc-actions">${button}</div>
+    </div>
+  `;
+}
+
+async function enableObservability() {
+  if (_obsBusy) return;
+  _obsBusy = true;
+  toast('Starting observability stack… (pulling images may take a minute)', 'success');
+  const r = await api('/ui/observability/enable', { method: 'POST' });
+  _obsBusy = false;
+  if (r && r.status === 'enabled') {
+    toast('Observability enabled.', 'success');
+  } else {
+    toast('Observability enable failed: ' + ((r && r.error) || 'unknown'), 'error');
+  }
+  setTimeout(() => { refreshObservabilityCard(); refreshDockerServices(); }, 1500);
+}
+
+async function disableObservability() {
+  if (_obsBusy) return;
+  if (!confirm('Disable observability stack? The four containers will be stopped and removed; volumes are preserved.')) return;
+  _obsBusy = true;
+  toast('Stopping observability stack…', 'success');
+  const r = await api('/ui/observability/disable', { method: 'POST' });
+  _obsBusy = false;
+  if (r && (r.status === 'disabled' || r.status === 'disabled_with_errors')) {
+    toast('Observability disabled.', 'success');
+  } else {
+    toast('Observability disable failed: ' + ((r && r.error) || 'unknown'), 'error');
+  }
+  setTimeout(() => { refreshObservabilityCard(); refreshDockerServices(); }, 1000);
+}
+
+// ── Logs panel ──────────────────────────────────────────────────────────────
+let _logsInited = false;
+let _logsAutoTimer = null;
+
+async function initLogsPanel() {
+  // Re-fetch sources every visit (a freshly enabled obs stack adds new ones).
+  const sel = document.getElementById('logs-source');
+  const r = await api('/ui/logs/sources');
+  const sources = (r && r.sources) || [];
+  // Preserve current selection if still valid.
+  const prev = sel.value;
+  sel.innerHTML = '';
+  if (sources.length === 0) {
+    sel.innerHTML = '<option value="">(no sources)</option>';
+    document.getElementById('logs-meta').textContent = 'No log sources available.';
+    document.getElementById('logs-content').textContent = '';
+    return;
+  }
+  // Group by section.
+  const byGroup = sources.reduce((acc, s) => {
+    (acc[s.group || 'other'] = acc[s.group || 'other'] || []).push(s);
+    return acc;
+  }, {});
+  const order = ['core', 'host', 'observability', 'other'];
+  for (const g of order) {
+    if (!byGroup[g]) continue;
+    const og = document.createElement('optgroup');
+    og.label = g.charAt(0).toUpperCase() + g.slice(1);
+    for (const s of byGroup[g]) {
+      const o = document.createElement('option');
+      o.value = s.id;
+      o.textContent = s.label;
+      og.appendChild(o);
+    }
+    sel.appendChild(og);
+  }
+  // Default to LiteLLM if available, else the first source.
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  else if ([...sel.options].some(o => o.value === 'litellm')) sel.value = 'litellm';
+
+  _logsInited = true;
+  refreshLogsView();
+  toggleLogsAutoRefresh();
+}
+
+function onLogsSourceChange() {
+  refreshLogsView();
+}
+
+async function refreshLogsView() {
+  const sel = document.getElementById('logs-source');
+  const lines = document.getElementById('logs-lines').value || '200';
+  const source = sel && sel.value;
+  if (!source) return;
+  const metaEl = document.getElementById('logs-meta');
+  const contentEl = document.getElementById('logs-content');
+  metaEl.textContent = 'Loading ' + source + '…';
+  const r = await api('/ui/logs/' + encodeURIComponent(source) + '/tail?lines=' + encodeURIComponent(lines));
+  if (!r) { metaEl.textContent = 'Failed to load.'; return; }
+  if (r.error) { metaEl.textContent = 'Error: ' + r.error; contentEl.textContent = ''; return; }
+  const list = r.lines || [];
+  metaEl.textContent = source + ' · ' + list.length + ' lines' + (r.message ? ' · ' + r.message : '');
+  contentEl.textContent = list.join('\n') || (r.message || '(empty)');
+  // Auto-scroll to the bottom so newest lines are visible.
+  contentEl.scrollTop = contentEl.scrollHeight;
+}
+
+function toggleLogsAutoRefresh() {
+  const on = document.getElementById('logs-auto').checked;
+  if (_logsAutoTimer) { clearInterval(_logsAutoTimer); _logsAutoTimer = null; }
+  if (on) _logsAutoTimer = setInterval(refreshLogsView, 5000);
 }
 
 async function svcAction(name, action) {
@@ -1599,8 +1853,8 @@ const BACKEND_LABELS = {
   'xai': 'xAI',
   'azure': 'Azure',
   'deepseek': 'DeepSeek',
-  'docker-model-runner': 'Docker Model Runner (local)',
-  'local-llamacpp': 'llama.cpp (local)',
+  'docker-model-runner': 'local',
+  'local-llamacpp': 'local',
   'other': 'Other',
 };
 
@@ -1919,12 +2173,42 @@ async function loadDmrModels() {
     el.innerHTML = '<div class="card-meta">No models pulled yet. Pick one above or pull by name below.</div>';
     return;
   }
+  // Sort: running first, then by size descending. Size may be a number
+  // (bytes) or a pre-formatted string like "17.28GiB" — _sizeBytes()
+  // normalises both, returning -1 for entries with no usable size so they
+  // settle at the bottom of their group.
+  const _sizeBytes = (s) => {
+    if (s == null) return -1;
+    if (typeof s === 'number' && isFinite(s)) return s;
+    if (typeof s !== 'string') return -1;
+    const m = s.match(/^\s*([\d.]+)\s*(B|KB|MB|GB|TB|KiB|MiB|GiB|TiB)?\s*$/i);
+    if (!m) return -1;
+    const n = parseFloat(m[1]);
+    const unit = (m[2] || 'B').toUpperCase();
+    const mult = {
+      'B': 1,
+      'KB': 1e3, 'MB': 1e6, 'GB': 1e9, 'TB': 1e12,
+      'KIB': 1024, 'MIB': 1024**2, 'GIB': 1024**3, 'TIB': 1024**4,
+    }[unit] || 1;
+    return n * mult;
+  };
+  models.sort((a, b) => {
+    const ar = a.running ? 1 : 0, br = b.running ? 1 : 0;
+    if (ar !== br) return br - ar;
+    return _sizeBytes(b.config && b.config.size) - _sizeBytes(a.config && a.config.size);
+  });
   el.innerHTML = models.map(m => {
     const tag = (m.tags && m.tags[0]) || m.id || '?';
-    const { prefix, basename } = splitModelPath(tag);
+    const isFile = m.source === 'file';
+    const { prefix, basename } = isFile
+      ? { prefix: m.path ? m.path.replace(/\/[^\/]*$/, '') : '', basename: tag }
+      : splitModelPath(tag);
     const cfg = m.config || {};
+    const sourceBadge = isFile
+      ? ' <span class="chip key-none" title="GGUF file on disk — not pulled via Docker Model Runner">local file</span>'
+      : '';
     const runningBadge = m.running
-      ? ' <span class="chip local" title="currently loaded in Docker Model Runner">● running</span>'
+      ? ' <span class="chip local" title="currently being served by llama-server">● running</span>'
       : ' <span class="chip key-none">idle</span>';
     const pathLine = prefix
       ? `<div class="svc-desc" style="font-family:var(--mono);font-size:11.5px;color:var(--fg3);margin-top:2px">${escapeHtml(prefix)}</div>`
@@ -1936,15 +2220,21 @@ async function loadDmrModels() {
       fmtSize(cfg.size),
       fmtDownloaded(m.created),
     ].filter(s => s && String(s).trim()).map(escapeHtml).join(' · ');
+    // Side-loaded files have no DMR record, so the DMR `rm` action doesn't
+    // apply. Surface that with a disabled button rather than hiding it, so
+    // it's obvious why deletion is unavailable.
+    const action = isFile
+      ? `<button type="button" disabled title="Side-loaded GGUFs are not managed by Docker Model Runner — delete the file directly to remove.">Delete</button>`
+      : `<button type="button" class="danger" onclick="dmrRm('${escapeAttr(tag)}')">Delete</button>`;
     return `
       <div class="svc-row">
         <div class="svc-info">
-          <div class="svc-name" title="${escapeAttr(tag)}">${escapeHtml(basename)}${runningBadge}</div>
+          <div class="svc-name" title="${escapeAttr(tag)}">${escapeHtml(basename)}${sourceBadge}${runningBadge}</div>
           ${pathLine}
           ${descParts ? `<div class="svc-desc">${descParts}</div>` : ''}
         </div>
         <div class="svc-actions">
-          <button type="button" class="danger" onclick="dmrRm('${escapeAttr(tag)}')">Delete</button>
+          ${action}
         </div>
       </div>
     `;
@@ -2618,6 +2908,7 @@ async function refreshTopProcesses() {
 function startAutoRefresh() {
   refreshDashboard();
   refreshDockerServices();
+  refreshObservabilityCard();
   refreshTimer = setInterval(() => {
     refreshDashboard();
     refreshTopProcesses();
