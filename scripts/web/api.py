@@ -543,4 +543,77 @@ def create_api_router() -> APIRouter:
 
         return {"containers": containers}
 
+    @router.get("/tailscale/status")
+    async def get_tailscale_status():
+        """
+        Tailscale connectivity check. Read-only — never starts/stops the
+        daemon. Used by the dashboard's Services tab to surface whether the
+        host is reachable over the tailnet, plus its tailnet IP + DNS name.
+        """
+
+        async def _run(*args: str) -> tuple[int, bytes, bytes]:
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+            except FileNotFoundError:
+                return -1, b"", b"not found"
+            out, err = await proc.communicate()
+            return proc.returncode or 0, out, err
+
+        # `tailscale` not on PATH → report not_installed and bail.
+        rc, out, err = await _run("tailscale", "status", "--json")
+        if rc == -1:
+            return {
+                "installed": False,
+                "state": "not_installed",
+                "error": "tailscale CLI not found on PATH",
+            }
+        if rc != 0:
+            return {
+                "installed": True,
+                "state": "error",
+                "error": err.decode(errors="replace").strip() or "tailscale status failed",
+            }
+
+        try:
+            status = json.loads(out.decode("utf-8"))
+        except Exception as exc:
+            return {"installed": True, "state": "error", "error": f"parse: {exc}"}
+
+        # Prefs reveal RunSSH + LoggedOut. Optional — if it fails we just
+        # omit those fields rather than failing the whole endpoint.
+        prefs: dict[str, Any] = {}
+        rc2, out2, _ = await _run("tailscale", "debug", "prefs")
+        if rc2 == 0:
+            try:
+                prefs = json.loads(out2.decode("utf-8"))
+            except Exception:
+                prefs = {}
+
+        backend = status.get("BackendState") or "Unknown"
+        self_node = status.get("Self") or {}
+        state_map = {
+            "Running": "running",
+            "NeedsLogin": "needs_login",
+            "Stopped": "stopped",
+            "Starting": "starting",
+            "NoState": "stopped",
+        }
+        return {
+            "installed": True,
+            "state": state_map.get(backend, backend.lower()),
+            "backend_state": backend,
+            "logged_in": not prefs.get("LoggedOut", True),
+            "hostname": self_node.get("HostName") or None,
+            "dns_name": (self_node.get("DNSName") or "").rstrip(".") or None,
+            "tailscale_ips": status.get("TailscaleIPs") or [],
+            "online": bool(self_node.get("Online")),
+            "ssh_enabled": bool(prefs.get("RunSSH")),
+            "magic_dns_suffix": status.get("MagicDNSSuffix") or None,
+            "health": status.get("Health") or [],
+        }
+
     return router

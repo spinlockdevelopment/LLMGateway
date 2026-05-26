@@ -1058,6 +1058,10 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
       <div class="card-meta">Loading…</div>
     </div>
 
+    <div id="tailscale-card">
+      <div class="card-meta">Loading…</div>
+    </div>
+
     <div class="section-header">
       <h3>Docker Services</h3>
       <div class="section-actions">
@@ -1276,7 +1280,7 @@ function switchToTab(tab, subtab) {
 
   if (tab === 'config') loadConfigEditor();
   if (tab === 'secrets') loadSecrets();
-  if (tab === 'system') { refreshDashboard(); refreshDockerServices(); refreshObservabilityCard(); }
+  if (tab === 'system') { refreshDashboard(); refreshDockerServices(); refreshObservabilityCard(); refreshTailscaleCard(); }
   if (tab === 'models') { switchModelsSubtab(subtab || modelsSubtab || 'routes'); }
   if (tab === 'logs') { initLogsPanel(); }
 }
@@ -1303,7 +1307,7 @@ function refreshActiveTab() {
   const id = activePanel.id || '';
   if (id === 'panel-system') {
     refreshDashboard(); refreshDockerServices();
-    refreshObservabilityCard();
+    refreshObservabilityCard(); refreshTailscaleCard();
   } else if (id === 'panel-logs') {
     initLogsPanel();
   } else if (id === 'panel-models') {
@@ -1691,6 +1695,63 @@ async function disableObservability() {
     toast('Observability disable failed: ' + ((r && r.error) || 'unknown'), 'error');
   }
   setTimeout(() => { refreshObservabilityCard(); refreshDockerServices(); }, 1000);
+}
+
+// ── Tailscale status card ───────────────────────────────────────────────────
+// Read-only check against `tailscale status --json` + `debug prefs`. No
+// start/stop controls — if Tailscale is down the user is usually unable to
+// reach this dashboard at all (unless on localhost), so this is purely
+// informational.
+async function refreshTailscaleCard() {
+  const el = document.getElementById('tailscale-card');
+  if (!el) return;
+  const r = await api('/api/tailscale/status');
+  if (!r) {
+    el.innerHTML = '';
+    return;
+  }
+  if (r.state === 'not_installed') {
+    el.innerHTML = '';  // Hide the card entirely if tailscale isn't installed.
+    return;
+  }
+
+  const dotClass = r.state === 'running' && r.online ? 'green'
+                 : r.state === 'starting' ? 'yellow'
+                 : 'gray';
+  const stateLabel = r.state === 'running' && r.online ? 'connected'
+                   : r.state === 'needs_login' ? 'logged out'
+                   : r.state === 'stopped' ? 'stopped'
+                   : r.state === 'starting' ? 'connecting…'
+                   : r.state === 'error' ? 'error'
+                   : r.state;
+
+  const ip = (r.tailscale_ips && r.tailscale_ips[0]) || '';
+  const dns = r.dns_name || (r.hostname && r.magic_dns_suffix
+    ? `${r.hostname}.${r.magic_dns_suffix}` : r.hostname || '');
+  const ssh = r.ssh_enabled
+    ? '<span class="chip local">SSH on</span>'
+    : '<span class="chip key-none">SSH off</span>';
+
+  const detail = (r.state === 'running' && r.online)
+    ? `${escapeHtml(dns)}${ip ? ' · ' + escapeHtml(ip) : ''}`
+    : (r.error ? escapeHtml(r.error)
+       : r.state === 'needs_login' ? 'Run <code>tailscale up</code> on the host to log in.'
+       : 'Tailscale daemon not running.');
+  const health = (r.health && r.health.length)
+    ? `<div class="card-meta" style="margin-top:4px;font-size:12px">⚠ ${r.health.map(escapeHtml).join(' · ')}</div>`
+    : '';
+
+  el.innerHTML = `
+    <div class="svc-row">
+      <span class="dot ${dotClass}"></span>
+      <div class="svc-info">
+        <div class="svc-name">Network — tailscale ${ssh}</div>
+        <div class="svc-desc">${detail}</div>
+        <div class="svc-desc"><strong>${escapeHtml(stateLabel)}</strong></div>
+        ${health}
+      </div>
+      <div class="svc-actions"></div>
+    </div>`;
 }
 
 // ── Logs panel ──────────────────────────────────────────────────────────────
@@ -2909,6 +2970,7 @@ function startAutoRefresh() {
   refreshDashboard();
   refreshDockerServices();
   refreshObservabilityCard();
+  refreshTailscaleCard();
   refreshTimer = setInterval(() => {
     refreshDashboard();
     refreshTopProcesses();
