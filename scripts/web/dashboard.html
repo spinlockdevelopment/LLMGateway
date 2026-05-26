@@ -1333,14 +1333,26 @@ function shortName(name) {
   return stripped;
 }
 
+// Display titles for the Services tab — prefix with the role (LLM/STT/TTS)
+// so cards self-document without having to read the description line.
+const SVC_TITLES = {
+  'local':         'LLM — local',
+  'kokoro':        'TTS — kokoro',
+  'whisper-fast':  'STT — whisper-fast',
+  'whisper-large': 'STT — whisper-large',
+};
+
 function renderGatewayCard(s) {
+  const title = SVC_TITLES[s.name] || s.name;
   const modelSub = s.model
     ? ` <span style="color:var(--fg3);font-family:var(--mono);font-size:12px;font-weight:400">${escapeHtml(shortName(s.model))}</span>`
     : '';
-  const stateBits = [
+  // State line sits on its own row below the description: "running · Port
+  // 8082 · up 32m".
+  const stateLine = [
     `<strong>${escapeHtml(s.state)}</strong>`,
     s.port ? `Port ${s.port}` : '',
-    s.uptime_sec ? `up ${fmtUptime(s.uptime_sec)}` : '',
+    s.uptime_sec ? `up ${escapeHtml(fmtUptime(s.uptime_sec))}` : '',
   ].filter(Boolean).join(' · ');
   const canStart = ['stopped', 'failed'].includes(s.state);
   const canStop = ['running', 'unhealthy', 'starting'].includes(s.state);
@@ -1361,8 +1373,9 @@ function renderGatewayCard(s) {
     <div class="svc-row">
       <span class="dot ${stateColor(s.state)}"></span>
       <div class="svc-info">
-        <div class="svc-name">${escapeHtml(s.name)}${modelSub}</div>
-        <div class="svc-desc">${escapeHtml(s.description || '')} · ${stateBits}</div>
+        <div class="svc-name">${escapeHtml(title)}${modelSub}</div>
+        <div class="svc-desc">${escapeHtml(s.description || '')}</div>
+        <div class="svc-desc">${stateLine}</div>
       </div>
       <div class="svc-actions">${actions}</div>
     </div>`;
