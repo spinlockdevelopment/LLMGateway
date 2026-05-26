@@ -671,6 +671,97 @@ def create_ui_router() -> APIRouter:
 
         return {"status": "restarting", "service": svc.status().to_dict()}
 
+    def _set_service_enabled_in_yaml(cm, name: str, enabled: bool) -> None:
+        """Write services.{name}.enabled into the user YAML override.
+
+        Reads the user file directly (not the merged config) so we only
+        persist a single key — letting future changes in the shipped
+        defaults flow through without being frozen into the override.
+        """
+        import yaml as pyyaml
+        user_path = cm.user_path
+        if user_path.exists():
+            try:
+                data = pyyaml.safe_load(user_path.read_text(encoding="utf-8")) or {}
+            except Exception:
+                data = {}
+        else:
+            data = {}
+        services = data.setdefault("services", {})
+        slot = services.setdefault(name, {})
+        slot["enabled"] = enabled
+        user_path.parent.mkdir(parents=True, exist_ok=True)
+        user_path.write_text(
+            pyyaml.dump(data, default_flow_style=False, sort_keys=False),
+            encoding="utf-8",
+        )
+        try:
+            import os as _os
+            _os.chmod(user_path, 0o600)
+        except OSError:
+            pass
+
+    @router.post("/ui/services/{name}/enable")
+    async def enable_service(name: str, request: Request):
+        """Flip a service's `enabled: true` flag, then start it.
+
+        If the service has a `mutex_group` (e.g. whisper-fast/whisper-large
+        share 'whisper'), siblings in the same group are persisted as
+        `enabled: false` and stopped first — matches what
+        registry.start_with_mutex would do at runtime, but persists the
+        choice so the next management restart still respects it.
+        """
+        from services import ServiceState
+        registry = request.app.state.service_registry
+        cm = request.app.state.config_manager
+        svc = registry.get(name)
+        if svc is None:
+            raise HTTPException(404, "unknown service")
+
+        # Persist mutex sibling disable + this service's enable.
+        for sib in registry.siblings_in_group(name):
+            if sib.enabled:
+                _set_service_enabled_in_yaml(cm, sib.name, False)
+                sib.svc_config["enabled"] = False
+                if sib.state not in (ServiceState.STOPPED, ServiceState.DISABLED):
+                    try:
+                        await sib.stop()
+                    except Exception:
+                        log.warning("Failed to stop mutex sibling %s", sib.name, exc_info=True)
+                sib._state = ServiceState.DISABLED
+
+        _set_service_enabled_in_yaml(cm, name, True)
+        svc.svc_config["enabled"] = True
+        if svc.state == ServiceState.DISABLED:
+            svc._state = ServiceState.STOPPED
+
+        ok = await registry.start_with_mutex(name)
+        return {
+            "status": "enabled" if ok else "enable_failed",
+            "service": svc.status().to_dict() if hasattr(svc, "status") else None,
+        }
+
+    @router.post("/ui/services/{name}/disable")
+    async def disable_service(name: str, request: Request):
+        """Stop the service if running, then persist `enabled: false`."""
+        from services import ServiceState
+        registry = request.app.state.service_registry
+        cm = request.app.state.config_manager
+        svc = registry.get(name)
+        if svc is None:
+            raise HTTPException(404, "unknown service")
+
+        if svc.state not in (ServiceState.STOPPED, ServiceState.DISABLED):
+            try:
+                await svc.stop()
+            except Exception:
+                log.warning("Failed to stop %s during disable", name, exc_info=True)
+
+        _set_service_enabled_in_yaml(cm, name, False)
+        svc.svc_config["enabled"] = False
+        svc._state = ServiceState.DISABLED
+        return {"status": "disabled"}
+
     @router.get("/ui/services/{name}/logs")
     async def service_logs(name: str, request: Request):
         """
@@ -710,6 +801,149 @@ def create_ui_router() -> APIRouter:
 
         log_lines, truncated = _tail(log_path, max_lines)
         return {"lines": log_lines, "truncated": truncated}
+
+    # ── In-UI Logs panel ──────────────────────────────────────────────────────
+    # The dashboard's Logs tab is the lean alternative to Grafana/Loki.
+    # `/ui/logs/sources` lists what's available right now (so the panel can
+    # build its source dropdown); `/ui/logs/{source}/tail` returns the last
+    # N lines. Container sources go through `docker logs`; file sources tail
+    # the gateway's own log files under data_dir/logs.
+
+    _LOG_SOURCE_NAME_RE = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
+
+    _CONTAINER_LOG_SOURCES = {
+        # source_name : (container_name, human_label, group_name)
+        "litellm":    ("llm-gateway",  "LiteLLM proxy",       "core"),
+        "postgres":   ("llm-postgres", "PostgreSQL",          "core"),
+        "grafana":    ("grafana",      "Grafana",             "observability"),
+        "prometheus": ("prometheus",   "Prometheus",          "observability"),
+        "loki":       ("loki",         "Loki",                "observability"),
+        "alloy":      ("alloy",        "Alloy",               "observability"),
+    }
+
+    _FILE_LOG_SOURCES = {
+        # source_name : (filename_under_data_dir/logs, human_label, group_name)
+        "management":     ("gateway.log",        "Management daemon", "host"),
+        "llama-server":   ("llama-server.log",   "llama.cpp server",  "host"),
+        "whisper-server": ("whisper-server.log", "whisper.cpp server","host"),
+    }
+
+    async def _container_exists(name: str) -> bool:
+        if not shutil.which("docker"):
+            return False
+        try:
+            rc, out, _ = await _run_cmd(
+                ["docker", "ps", "-a", "--format", "{{.Names}}", "--filter", f"name=^{name}$"],
+                timeout=5,
+            )
+        except (asyncio.TimeoutError, FileNotFoundError):
+            return False
+        return rc == 0 and name in {ln.strip() for ln in out.splitlines()}
+
+    @router.get("/ui/logs/sources")
+    async def log_sources(request: Request):
+        """List log sources currently available, grouped for the UI selector.
+
+        A source shows up only if its underlying data exists right now:
+        containers must be present on the docker daemon, files must exist
+        on disk. This keeps the dropdown free of dead entries.
+        """
+        sources: list[dict] = []
+
+        for src, (container, label, group) in _CONTAINER_LOG_SOURCES.items():
+            if await _container_exists(container):
+                sources.append({
+                    "id": src,
+                    "label": label,
+                    "kind": "container",
+                    "group": group,
+                })
+
+        from data_dir import log_dir as gateway_log_dir
+        log_root = gateway_log_dir()
+        for src, (filename, label, group) in _FILE_LOG_SOURCES.items():
+            path = log_root / filename
+            if path.exists() and path.stat().st_size > 0:
+                sources.append({
+                    "id": src,
+                    "label": label,
+                    "kind": "file",
+                    "group": group,
+                })
+
+        return {"sources": sources}
+
+    @router.get("/ui/logs/{source}/tail")
+    async def log_tail(source: str, request: Request):
+        """Return the last N lines of a log source.
+
+        Query params:
+            lines: tail length (default 200, clamped to [1, 2000])
+        """
+        if not _LOG_SOURCE_NAME_RE.match(source):
+            raise HTTPException(400, "invalid source name")
+
+        lines_param = request.query_params.get("lines")
+        try:
+            max_lines = int(lines_param) if lines_param is not None else 200
+        except ValueError:
+            max_lines = 200
+        max_lines = max(1, min(max_lines, 2000))
+
+        # Container source: shell out to `docker logs --tail`.
+        if source in _CONTAINER_LOG_SOURCES:
+            container, _label, _group = _CONTAINER_LOG_SOURCES[source]
+            if not shutil.which("docker"):
+                return {"lines": [], "message": "docker CLI not found"}
+            if not await _container_exists(container):
+                return {
+                    "lines": [],
+                    "message": f"Container '{container}' is not present.",
+                }
+            try:
+                rc, out, err = await _run_cmd(
+                    ["docker", "logs", "--tail", str(max_lines), container],
+                    timeout=15,
+                )
+            except asyncio.TimeoutError:
+                return JSONResponse(status_code=504, content={"error": "docker logs timed out"})
+            if rc != 0:
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": "docker logs failed", "stderr": err[:2000]},
+                )
+            # `docker logs` mixes stdout+stderr; either may be empty alone.
+            combined = (out + err).splitlines()
+            return {"lines": combined[-max_lines:], "source": source}
+
+        # File source: tail the log file under data_dir/logs.
+        if source in _FILE_LOG_SOURCES:
+            from data_dir import log_dir as gateway_log_dir
+            filename, _label, _group = _FILE_LOG_SOURCES[source]
+            log_path = gateway_log_dir() / filename
+            if not log_path.exists():
+                return {"lines": [], "message": "No log file yet."}
+            try:
+                with log_path.open("rb") as f:
+                    f.seek(0, 2)
+                    size = f.tell()
+                    block_size = 4096
+                    data = b""
+                    pos = size
+                    while pos > 0 and data.count(b"\n") <= max_lines:
+                        read_size = min(block_size, pos)
+                        pos -= read_size
+                        f.seek(pos)
+                        data = f.read(read_size) + data
+                    lines = data.splitlines()[-max_lines:]
+            except OSError as e:
+                return JSONResponse(status_code=500, content={"error": str(e)})
+            return {
+                "lines": [ln.decode("utf-8", errors="replace") for ln in lines],
+                "source": source,
+            }
+
+        raise HTTPException(404, "unknown log source")
 
     # ── Docker compose stack actions ──────────────────────────────────────────
 
@@ -775,6 +1009,181 @@ def create_ui_router() -> APIRouter:
         _background_tasks.add(task)
         task.add_done_callback(_background_tasks.discard)
         return {"status": "restarting", "container": name}
+
+    # ── Observability stack toggle (Grafana + Prometheus + Loki + Alloy) ────
+    # The four observability containers live behind a docker-compose
+    # `observability` profile so the lean default install doesn't run them.
+    # These endpoints flip the setup-config flag AND bring the four services
+    # up/down to match.
+
+    _OBSERVABILITY_SERVICES = ("grafana", "prometheus", "loki", "alloy")
+    _OBSERVABILITY_MEM_NOTE = (
+        "~500 MB additional RAM (grafana ~150, prometheus ~200, loki ~100, "
+        "alloy ~50) plus ~50 GB of disk over a few months of retention."
+    )
+
+    def _setup_config_path(request: Request) -> Path:
+        data_dir = getattr(request.app.state, "data_dir", None)
+        if data_dir is None:
+            raise HTTPException(500, "Gateway data_dir not configured")
+        return data_dir / "setup-config.yaml"
+
+    def _read_setup_config(request: Request) -> dict:
+        path = _setup_config_path(request)
+        if not path.exists():
+            return {}
+        try:
+            import yaml as pyyaml
+            return pyyaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            log.warning("Failed to parse setup-config.yaml", exc_info=True)
+            return {}
+
+    def _write_setup_config_flag(request: Request, key: str, value: bool) -> None:
+        """Update a single boolean flag in setup-config.yaml in place."""
+        import yaml as pyyaml
+        path = _setup_config_path(request)
+        data = _read_setup_config(request)
+        data[key] = value
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            pyyaml.dump(data, default_flow_style=False, sort_keys=False),
+            encoding="utf-8",
+        )
+        try:
+            import os as _os
+            _os.chmod(path, 0o600)
+        except OSError:
+            pass
+
+    async def _observability_container_states() -> dict[str, str]:
+        """Return {service: state} for each of the four obs containers.
+
+        State is one of: running, exited, absent. Uses `docker ps` rather
+        than `docker compose ps` so it works whether or not the profile
+        is currently active.
+        """
+        result: dict[str, str] = {s: "absent" for s in _OBSERVABILITY_SERVICES}
+        if not shutil.which("docker"):
+            return result
+        try:
+            rc, out, _ = await _run_cmd(
+                ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}"],
+                timeout=10,
+            )
+        except (asyncio.TimeoutError, FileNotFoundError):
+            return result
+        if rc != 0:
+            return result
+        for line in out.splitlines():
+            if not line.strip():
+                continue
+            parts = line.split("\t", 1)
+            if len(parts) != 2:
+                continue
+            name, state = parts[0].strip(), parts[1].strip().lower()
+            if name in result:
+                result[name] = state
+        return result
+
+    @router.get("/ui/observability/status")
+    async def observability_status(request: Request):
+        """Report the enable flag, per-container state, and memory note."""
+        cfg = _read_setup_config(request)
+        states = await _observability_container_states()
+        running = [s for s, st in states.items() if st == "running"]
+        all_running = len(running) == len(_OBSERVABILITY_SERVICES)
+        any_running = bool(running)
+        return {
+            "enabled": bool(cfg.get("install_observability", False)),
+            "services": _OBSERVABILITY_SERVICES,
+            "container_states": states,
+            "all_running": all_running,
+            "any_running": any_running,
+            "memory_note": _OBSERVABILITY_MEM_NOTE,
+            "grafana_url": "http://localhost:3000",
+        }
+
+    def _obs_compose_cmd(request: Request, *args: str) -> list[str]:
+        """Build `docker compose -f ... --profile observability ...` for the
+        stack — needed so the four profiled services are visible."""
+        compose_file = _compose_file_for(request)
+        data_dir = getattr(request.app.state, "data_dir", None)
+        repo_dir = getattr(request.app.state, "repo_dir", None)
+        env_file = (data_dir or repo_dir) / ".env" if (data_dir or repo_dir) else None
+        cmd = ["docker", "compose", "-f", str(compose_file), "--profile", "observability"]
+        if env_file and env_file.exists():
+            cmd.extend(["--env-file", str(env_file)])
+        cmd.extend(args)
+        return cmd
+
+    @router.post("/ui/observability/enable")
+    async def observability_enable(request: Request):
+        """Enable the obs stack: flip flag + `compose up -d` the four services."""
+        if not shutil.which("docker"):
+            raise HTTPException(404, "docker CLI not found")
+        compose_file = _compose_file_for(request)
+        if not compose_file.exists():
+            raise HTTPException(404, "docker-compose.yml not found")
+
+        _write_setup_config_flag(request, "install_observability", True)
+
+        cmd = _obs_compose_cmd(request, "up", "-d", *_OBSERVABILITY_SERVICES)
+        try:
+            rc, out, err = await _run_cmd(cmd, timeout=180)
+        except asyncio.TimeoutError:
+            return JSONResponse(
+                status_code=504,
+                content={"error": "docker compose up timed out"},
+            )
+        if rc != 0:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "docker compose up failed",
+                    "stderr": (err or out)[-2000:],
+                },
+            )
+        return {"status": "enabled", "output": (out or err)[-2000:]}
+
+    @router.post("/ui/observability/disable")
+    async def observability_disable(request: Request):
+        """Disable the obs stack: stop+remove the four services, flip flag."""
+        if not shutil.which("docker"):
+            raise HTTPException(404, "docker CLI not found")
+
+        # `rm -sf` stops and removes — survives if some are already stopped.
+        # We explicitly enumerate the four services so we never accidentally
+        # take down litellm/postgres (which would happen with a bare
+        # `compose down`).
+        cmd = _obs_compose_cmd(request, "rm", "-sf", *_OBSERVABILITY_SERVICES)
+        try:
+            rc, out, err = await _run_cmd(cmd, timeout=120)
+        except asyncio.TimeoutError:
+            return JSONResponse(
+                status_code=504,
+                content={"error": "docker compose rm timed out"},
+            )
+
+        # Flip the flag whether or not `rm` reported success — if there
+        # were no containers to remove, the flag still needs to reflect
+        # the user's intent.
+        _write_setup_config_flag(request, "install_observability", False)
+
+        if rc != 0:
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status": "disabled_with_errors",
+                    "error": "docker compose rm reported errors",
+                    "stderr": (err or out)[-2000:],
+                },
+            )
+        return {"status": "disabled", "output": (out or err)[-2000:]}
+
+    # TTS used to be a docker compose service (kokoro container); it now runs
+    # as a gateway-managed mlx_audio.server process and is reached via the
+    # generic /ui/services/{name}/{start,stop,enable,disable} endpoints.
 
     # ── Docker Model Runner + llmfit ──────────────────────────────────────────
 
@@ -995,6 +1404,109 @@ def create_ui_router() -> APIRouter:
                 continue
         return found
 
+    def _llama_server_active_model_paths() -> set[str]:
+        """
+        Return the set of `--model` paths currently being served by a local
+        llama-server process. Both the raw path argument and its resolved
+        canonical form are returned so we can match either side of a
+        symlink (e.g. `/opt/storage/gguf/x.gguf` ↔ the real file on the
+        external volume).
+        """
+        try:
+            import psutil
+        except ImportError:
+            return set()
+
+        found: set[str] = set()
+        for p in psutil.process_iter(["name", "cmdline"]):
+            try:
+                info = p.info
+                name = (info.get("name") or "").lower()
+                cmdline = info.get("cmdline") or []
+                cl = " ".join(cmdline).lower() if cmdline else ""
+                if "llama-server" not in name and "llama-server" not in cl:
+                    continue
+                for i, arg in enumerate(cmdline):
+                    if arg == "--model" and i + 1 < len(cmdline):
+                        raw = cmdline[i + 1]
+                        found.add(raw.lower())
+                        try:
+                            found.add(str(Path(raw).resolve()).lower())
+                        except OSError:
+                            pass
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return found
+
+    def _local_gguf_search_paths(request: Request) -> list[Path]:
+        """Directories to scan for side-loaded GGUF files.
+
+        Sourced from (a) the parent directory of every services.*.args.--model
+        currently configured, plus (b) `/opt/storage/gguf` if it exists.
+        These are GGUFs the user dropped on disk directly (e.g. via curl)
+        and that DMR therefore doesn't know about.
+        """
+        paths: dict[str, Path] = {}
+        cm = getattr(request.app.state, "config_manager", None)
+        if cm is not None:
+            try:
+                cfg = cm.config
+            except Exception:
+                cfg = {}
+            for svc in (cfg.get("services") or {}).values():
+                if not isinstance(svc, dict):
+                    continue
+                args = svc.get("args") if isinstance(svc.get("args"), dict) else {}
+                mp = (args or {}).get("--model")
+                if mp:
+                    p = Path(mp).parent
+                    if p.is_dir():
+                        paths[str(p.resolve())] = p
+        std = Path("/opt/storage/gguf")
+        if std.is_dir():
+            paths.setdefault(str(std.resolve()), std)
+        return list(paths.values())
+
+    def _scan_local_ggufs(request: Request) -> list[dict]:
+        """Return DMR-shaped entries for .gguf files on disk outside DMR.
+
+        Each entry carries `source: "file"` so the frontend can render it
+        differently and skip the DMR-only `Delete` action.
+        """
+        served = _llama_server_active_model_paths()
+        out: list[dict] = []
+        seen_real: set[str] = set()
+        for d in _local_gguf_search_paths(request):
+            try:
+                files = sorted(d.glob("*.gguf"))
+            except OSError:
+                continue
+            for f in files:
+                try:
+                    real = str(f.resolve()).lower()
+                except OSError:
+                    real = str(f).lower()
+                if real in seen_real:
+                    continue
+                seen_real.add(real)
+                try:
+                    st = f.stat()
+                except OSError:
+                    continue
+                running = real in served or str(f).lower() in served
+                out.append({
+                    "id": "file:" + str(f),
+                    "tags": [f.name],
+                    "source": "file",
+                    "path": str(f),
+                    "running": running,
+                    "created": int(st.st_mtime),
+                    "config": {
+                        "size": st.st_size,
+                    },
+                })
+        return out
+
     @router.get("/ui/dmr/ps")
     async def dmr_ps():
         """List currently-running models in Docker Model Runner."""
@@ -1003,13 +1515,19 @@ def create_ui_router() -> APIRouter:
         return {"running": await _dmr_running()}
 
     @router.get("/ui/dmr/models")
-    async def dmr_models():
-        """List models pulled to Docker Model Runner, annotated with running state."""
+    async def dmr_models(request: Request):
+        """List models pulled to Docker Model Runner plus side-loaded local
+        GGUFs, annotated with running state.
+
+        DMR entries get `source: "dmr"` (default; absent for back-compat),
+        side-loaded files get `source: "file"`. The frontend renders both
+        and gates destructive actions on source.
+        """
+        local_files = _scan_local_ggufs(request)
+
         if not shutil.which("docker"):
-            return JSONResponse(
-                status_code=404,
-                content={"error": "docker CLI not found"},
-            )
+            return {"models": local_files, "running": []}
+
         try:
             rc, out, err = await _run_cmd(
                 ["docker", "model", "list", "--json"], timeout=10,
@@ -1017,10 +1535,13 @@ def create_ui_router() -> APIRouter:
         except asyncio.TimeoutError:
             return JSONResponse(status_code=504, content={"error": "docker timed out"})
         if rc != 0:
-            return JSONResponse(
-                status_code=500,
-                content={"error": "docker model list failed", "stderr": err[:2000]},
-            )
+            # Docker present but `model list` failed (DMR not enabled, daemon
+            # down, etc). Don't lose the side-loaded files in that case.
+            return {
+                "models": local_files,
+                "running": [],
+                "warning": "docker model list failed: " + (err[:300] or "no stderr"),
+            }
         try:
             models = json.loads(out) if out.strip() else []
         except json.JSONDecodeError:
@@ -1064,7 +1585,7 @@ def create_ui_router() -> APIRouter:
                 elif len(candidates) == 1:
                     models[candidates[0][0]]["running"] = True
 
-        return {"models": models, "running": running}
+        return {"models": models + local_files, "running": running}
 
     @router.post("/ui/dmr/rm")
     async def dmr_rm(request: Request):

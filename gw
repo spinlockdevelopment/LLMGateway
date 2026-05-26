@@ -144,14 +144,30 @@ def _load_setup_config() -> dict:
         return {}
 
 
+_OBSERVABILITY_COMPONENTS = ("grafana", "prometheus", "loki", "alloy")
+
+
+def _observability_enabled() -> bool:
+    """Whether the optional Grafana stack is enabled for this install.
+
+    Defaults to False — the lean stack (LiteLLM + Postgres + the management
+    UI's built-in Logs panel) is the install default. Users opt in via
+    the Services panel toggle.
+    """
+    return bool(_load_setup_config().get("install_observability", False))
+
+
 def _enabled_components() -> set[str]:
     """Return set of component names that should appear in status."""
     config = _load_setup_config()
     # Always show core components
     components = {
         "management", "docker",
-        "litellm", "postgres", "grafana", "prometheus", "loki", "alloy",
+        "litellm", "postgres",
     }
+    # Observability stack is opt-in (default off)
+    if config.get("install_observability", False):
+        components.update(_OBSERVABILITY_COMPONENTS)
     # Show optional components based on setup config
     # Default to True when config file is missing (backward compat)
     if config.get("install_ollama", True):
@@ -247,10 +263,22 @@ def ollama_state() -> str:
     return "stopped"
 
 
-def llama_server_state() -> str:
-    for port in (8081, 8082):
+def _llama_server_active_port() -> int | None:
+    """Return the port a healthy llama-server is currently listening on, or None.
+
+    The management daemon launches `services.local` on the port from
+    llmgateway.yaml (typically 8082); `gw start llama-server` launches the
+    bare-metal slot on LLAMA_SERVER_DEFAULT_PORT (8081). Probe both.
+    """
+    for port in (LLAMA_SERVER_DEFAULT_PORT, 8082):
         if _http_ok(f"http://localhost:{port}/health"):
-            return "running"
+            return port
+    return None
+
+
+def llama_server_state() -> str:
+    if _llama_server_active_port() is not None:
+        return "running"
     if _process_running("llama-server"):
         return "starting"
     try:
@@ -339,9 +367,28 @@ def print_volume(name: str, desc: str = "") -> None:
 
 # ── Docker compose helper ────────────────────────────────────────────────────
 
-def _compose_cmd(*args: str) -> list[str]:
-    """Build docker compose command with --env-file from data_dir."""
+def _tts_enabled() -> bool:
+    """Whether the Kokoro TTS container is enabled for this install.
+
+    Defaults to False — TTS is opt-in via the Services panel toggle.
+    """
+    return bool(_load_setup_config().get("install_tts", False))
+
+
+def _compose_cmd(*args: str, force_observability: bool = False, force_tts: bool = False) -> list[str]:
+    """Build docker compose command with --env-file from data_dir.
+
+    When a profile is enabled (or `force_*=True` for the case where the
+    caller is explicitly enabling/disabling it), pass `--profile <name>`
+    so the profiled services are visible to compose. Without the flag,
+    compose hides them from every operation including `down` — which is
+    the right behavior for the lean default install.
+    """
     cmd = ["docker", "compose", "-f", str(COMPOSE_FILE)]
+    if force_observability or _observability_enabled():
+        cmd.extend(["--profile", "observability"])
+    if force_tts or _tts_enabled():
+        cmd.extend(["--profile", "tts"])
     env_file = get_data_dir() / ".env"
     if env_file.exists():
         cmd.extend(["--env-file", str(env_file)])
@@ -531,10 +578,11 @@ def cmd_status(show_more: bool = False) -> None:
         ))
 
     if "llama-server" in enabled:
+        active_port = _llama_server_active_port() or LLAMA_SERVER_DEFAULT_PORT
         internal_rows.append((
             "llama-server",
             llama_server_state(),
-            f"http://0.0.0.0:{LLAMA_SERVER_DEFAULT_PORT}",
+            f"http://0.0.0.0:{active_port}",
             "llama.cpp GGUF server",
             _pgrep_pid_label("llama-server", "llama-server"),
         ))
@@ -619,19 +667,20 @@ def cmd_status(show_more: bool = False) -> None:
     info(f"  {'Host (local):':<18s} {bold(user)}  {dim('management, ollama, llama-server')}")
     info(f"  {'PostgreSQL:':<18s} {bold('litellm')}  {dim('LiteLLM DB (docker stack)')}")
 
-    # Read Grafana user from .env
-    grafana_user = "admin"
-    env_file = data_dir / ".env"
-    if env_file.exists():
-        try:
-            for line in env_file.read_text(errors="replace").splitlines():
-                if line.startswith("GF_SECURITY_ADMIN_USER="):
-                    val = line.split("=", 1)[1].strip().strip("'\"")
-                    if val:
-                        grafana_user = val
-        except Exception:
-            pass
-    info(f"  {'Grafana admin:':<18s} {bold(grafana_user)}  {dim('docker stack (.env)')}")
+    # Read Grafana user from .env (only relevant when observability is on)
+    if _observability_enabled():
+        grafana_user = "admin"
+        env_file = data_dir / ".env"
+        if env_file.exists():
+            try:
+                for line in env_file.read_text(errors="replace").splitlines():
+                    if line.startswith("GF_SECURITY_ADMIN_USER="):
+                        val = line.split("=", 1)[1].strip().strip("'\"")
+                        if val:
+                            grafana_user = val
+            except Exception:
+                pass
+        info(f"  {'Grafana admin:':<18s} {bold(grafana_user)}  {dim('docker stack (.env)')}")
     blank()
 
     # Key paths (condensed by default)

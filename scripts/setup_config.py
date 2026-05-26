@@ -29,6 +29,12 @@ class SetupConfig:
     data_dir: str = "~/.llm-gateway"
     install_llama_cpp: bool = False
     install_whisper: bool = False
+    # Observability stack (Grafana + Prometheus + Loki + Alloy). Defaults to
+    # off — LiteLLM's built-in UI + Postgres spend logs cover the day-to-day
+    # use case without the four-container overhead. Toggle on from the
+    # dashboard's Services panel when you need PromQL/LogQL or Grafana
+    # dashboards.
+    install_observability: bool = False
 
     # ── Persistence ──────────────────────────────────────────────────────────
 
@@ -51,6 +57,7 @@ class SetupConfig:
             "data_dir": self.data_dir,
             "install_llama_cpp": self.install_llama_cpp,
             "install_whisper": self.install_whisper,
+            "install_observability": self.install_observability,
         }
         path.write_text(
             yaml.dump(data, default_flow_style=False, sort_keys=False),

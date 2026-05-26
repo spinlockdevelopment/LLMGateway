@@ -4,9 +4,13 @@
 # Default stack: Anthropic Claude via OpenRouter + native llama-server locals
 # Clients: Claude Code, Cursor IDE, any OpenAI/Anthropic SDK
 #
-# Local model routes call Docker Model Runner's llama.cpp engine on
-# :12434. Whisper STT slots are still served by gateway-managed
-# llama-server processes (see config/llmgateway.defaults.yaml).
+# Local model routes (local-code / local-think / local-reason) call the
+# gateway-managed native llama-server on the host at :8082, reachable
+# from inside this container via host.docker.internal. Whisper STT slots
+# are also served by gateway-managed llama-server / whisper-server
+# processes (see config/llmgateway.defaults.yaml).
+#
+# Currently serving Gemma-4-26B-A4B (UD-Q4_K_M) on the local slot.
 # ============================================================
 
 # ── Model Deployments ─────────────────────────────────────────
@@ -106,17 +110,25 @@ model_list:
       tpm: 1000000
 
   # ── local-code ──────────────────────────────────────────────
+  # Native llama-server on the host (gateway-managed) — see
+  # config/llmgateway.defaults.yaml services.local. Currently
+  # serving Gemma-4-26B-A4B UD-Q4_K_M at 128K ctx.
   - model_name: local-code
     litellm_params:
-      model: openai/qwen3.6-35b
-      api_base: http://localhost:12434/engines/llama.cpp/v1
+      model: openai/gemma-4-26b-a4b
+      api_base: http://host.docker.internal:8082/v1
       api_key: none
 
   # ── local-think ─────────────────────────────────────────────
+  # Same backend as local-code. The enable_thinking toggle is a
+  # Qwen3-only chat-template kwarg and is a no-op on Gemma-4
+  # (drop_params removes it before the upstream call). Kept here
+  # so clients can keep their existing route name when we swap
+  # the backend back to a thinking-capable model.
   - model_name: local-think
     litellm_params:
-      model: openai/qwen3.6-35b
-      api_base: http://localhost:12434/engines/llama.cpp/v1
+      model: openai/gemma-4-26b-a4b
+      api_base: http://host.docker.internal:8082/v1
       api_key: none
       extra_body:
         chat_template_kwargs:
@@ -125,8 +137,8 @@ model_list:
   # ── local-reason ────────────────────────────────────────────
   - model_name: local-reason
     litellm_params:
-      model: openai/qwen3.6-35b
-      api_base: http://localhost:12434/engines/llama.cpp/v1
+      model: openai/gemma-4-26b-a4b
+      api_base: http://host.docker.internal:8082/v1
       api_key: none
       extra_body:
         chat_template_kwargs:

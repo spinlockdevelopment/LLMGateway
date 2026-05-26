@@ -96,10 +96,19 @@ services:
     networks:
       - gateway-net
 
+  # ── Observability stack (opt-in via the `observability` profile) ──────
+  # These four services are NOT started by default. The gateway's lean
+  # default install relies on LiteLLM's built-in /ui + Postgres spend
+  # tracking. Enable from the dashboard's Services panel (or with
+  # `docker compose --profile observability up -d`) when you want
+  # Grafana dashboards / PromQL / LogQL. Expect ~500 MB of additional
+  # RAM and ~50 GB of disk over a few months of retention.
+
   # ── Prometheus ─────────────────────────────────────────────
   prometheus:
     image: prom/prometheus:v2.53.0
     container_name: prometheus
+    profiles: ["observability"]
     ports:
       - "9090:9090"
     volumes:
@@ -115,6 +124,7 @@ services:
   loki:
     image: grafana/loki:3.3.2
     container_name: loki
+    profiles: ["observability"]
     ports:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
@@ -131,6 +141,7 @@ services:
   alloy:
     image: grafana/alloy:latest
     container_name: alloy
+    profiles: ["observability"]
     volumes:
       - ./alloy/alloy-config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -145,6 +156,7 @@ services:
   grafana:
     image: grafana/grafana:11.4.0
     container_name: grafana
+    profiles: ["observability"]
     ports:
       - "3000:3000"
     environment:
