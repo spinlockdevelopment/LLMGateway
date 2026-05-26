@@ -177,6 +177,9 @@ select { cursor: pointer; }
 .topnav .brand-mark { width: 28px; height: 28px; display: inline-flex; }
 .topnav .brand-mark svg,
 .topnav .brand-mark img { width: 100%; height: 100%; display: block; }
+.topnav .brand-mark .icon-dark { display: none; }
+[data-theme="dark"] .topnav .brand-mark .icon-light { display: none; }
+[data-theme="dark"] .topnav .brand-mark .icon-dark { display: block; }
 
 .topnav .status {
   display: inline-flex;
@@ -922,7 +925,8 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
   <nav class="topnav" aria-label="Top">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true">
-        <img src="/static/icon.png" alt="">
+        <img class="icon-light" src="/static/icon.png" alt="">
+        <img class="icon-dark" src="/static/icon-dark.png" alt="">
       </span>
       <span>LLM Gateway</span>
     </div>
