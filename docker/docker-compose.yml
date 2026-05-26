@@ -161,6 +161,10 @@ services:
     networks:
       - gateway-net
 
+  # Note: Kokoro TTS used to run here as the `kokoro` service (profile: tts).
+  # It now runs as a gateway-managed mlx_audio.server process (Metal GPU/ANE
+  # via MLX) — see config/llmgateway.defaults.yaml services.kokoro.
+
 volumes:
   postgres-data:
   prometheus-data:

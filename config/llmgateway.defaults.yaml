@@ -101,23 +101,43 @@ services:
     health_check_url: "http://localhost:8083/health"
     expected_memory_gb: 3.0
 
-  # Fast STT (Whisper Small or Distil). Lower latency / quality.
-  # MUTEX `whisper`: only one of {whisper-large, whisper-fast} runs.
+  # Fast STT — MLX-backed Whisper via mlx_audio.server (Metal GPU/ANE).
+  # OpenAI-compatible POST /v1/audio/transcriptions on :8086. Model is
+  # specified per-request; the default `mlx-community/whisper-small-asr-fp16`
+  # ships the HuggingFace processor (preprocessor_config.json etc.) that
+  # mlx_audio requires. Most other `*-mlx*` whisper repos in mlx-community
+  # omit it and fail at decode time with `Processor not found`. Lazy-loaded
+  # on first hit. No mutex with whisper-large — they run on different
+  # backends and ports, both can coexist if memory allows.
   whisper-fast:
     enabled: false
-    type: "whisper"
-    model: "whisper-small"
-    description: "Whisper Small/Distil (fast STT) — whisper-server"
-    mutex_group: "whisper"
-    binary: "whisper-server"
+    type: "audio"
+    model: "mlx-community/whisper-small-asr-fp16"
+    description: "MLX Whisper (fast STT) — mlx_audio.server"
+    binary: "/Users/llmadmin/.llm-gateway/venv/bin/mlx_audio.server"
     args:
       --host: "0.0.0.0"
       --port: "8086"
-      --model: ""              # REQUIRED: path to Whisper Small or Distil model
-      --threads: "2"
     extra_args: []
-    health_check_url: "http://localhost:8086/health"
-    expected_memory_gb: 1.0
+    health_check_url: "http://localhost:8086/v1/models"
+    expected_memory_gb: 0.5
+
+  # Kokoro-82M TTS — MLX-backed via mlx_audio.server (Metal GPU/ANE).
+  # OpenAI-compatible POST /v1/audio/speech on :8880. Replaces the previous
+  # CPU-only docker container `ghcr.io/remsky/kokoro-fastapi-cpu`. The
+  # Kokoro model is lazy-loaded on first request (~330 MB weights).
+  kokoro:
+    enabled: false
+    type: "audio"
+    model: "mlx-community/Kokoro-82M-bf16"
+    description: "MLX Kokoro-82M TTS — mlx_audio.server"
+    binary: "/Users/llmadmin/.llm-gateway/venv/bin/mlx_audio.server"
+    args:
+      --host: "0.0.0.0"
+      --port: "8880"
+    extra_args: []
+    health_check_url: "http://localhost:8880/v1/models"
+    expected_memory_gb: 0.5
 
 # ---------------------------------------------------------------------------
 # Docker Compose stack (LiteLLM, Grafana, Prometheus, Loki).
