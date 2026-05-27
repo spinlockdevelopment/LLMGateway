@@ -212,6 +212,12 @@ services:
       AUDIO_STT_MODEL: "whisper-large-v3-turbo"
       # Single-user local install — no signup wall.
       WEBUI_AUTH: "false"
+      # Pin the session-signing key so `docker compose up --force-recreate`
+      # (or any container rebuild) doesn't invalidate existing browser
+      # sessions. Without this, Open WebUI regenerates a random key on
+      # every fresh container, and all logged-in users get 401 on every
+      # /api/v1/* call until they sign out and back in.
+      WEBUI_SECRET_KEY: "${WEBUI_SECRET_KEY:-}"
     volumes:
       - open-webui-data:/app/backend/data
     extra_hosts:
