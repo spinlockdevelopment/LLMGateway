@@ -196,10 +196,14 @@ services:
       OPENAI_API_KEYS: "${LITELLM_MASTER_KEY:-}"
       ENABLE_OLLAMA_API: "false"
       # TTS — Kokoro on the host via mlx_audio.server (port 8880).
+      # AUDIO_TTS_MODEL must be the full HuggingFace repo id; mlx_audio
+      # uses it to resolve the model files. A bare "kokoro" gets treated
+      # as an HF repo and 401s, then locks the server into a state where
+      # later valid requests also return empty 200 OK responses.
       AUDIO_TTS_ENGINE: "openai"
       AUDIO_TTS_OPENAI_API_BASE_URL: "http://host.docker.internal:8880/v1"
       AUDIO_TTS_OPENAI_API_KEY: "sk-no-auth"
-      AUDIO_TTS_MODEL: "kokoro"
+      AUDIO_TTS_MODEL: "mlx-community/Kokoro-82M-bf16"
       AUDIO_TTS_VOICE: "af_bella"
       # STT — whisper-large-v3-turbo on the host via whisper.cpp's
       # whisper-server (port 8083). The server's inference path is
