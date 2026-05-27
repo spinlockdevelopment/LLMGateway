@@ -201,11 +201,15 @@ services:
       AUDIO_TTS_OPENAI_API_KEY: "sk-no-auth"
       AUDIO_TTS_MODEL: "kokoro"
       AUDIO_TTS_VOICE: "af_bella"
-      # STT — whisper-fast on the host via mlx_audio.server (port 8086).
+      # STT — whisper-large-v3-turbo on the host via whisper.cpp's
+      # whisper-server (port 8083). The server's inference path is
+      # remapped to /v1/audio/transcriptions via --inference-path so it
+      # speaks OpenAI's audio API directly. AUDIO_STT_MODEL is a label
+      # only; whisper-server uses whatever model it was launched with.
       AUDIO_STT_ENGINE: "openai"
-      AUDIO_STT_OPENAI_API_BASE_URL: "http://host.docker.internal:8086/v1"
+      AUDIO_STT_OPENAI_API_BASE_URL: "http://host.docker.internal:8083/v1"
       AUDIO_STT_OPENAI_API_KEY: "sk-no-auth"
-      AUDIO_STT_MODEL: "mlx-community/whisper-small-asr-fp16"
+      AUDIO_STT_MODEL: "whisper-large-v3-turbo"
       # Single-user local install — no signup wall.
       WEBUI_AUTH: "false"
     volumes:
