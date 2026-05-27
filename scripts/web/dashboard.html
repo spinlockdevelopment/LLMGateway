@@ -935,10 +935,6 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
       <span id="gateway-uptime">loading…</span>
     </div>
     <span class="spacer"></span>
-    <!-- Single global Refresh — re-runs whichever loader matches the
-         currently active tab. Per-section Refresh buttons were removed
-         in favor of this one. -->
-    <button type="button" class="topnav-link" onclick="refreshActiveTab()" title="Refresh current tab" style="background:none;border:none;cursor:pointer">↻ Refresh</button>
     <a class="topnav-link" href="http://localhost:4000/ui" target="_blank" rel="noopener">LiteLLM</a>
     <!-- Open WebUI topnav link is hidden by default and revealed by
          refreshDockerServices() when the open-webui container is running. -->
@@ -1296,30 +1292,6 @@ document.querySelectorAll('.topnav-link[data-tab]').forEach(item => {
     switchToTab(item.dataset.tab);
   });
 });
-
-// ── Global refresh ─────────────────────────────────────────────────────────
-// Single Refresh button in the topnav — replaces the per-section buttons.
-// Inspects which panel is currently active and re-runs its loaders.
-function refreshActiveTab() {
-  const activePanel = document.querySelector('.panel.active');
-  if (!activePanel) return;
-  const id = activePanel.id || '';
-  if (id === 'panel-system') {
-    refreshDashboard(); refreshDockerServices();
-    refreshObservabilityCard(); refreshTailscaleCard();
-  } else if (id === 'panel-logs') {
-    initLogsPanel();
-  } else if (id === 'panel-models') {
-    // Re-run whichever subpanel is active.
-    if (typeof switchModelsSubtab === 'function') {
-      switchModelsSubtab(modelsSubtab || 'routes');
-    }
-  } else if (id === 'panel-config') {
-    if (typeof loadConfigEditor === 'function') loadConfigEditor();
-  } else if (id === 'panel-secrets') {
-    if (typeof loadSecrets === 'function') loadSecrets();
-  }
-}
 
 // ── API helpers ────────────────────────────────────────────────────────────
 async function api(path, opts) {
