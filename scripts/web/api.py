@@ -39,7 +39,7 @@ _start_time = time.time()
 # the entire managed stack on the host. Hence "docker" → services.
 _MODEL_SIGS = (
     "llama-server", "llama.cpp", "llama_cpp",
-    "ollama", "model-runner", "modelrunner",
+    "model-runner", "modelrunner",
     "vllm", "mlx-", "mlx_lm",
     "lmstudio", "lm-studio",
     # Audio models (whisper.cpp STT, Kokoro TTS). Faster-whisper /
