@@ -52,7 +52,7 @@ _SERVICE_SIGS = (
     "docker", "dockerd",                              # Docker Desktop / engine
     "com.apple.virtualization.virtualmachine",        # Docker Desktop's VM on macOS hosts our containers
     "litellm", "postgres", "grafana",                 # named services (if running outside Docker)
-    "prometheus", "loki", "alloy",
+    "prometheus", "loki", "alloy", "open-webui", "open_webui",
     "llmgateway", "llm-gateway", "llmgateway.py",     # this gateway's own process
 )
 

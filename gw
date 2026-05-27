@@ -13,12 +13,12 @@ Usage:
 Components:
     all            Every enabled component (full teardown/restart in safe order)
     management     Gateway management service (llmgateway.py / launchd)
-    ollama         Ollama local inference (bare metal, Metal GPU)
     llama-server   llama.cpp server (bare metal, default port 8081)
     whisper-server whisper.cpp server (bare metal, default port 8083)
     docker         Entire Docker Compose stack
     litellm        LiteLLM proxy container
     postgres       PostgreSQL container
+    open-webui     Open WebUI chat front-end container
     grafana        Grafana dashboards container
     prometheus     Prometheus metrics container
     loki           Loki log aggregation container
@@ -169,9 +169,6 @@ def _enabled_components() -> set[str]:
     if config.get("install_observability", False):
         components.update(_OBSERVABILITY_COMPONENTS)
     # Show optional components based on setup config
-    # Default to True when config file is missing (backward compat)
-    if config.get("install_ollama", True):
-        components.add("ollama")
     if config.get("install_llama_cpp", False):
         components.add("llama-server")
     if config.get("install_whisper", False):
@@ -253,14 +250,6 @@ def management_state() -> str:
     if MANAGEMENT_PLIST.exists():
         return "stopped"
     return "absent"
-
-
-def ollama_state() -> str:
-    if _http_ok("http://localhost:11434/api/tags"):
-        return "running"
-    if _process_running("ollama"):
-        return "starting"
-    return "stopped"
 
 
 def _llama_server_active_port() -> int | None:
@@ -488,7 +477,7 @@ def _ordered_components_for_stop() -> list[str]:
     # Front-facing → backends. Docker stack is treated as one unit (compose down).
     candidates = [
         "management",
-        "llama-server", "whisper-server", "ollama",
+        "llama-server", "whisper-server",
         "docker",
     ]
     return [c for c in candidates if c in enabled]
@@ -566,15 +555,6 @@ def cmd_status(show_more: bool = False) -> None:
             f"http://{public_host}:{MANAGEMENT_PORT}",
             "Gateway web UI + REST API",
             _pgrep_pid_label("llmgateway.py", "llmgateway.py"),
-        ))
-
-    if "ollama" in enabled:
-        internal_rows.append((
-            "ollama",
-            ollama_state(),
-            "http://0.0.0.0:11434",
-            "Local LLM runtime (Metal GPU)",
-            _pgrep_pid_label("ollama", "ollama"),
         ))
 
     if "llama-server" in enabled:
@@ -664,7 +644,7 @@ def cmd_status(show_more: bool = False) -> None:
     info(f"\n  {dim('Service accounts')}")
     blank()
     user = os.environ.get("USER", "unknown")
-    info(f"  {'Host (local):':<18s} {bold(user)}  {dim('management, ollama, llama-server')}")
+    info(f"  {'Host (local):':<18s} {bold(user)}  {dim('management, llama-server')}")
     info(f"  {'PostgreSQL:':<18s} {bold('litellm')}  {dim('LiteLLM DB (docker stack)')}")
 
     # Read Grafana user from .env (only relevant when observability is on)
@@ -714,8 +694,6 @@ def cmd_status(show_more: bool = False) -> None:
         info(f"\n  {dim('System')}")
         blank()
         print_path("launchd", f"~/Library/LaunchAgents/{MANAGEMENT_LABEL}.plist", "autostart agent")
-        if "ollama" in enabled:
-            print_path("data", "~/.ollama/models", "ollama: model weights")
 
         info(f"\n  {dim('Docker stack')}")
         blank()
@@ -769,21 +747,6 @@ def cmd_start(name: str) -> None:
             info(f"  {dim('Install with: python3 scripts/llmgateway.py --install')}")
             python_bin = _venv_python_for_repo(REPO_DIR) or sys.executable
             _spawn_detached([python_bin, str(MANAGEMENT_SCRIPT)])
-    elif name == "ollama":
-        info(f"  Starting Ollama...")
-        if not shutil.which("ollama"):
-            error("Ollama binary not found. Install from https://ollama.com/download or via Homebrew: brew install ollama")
-            return
-        if _brew_service_started("ollama"):
-            r = subprocess.run(
-                ["brew", "services", "start", "ollama"],
-                capture_output=True, text=True, timeout=60,
-            )
-            if r.returncode != 0:
-                warn("brew services could not start Ollama; falling back to direct ollama serve")
-                _spawn_detached(["ollama", "serve"])
-        else:
-            _spawn_detached(["ollama", "serve"])
     elif name in _BARE_METAL_SERVICES:
         info(f"  Starting {name}...")
         if not _start_bare_metal(name):
@@ -815,12 +778,6 @@ def cmd_stop(name: str) -> None:
             subprocess.run(["launchctl", "unload", str(MANAGEMENT_PLIST)],
                            capture_output=True)
         subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
-    elif name == "ollama":
-        info(f"  Stopping Ollama...")
-        if _brew_service_started("ollama"):
-            subprocess.run(["brew", "services", "stop", "ollama"])
-        else:
-            subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
     elif name in _BARE_METAL_SERVICES:
         info(f"  Stopping {name}...")
         subprocess.run(["pkill", "-f", name], capture_output=True)
@@ -857,14 +814,6 @@ def cmd_restart(name: str) -> None:
             time.sleep(1)
             python_bin = _venv_python_for_repo(REPO_DIR) or sys.executable
             _spawn_detached([python_bin, str(MANAGEMENT_SCRIPT)])
-    elif name == "ollama":
-        info(f"  Restarting Ollama...")
-        if _brew_service_started("ollama"):
-            subprocess.run(["brew", "services", "restart", "ollama"])
-        else:
-            subprocess.run(["pkill", "-f", "ollama"], capture_output=True)
-            time.sleep(1)
-            _spawn_detached(["ollama", "serve"])
     elif name in _BARE_METAL_SERVICES:
         info(f"  Restarting {name}...")
         subprocess.run(["pkill", "-f", name], capture_output=True)
@@ -901,14 +850,6 @@ def cmd_logs(name: str) -> None:
         else:
             warn(f"Log not found: {log_file}")
             info(f"  {dim('The log is created when the management service runs via launchd.')}")
-    elif name == "ollama":
-        info(f"  {dim('Streaming macOS system log for Ollama (Ctrl-C to stop)...')}")
-        try:
-            subprocess.run(
-                ["log", "stream", "--predicate", 'process == "ollama"', "--style", "syslog"]
-            )
-        except KeyboardInterrupt:
-            pass
     elif name in ("llama-server", "whisper-server"):
         info(f"  {dim(f'No dedicated log for {name}.')}")
         log_file = data_dir / "logs" / "gateway-stdout.log"
@@ -949,22 +890,7 @@ def cmd_uninstall() -> None:
         subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
         success("done")
 
-    # 2. Ollama (only stop the brew service if it's actually started)
-    try:
-        result = subprocess.run(
-            ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
-        )
-        for line in (result.stdout or "").splitlines():
-            parts = line.split()
-            if len(parts) >= 2 and parts[0] == "ollama" and parts[1] == "started":
-                info(f"  Removing Ollama from brew services autostart...")
-                subprocess.run(["brew", "services", "stop", "ollama"])
-                success("done")
-                break
-    except Exception:
-        pass
-
-    # 3. llama-server / whisper-server
+    # 2. llama-server / whisper-server
     for proc in ("llama-server", "whisper-server"):
         if _process_running(proc):
             info(f"  Stopping {proc}...")
@@ -1018,12 +944,12 @@ def cmd_usage() -> None:
     info(f"  {bold('Components:')}")
     info(f"    {'all':<14s}  Every enabled component (front-facing → backend order)")
     info(f"    {'management':<14s}  Gateway web UI + management service (launchd)")
-    info(f"    {'ollama':<14s}  Ollama local inference (bare metal, Metal GPU)")
     info(f"    {'llama-server':<14s}  llama.cpp server  → http://localhost:8081")
     info(f"    {'whisper-server':<14s}  whisper.cpp STT   → http://localhost:8083")
     info(f"    {'docker':<14s}  Entire Docker Compose stack")
     info(f"    {'litellm':<14s}  LiteLLM proxy     → http://localhost:4000")
     info(f"    {'postgres':<14s}  PostgreSQL container")
+    info(f"    {'open-webui':<14s}  Open WebUI chat   → http://localhost:3001")
     info(f"    {'grafana':<14s}  Grafana dashboards → http://localhost:3000")
     info(f"    {'prometheus':<14s}  Prometheus metrics → http://localhost:9090")
     info(f"    {'loki':<14s}  Loki log aggregation → http://localhost:3100")
