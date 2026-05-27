@@ -940,10 +940,9 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
          in favor of this one. -->
     <button type="button" class="topnav-link" onclick="refreshActiveTab()" title="Refresh current tab" style="background:none;border:none;cursor:pointer">↻ Refresh</button>
     <a class="topnav-link" href="http://localhost:4000/ui" target="_blank" rel="noopener">LiteLLM</a>
-    <!-- Logs: in-UI alternative to Grafana. Click → opens the Logs panel
-         (data-tab is read by the same delegated handler that drives the
-         sidebar). -->
-    <a class="topnav-link" href="#logs" data-tab="logs" role="button">Logs</a>
+    <!-- Open WebUI topnav link is hidden by default and revealed by
+         refreshDockerServices() when the open-webui container is running. -->
+    <a class="topnav-link" id="topnav-openwebui" href="http://localhost:3001" target="_blank" rel="noopener" style="display:none">Open WebUI</a>
     <!-- Grafana topnav link is hidden by default and revealed by
          refreshObservabilityCard() when the observability stack is on. -->
     <a class="topnav-link" id="topnav-grafana" href="http://localhost:3000" target="_blank" rel="noopener" style="display:none">Grafana</a>
@@ -1533,6 +1532,7 @@ async function restartContainer(name) {
 // ── Services panel (Docker containers) ─────────────────────────────────────
 // Which compose service goes in which group. Anything not here falls into "Other".
 const LITELLM_STACK_SERVICES = new Set(['litellm', 'postgres']);
+const UI_STACK_SERVICES      = new Set(['open-webui']);
 const LOGGING_STACK_SERVICES = new Set(['grafana', 'loki', 'prometheus', 'alloy']);
 
 function renderDockerRow(c) {
@@ -1594,17 +1594,27 @@ async function refreshDockerServices() {
   }
 
   const litellmGroup = [];
+  const uiGroup = [];
   const loggingGroup = [];
   const otherGroup = [];
   for (const c of containers) {
     const svc = (c.compose_service || '').toLowerCase();
     if (LITELLM_STACK_SERVICES.has(svc)) litellmGroup.push(c);
+    else if (UI_STACK_SERVICES.has(svc)) uiGroup.push(c);
     else if (LOGGING_STACK_SERVICES.has(svc)) loggingGroup.push(c);
     else otherGroup.push(c);
   }
   const byName = (a, b) => (a.name || '').localeCompare(b.name || '');
   litellmGroup.sort(byName);
+  uiGroup.sort(byName);
   otherGroup.sort(byName);
+
+  // Reveal/hide the topnav Open WebUI link based on container state.
+  const topnavOpenWebUI = document.getElementById('topnav-openwebui');
+  if (topnavOpenWebUI) {
+    const running = uiGroup.some(c => (c.state || '').toLowerCase() === 'running');
+    topnavOpenWebUI.style.display = running ? '' : 'none';
+  }
 
   // The Observability section is rendered in its own dedicated card
   // (refreshObservabilityCard) so it can show "disabled with Enable
@@ -1613,6 +1623,7 @@ async function refreshDockerServices() {
   void loggingGroup;
   container.innerHTML =
     renderDockerSection('LiteLLM', 'Proxy and its backing database.', litellmGroup) +
+    renderDockerSection('Chat UI', 'Open WebUI — browser chat front-end on <a href="http://localhost:3001" target="_blank" rel="noopener">http://localhost:3001</a>.', uiGroup) +
     renderDockerSection('Other', '', otherGroup);
 }
 

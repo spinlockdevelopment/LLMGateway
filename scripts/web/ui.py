@@ -815,6 +815,7 @@ def create_ui_router() -> APIRouter:
         # source_name : (container_name, human_label, group_name)
         "litellm":    ("llm-gateway",  "LiteLLM proxy",       "core"),
         "postgres":   ("llm-postgres", "PostgreSQL",          "core"),
+        "open-webui": ("open-webui",   "Open WebUI",          "core"),
         "grafana":    ("grafana",      "Grafana",             "observability"),
         "prometheus": ("prometheus",   "Prometheus",          "observability"),
         "loki":       ("loki",         "Loki",                "observability"),
