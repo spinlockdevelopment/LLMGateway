@@ -26,7 +26,7 @@ import yaml
 class SetupConfig:
     """Structural setup choices (no secrets)."""
 
-    data_dir: str = "~/.llm-gateway"
+    data_dir: str = "/opt/storage/llmgateway"
     install_llama_cpp: bool = False
     install_whisper: bool = False
     # Observability stack (Grafana + Prometheus + Loki + Alloy). Defaults to

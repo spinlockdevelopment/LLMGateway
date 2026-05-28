@@ -127,7 +127,7 @@ services:
     type: "audio"
     model: "mlx-community/whisper-small-asr-fp16"
     description: "MLX Whisper (fast STT) — mlx_audio.server"
-    binary: "/Users/llmadmin/.llm-gateway/venv/bin/mlx_audio.server"
+    binary: "/opt/storage/llmgateway/venv/bin/mlx_audio.server"
     args:
       --host: "0.0.0.0"
       --port: "8086"
@@ -144,7 +144,7 @@ services:
     type: "audio"
     model: "mlx-community/Kokoro-82M-bf16"
     description: "MLX Kokoro-82M TTS — mlx_audio.server"
-    binary: "/Users/llmadmin/.llm-gateway/venv/bin/mlx_audio.server"
+    binary: "/opt/storage/llmgateway/venv/bin/mlx_audio.server"
     args:
       --host: "0.0.0.0"
       --port: "8880"

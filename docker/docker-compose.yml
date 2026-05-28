@@ -29,7 +29,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - /opt/storage/llmgateway/docker-volumes/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U litellm"]
       interval: 10s
@@ -114,7 +114,7 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
+      - /opt/storage/llmgateway/docker-volumes/prometheus:/prometheus
     depends_on:
       - litellm
     restart: unless-stopped
@@ -130,7 +130,7 @@ services:
       - "3100:3100"
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - loki-data:/loki
+      - /opt/storage/llmgateway/docker-volumes/loki:/loki
     restart: unless-stopped
     networks:
       - gateway-net
@@ -166,7 +166,7 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - grafana-data:/var/lib/grafana
+      - /opt/storage/llmgateway/docker-volumes/grafana:/var/lib/grafana
     depends_on:
       - loki
       - prometheus
@@ -223,7 +223,7 @@ services:
       # /api/v1/* call until they sign out and back in.
       WEBUI_SECRET_KEY: "${WEBUI_SECRET_KEY:-}"
     volumes:
-      - open-webui-data:/app/backend/data
+      - /opt/storage/llmgateway/docker-volumes/open-webui:/app/backend/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -233,12 +233,8 @@ services:
     networks:
       - gateway-net
 
-volumes:
-  postgres-data:
-  prometheus-data:
-  loki-data:
-  grafana-data:
-  open-webui-data:
+# All persistent state is bind-mounted under /opt/storage/llmgateway/docker-volumes/
+# so it survives an OS wipe (see scripts/data_dir.py for the full layout).
 
 networks:
   gateway-net:
