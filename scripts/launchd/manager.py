@@ -46,13 +46,20 @@ def generate_plist(
         venv_bin_dir: If set, prepended to PATH so subprocesses see venv tools.
         data_dir:    LLM_GATEWAY_DATA_DIR — where .env, user config, logs live.
     """
-    # Resolve data_dir for log location default
+    # Resolve data_dir for env var.
     if data_dir is None:
         from data_dir import get_data_dir
         data_dir = str(get_data_dir())
 
+    # launchd's StandardOut/ErrorPath must be writable by the user LaunchAgent
+    # under TCC. Paths under /Volumes/* (including symlinks like
+    # /opt/storage -> /Volumes/External2T) are blocked. Always pin the plist
+    # log path to ~/Library/Logs/llm-gateway/ — the conventional macOS user-
+    # agent log location. Per-service logs (kokoro, whisper, llama) still go
+    # to <data_dir>/logs/ because the gateway process writes those itself
+    # and is not subject to launchd's open-time TCC check.
     if log_dir is None:
-        log_dir = str(Path(data_dir) / "logs")
+        log_dir = str(Path.home() / "Library" / "Logs" / "llm-gateway")
 
     Path(log_dir).mkdir(parents=True, exist_ok=True)
 
@@ -78,6 +85,7 @@ def generate_plist(
             "PYTHONUNBUFFERED": "1",
             "PATH": ":".join(path_entries),
             "LLM_GATEWAY_DATA_DIR": data_dir,
+            "HF_HOME": f"{data_dir}/hf-cache",
         },
     }
 
@@ -124,10 +132,15 @@ def install(
     script_path = str(repo_dir / "scripts" / "llmgateway.py")
     config_dir = str(repo_dir / "config")
 
-    # Resolve data_dir
+    # Resolve data_dir.
+    # Note: use absolute(), NOT resolve(), so symlinks like
+    # /opt/storage -> /Volumes/External2T are preserved in the plist.
+    # macOS launchd refuses to open StandardOutPath under /Volumes/* for
+    # user LaunchAgents (TCC), so the plist must reference the symlink
+    # form (/opt/storage/...) instead of the resolved realpath.
     data_dir_str: Optional[str] = None
     if data_dir is not None:
-        data_dir_str = str(Path(data_dir).resolve())
+        data_dir_str = str(Path(data_dir).expanduser().absolute())
 
     # Unload existing if present (idempotent)
     uninstall(quiet=True)
