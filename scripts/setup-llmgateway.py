@@ -225,7 +225,7 @@ def _ensure_venv() -> None:
 
 def _collect_data_dir(existing: SetupConfig) -> str:
     """Ask where to store gateway data."""
-    default = existing.data_dir or "~/.llm-gateway"
+    default = existing.data_dir or "/opt/storage/llmgateway"
     info(f"  Gateway data (secrets, config, logs) is stored separately")
     info(f"  from the git repo so it survives repo deletion/re-clone.")
     blank()
