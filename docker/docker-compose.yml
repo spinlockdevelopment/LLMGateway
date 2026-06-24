@@ -41,7 +41,13 @@ services:
 
   # ── LiteLLM Proxy ──────────────────────────────────────────
   litellm:
-    image: ghcr.io/berriai/litellm:main-latest
+    # Pinned by digest — `main-latest` is a moving tag and silently jumped
+    # the DB schema ahead of the existing Postgres volume (login 500s when
+    # the proxy queries columns the DB lacks). This digest == main-latest as
+    # pulled 2026-06-24, verified against the migrated schema. To upgrade:
+    # bump the digest, then `docker exec llm-gateway prisma db push` to
+    # migrate the DB before/after rollout.
+    image: ghcr.io/berriai/litellm@sha256:f792e404f0db3b8c8d841e25e8c7b373df6079b74d660068a6d4974345c8d43d
     container_name: llm-gateway
     ports:
       - "4000:4000"
