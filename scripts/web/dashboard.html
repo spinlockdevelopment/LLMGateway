@@ -2469,8 +2469,23 @@ const SECRET_SECTIONS = [
     ],
   },
   {
+    id: 'openwebui',
+    title: 'OpenWebUI',
+    // Only rendered when the open-webui container is part of the setup
+    // (see installedSections / loadSecrets). WEBUI_SECRET_KEY signs the
+    // session JWTs; pinning it keeps logins valid across container restarts.
+    requires: 'openwebui',
+    description: 'Browser chat front-end. WEBUI_SECRET_KEY signs login sessions — set it so users stay logged in across restarts.',
+    entries: [
+      { key: 'WEBUI_SECRET_KEY', label: 'Session secret key' },
+    ],
+  },
+  {
     id: 'observability',
     title: 'Observability',
+    // Only rendered when the observability stack is installed (any of the
+    // grafana/prometheus/loki/alloy containers exist). See installedSections.
+    requires: 'observability',
     description: 'Local services and optional logging callbacks.',
     entries: [
       { key: 'GF_SECURITY_ADMIN_USER', label: 'Grafana admin user', defaultValue: 'admin' },
@@ -2501,6 +2516,11 @@ for (const section of SECRET_SECTIONS) {
 
 let secretsDefaults = {};
 let secretsRows = [];  // [{key, value}, ...] — source of truth, sent verbatim to the backend
+// Which optional sections are installed in this setup. Sections in
+// SECRET_SECTIONS that carry a `requires` key are only rendered when the
+// matching flag here is true. Populated by loadSecrets() from the Docker
+// container list (a container is "installed" if it exists, even if stopped).
+let installedSections = { openwebui: false, observability: false };
 
 function escapeHtml(s) {
   if (s == null) return '';
@@ -2686,7 +2706,10 @@ function cancelCustomSecret(btn) {
 function renderSecretsSections() {
   const container = document.getElementById('secrets-entries');
 
-  const knownSectionsHTML = SECRET_SECTIONS.map(section => {
+  const knownSectionsHTML = SECRET_SECTIONS.filter(section =>
+    // Sections gated on an optional component are hidden until it's installed.
+    !section.requires || installedSections[section.requires]
+  ).map(section => {
     const presentEntries = section.entries.filter(e => hasRow(e.key));
     const availableEntries = section.entries.filter(e => !hasRow(e.key));
 
@@ -2702,21 +2725,18 @@ function renderSecretsSections() {
   }).join('');
 
   // Custom — entries in secretsRows that aren't in the known registry. The
-  // section is display-only; new custom entries are added via the "Other…"
-  // option in any known section's Add control above.
+  // section is display-only and always shown (blank is fine); new custom
+  // entries are added via the "Other…" option in any known section above.
   const otherRows = secretsRows.filter(r => !SECRET_KEY_INDEX[r.key]);
-  let otherHTML = '';
-  if (otherRows.length) {
-    const otherGroupsHTML = otherRows.map(r =>
-      `<div class="secret-group">${renderRow(r.key, 'primary')}</div>`
-    ).join('');
-    otherHTML = `
+  const otherGroupsHTML = otherRows.length
+    ? otherRows.map(r => `<div class="secret-group">${renderRow(r.key, 'primary')}</div>`).join('')
+    : `<div class="secrets-empty">No custom variables yet. Add one via "Other…" in any section above.</div>`;
+  const otherHTML = `
       <div class="secrets-section">
         <h3>Custom</h3>
         <div class="section-desc">Custom or unrecognized variables. Add new ones via "Other…" in any section above.</div>
         ${otherGroupsHTML}
       </div>`;
-  }
 
   container.innerHTML = knownSectionsHTML + otherHTML;
 }
@@ -2740,10 +2760,23 @@ function removeSecretRowByKey(key) {
   renderSecretsSections();
 }
 
+// Determine which optional components are installed from the Docker stack.
+// "Installed" = a matching compose container exists (running or stopped).
+// On any failure we leave the optional sections hidden (can't confirm).
+async function refreshInstalledSections() {
+  installedSections = { openwebui: false, observability: false };
+  const r = await api('/api/docker/containers');
+  const containers = (r && r.containers) || [];
+  const svc = c => (c.compose_service || '').toLowerCase();
+  installedSections.openwebui = containers.some(c => svc(c) === 'open-webui');
+  installedSections.observability = containers.some(c => LOGGING_STACK_SERVICES.has(svc(c)));
+}
+
 async function loadSecrets() {
   const [data, exampleData] = await Promise.all([
     api('/ui/secrets'),
     api('/ui/secrets/example'),
+    refreshInstalledSections(),
   ]);
   if (!data || !exampleData) return;
   secretsDefaults = {
