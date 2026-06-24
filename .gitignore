@@ -38,6 +38,10 @@ scripts/*.tmp
 scripts/*/logs/
 scripts/*/tmp/
 
+# Runtime state must live in the data dir (/opt/storage/llmgateway), never
+# the repo. Guard against a stray CWD-relative write landing logs here.
+/logs/
+
 # --- Claude / Cursor / IDE ---
 .claude/
 .cursor/
