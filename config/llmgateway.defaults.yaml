@@ -108,7 +108,7 @@ services:
     args:
       --host: "0.0.0.0"
       --port: "8083"
-      --model: ""              # REQUIRED: path to Whisper Large-v3 model
+      --model: "/opt/storage/whisper/ggml-large-v3-turbo.bin"
       --threads: "2"
     extra_args: []
     health_check_url: "http://localhost:8083/health"
