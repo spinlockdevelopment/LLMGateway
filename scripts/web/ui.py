@@ -824,7 +824,7 @@ def create_ui_router() -> APIRouter:
 
     _FILE_LOG_SOURCES = {
         # source_name : (filename_under_data_dir/logs, human_label, group_name)
-        "management":     ("gateway.log",        "Management daemon", "host"),
+        "management":     ("gateway.log",        "LLMGateway Service", "host"),
         "llama-server":   ("llama-server.log",   "llama.cpp server",  "host"),
         "whisper-server": ("whisper-server.log", "whisper.cpp server","host"),
     }
@@ -1192,6 +1192,17 @@ def create_ui_router() -> APIRouter:
     _DMR_PULL_TIMEOUT_SEC = 1800   # 30 min — large models can take a while
     _LLMFIT_TIMEOUT_SEC = 60
 
+    # llmfit's global ranking is speed-weighted, so dense Gemma models are
+    # buried beneath MoE models (Qwen3-30B-A3B, etc.) even though they fit well
+    # on smaller Apple Silicon and ship GGUFs — they never clear the top-N cut.
+    # We surface them explicitly by querying `llmfit info` per name and splicing
+    # any that meet the requested min-fit into the recommendation list.
+    _CURATED_SMALL_HW_MODELS = [
+        "google/gemma-3-12b-it",
+        "google/gemma-4-26B-A4B-it",
+        "google/gemma-3-27b-it",
+    ]
+
     async def _run_cmd(cmd: list[str], timeout: float) -> tuple[int, str, str]:
         """Run a subprocess, return (rc, stdout, stderr). No shell."""
         proc = await asyncio.create_subprocess_exec(
@@ -1324,7 +1335,49 @@ def create_ui_router() -> APIRouter:
         if official_only:
             gguf_models = [m for m in gguf_models if m.get("has_official_gguf")]
 
-        data["models"] = gguf_models[:limit]
+        top = gguf_models[:limit]
+
+        # Splice in curated small-hardware models (Gemma) that the speed-weighted
+        # global ranking buries below the top-N cut. Query each via `llmfit info`
+        # (single-model command) concurrently, keep those that meet the requested
+        # min-fit and have a GGUF, and append any not already shown.
+        fit_rank = {"perfect": 3, "good": 2, "marginal": 1}
+        want_rank = fit_rank.get(min_fit, 2)
+        seen = {m.get("name") for m in top}
+
+        async def _fetch_curated(name: str) -> dict | None:
+            cmd = [binary, *global_flags, "info", name, "--json"]
+            try:
+                rc, out, _ = await _run_cmd(cmd, timeout=25)
+            except asyncio.TimeoutError:
+                return None
+            if rc != 0:
+                return None
+            try:
+                info = json.loads(out)
+            except json.JSONDecodeError:
+                return None
+            models = info.get("models") or []
+            return models[0] if models else None
+
+        curated_raw = await asyncio.gather(
+            *[_fetch_curated(n) for n in _CURATED_SMALL_HW_MODELS]
+        )
+        for m in curated_raw:
+            if not m or m.get("name") in seen:
+                continue
+            m = _annotate(m)
+            if not m.get("gguf_sources"):
+                continue
+            if fit_rank.get((m.get("fit_level") or "").lower(), 0) < want_rank:
+                continue
+            if official_only and not m.get("has_official_gguf"):
+                continue
+            m["curated"] = True
+            seen.add(m.get("name"))
+            top.append(m)
+
+        data["models"] = top
         data["filtered_out"] = len(all_models) - len(gguf_models)
         data["official_only"] = official_only
         return data

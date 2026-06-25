@@ -737,7 +737,8 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
   min-height: 52px;
 }
 .section-add-select {
-  flex: 1;
+  flex: 0 0 auto;
+  width: auto;
   max-width: 420px;
   font-size: 13px;
   height: 32px;
@@ -916,6 +917,16 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
 [data-theme="dark"] #llmfit-controls { background: var(--bg2) !important; }
 
 [data-theme="dark"] .section-add-select { color: var(--fg); }
+
+/* Per-line log-level highlighting in the log viewer. Full-width tints that
+   reach the edges of the <pre> (which has 12px padding). Info is unstyled. */
+#logs-content .log-line { display:block; margin:0 -12px; padding:0 12px; }
+#logs-content .log-line.lvl-warning  { background: rgba(234, 179, 8, 0.18); }
+#logs-content .log-line.lvl-error    { background: rgba(249, 115, 22, 0.22); }
+#logs-content .log-line.lvl-critical { background: rgba(239, 68, 68, 0.26); }
+[data-theme="dark"] #logs-content .log-line.lvl-warning  { background: rgba(234, 179, 8, 0.22); }
+[data-theme="dark"] #logs-content .log-line.lvl-error    { background: rgba(249, 115, 22, 0.28); }
+[data-theme="dark"] #logs-content .log-line.lvl-critical { background: rgba(239, 68, 68, 0.34); }
 </style>
 </head>
 <body>
@@ -1172,12 +1183,7 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
           <select id="llmfit-min-fit">
             <option value="perfect">Perfect</option>
             <option value="good" selected>Good</option>
-            <option value="marginal">Marginal</option>
           </select>
-        </label>
-        <label style="display:inline-flex;align-items:center;gap:6px;color:var(--fg2);font-size:12.5px" title="Show only models with a GGUF published by the upstream model maker (e.g. Qwen, Meta, Google). Most upstreams ship only safetensors; community quantizers like unsloth and bartowski produce the GGUFs.">
-          <input type="checkbox" id="llmfit-official-only" onchange="loadLlmfitRecommendations()" style="margin:0">
-          Official only
         </label>
         <span id="llmfit-system-meta" style="color:var(--fg2);font-size:12px;margin-left:auto;font-family:var(--mono)"></span>
       </div>
@@ -1595,7 +1601,7 @@ async function refreshDockerServices() {
   void loggingGroup;
   container.innerHTML =
     renderDockerSection('LiteLLM', 'Proxy and its backing database.', litellmGroup) +
-    renderDockerSection('Chat UI', 'Open WebUI — browser chat front-end on <a href="http://localhost:3001" target="_blank" rel="noopener">http://localhost:3001</a>.', uiGroup) +
+    renderDockerSection('OpenWebUI', 'Browser chat front-end on <a href="http://localhost:3001" target="_blank" rel="noopener">http://localhost:3001</a>.', uiGroup) +
     renderDockerSection('Other', '', otherGroup);
 }
 
@@ -1741,6 +1747,42 @@ async function refreshTailscaleCard() {
 let _logsInited = false;
 let _logsAutoTimer = null;
 
+// Per-source regexes that capture the log-level token from a line. The capture
+// group is normalized via LOG_LEVEL_ALIASES into: info | warning | error |
+// critical. Info is left unstyled; the others tint the line background.
+const LOG_LEVEL_PATTERNS = {
+  // Python-logging style used by our daemon, uvicorn, LiteLLM and Open WebUI:
+  //   "2026-… [WARNING ] msg"  ·  "ERROR:    msg"  ·  "LiteLLM:ERROR: msg"
+  _default:     /\b(CRITICAL|FATAL|ERROR|WARNING|WARN|NOTICE|INFO|DEBUG|TRACE)\b/i,
+  management:   /\[\s*(CRITICAL|ERROR|WARNING|INFO|DEBUG)\s*\]/i,
+  litellm:      /\b(CRITICAL|ERROR|WARNING|WARN|INFO|DEBUG)\b/i,
+  'open-webui': /\b(CRITICAL|ERROR|WARNING|WARN|INFO|DEBUG)\b/i,
+  // PostgreSQL severities — LOG/INFO/DEBUG are normal, FATAL/PANIC are critical.
+  postgres:     /\b(PANIC|FATAL|ERROR|WARNING|LOG|INFO|DEBUG)\b/,
+  // logfmt agents (Grafana/Prometheus/Loki/Alloy): "level=warn" · "lvl=eror".
+  grafana:      /\b(?:level|lvl)=(critical|crit|error|eror|warn(?:ing)?|info|debug)\b/i,
+  prometheus:   /\b(?:level|lvl)=(critical|crit|error|eror|warn(?:ing)?|info|debug)\b/i,
+  loki:         /\b(?:level|lvl)=(critical|crit|error|eror|warn(?:ing)?|info|debug)\b/i,
+  alloy:        /\b(?:level|lvl)=(critical|crit|error|eror|warn(?:ing)?|info|debug)\b/i,
+};
+
+const LOG_LEVEL_ALIASES = {
+  critical: 'critical', crit: 'critical', fatal: 'critical', panic: 'critical',
+  emerg: 'critical', alert: 'critical',
+  error: 'error', eror: 'error', err: 'error',
+  warning: 'warning', warn: 'warning',
+  info: 'info', log: 'info', notice: 'info', debug: 'info', trace: 'info',
+};
+
+// Return 'warning' | 'error' | 'critical' for a line, or null (info/unmatched).
+function classifyLogLine(source, line) {
+  const re = LOG_LEVEL_PATTERNS[source] || LOG_LEVEL_PATTERNS._default;
+  const m = re.exec(line);
+  if (!m) return null;
+  const level = LOG_LEVEL_ALIASES[(m[1] || '').toLowerCase()] || null;
+  return (level && level !== 'info') ? level : null;
+}
+
 async function initLogsPanel() {
   // Re-fetch sources every visit (a freshly enabled obs stack adds new ones).
   const sel = document.getElementById('logs-source');
@@ -1799,7 +1841,15 @@ async function refreshLogsView() {
   if (r.error) { metaEl.textContent = 'Error: ' + r.error; contentEl.textContent = ''; return; }
   const list = r.lines || [];
   metaEl.textContent = source + ' · ' + list.length + ' lines' + (r.message ? ' · ' + r.message : '');
-  contentEl.textContent = list.join('\n') || (r.message || '(empty)');
+  if (list.length) {
+    contentEl.innerHTML = list.map(line => {
+      const lvl = classifyLogLine(source, line);
+      const cls = 'log-line' + (lvl ? ' lvl-' + lvl : '');
+      return '<span class="' + cls + '">' + (escapeHtml(line) || '&nbsp;') + '</span>';
+    }).join('');
+  } else {
+    contentEl.textContent = r.message || '(empty)';
+  }
   // Auto-scroll to the bottom so newest lines are visible.
   contentEl.scrollTop = contentEl.scrollHeight;
 }
@@ -2135,10 +2185,8 @@ async function loadLlmfitRecommendations() {
 
   const useCase = document.getElementById('llmfit-use-case').value;
   const minFit = document.getElementById('llmfit-min-fit').value;
-  const officialOnly = document.getElementById('llmfit-official-only').checked;
   const params = new URLSearchParams({ limit: '8', min_fit: minFit });
   if (useCase) params.set('use_case', useCase);
-  if (officialOnly) params.set('official_only', '1');
 
   const r = await api('/ui/dmr/llmfit/recommend?' + params.toString());
   if (!r) {
@@ -2159,11 +2207,7 @@ async function loadLlmfitRecommendations() {
   }
   const models = r.models || [];
   if (models.length === 0) {
-    if (officialOnly) {
-      el.innerHTML = '<div class="card-meta">No officially-released GGUFs match. Most upstream orgs (Qwen, Meta, Google) publish only safetensors; community quantizers like <code>unsloth</code> and <code>bartowski</code> produce the GGUFs. Uncheck "Official only" to see those.</div>';
-    } else {
-      el.innerHTML = '<div class="card-meta">No models matched the current filter.</div>';
-    }
+    el.innerHTML = '<div class="card-meta">No models matched the current filter.</div>';
     return;
   }
   el.innerHTML = models.map(m => {
@@ -2611,14 +2655,14 @@ function renderSecretGroup(entry) {
 // Render the "Add to this section" control. Single dropdown of unconfigured
 // entries (by service name only) plus an "Other…" option that swaps the
 // dropdown for an inline ENV_VAR_NAME / Value form for free-form additions.
-function renderSectionAdd(section, availableEntries) {
+function renderSectionAdd(section, availableEntries, placeholder) {
   const sid = section.id;
   const knownOpts = availableEntries.map(e =>
     `<option value="${escapeAttr(e.key)}">${escapeHtml(e.label || e.key)}</option>`
   ).join('');
-  const placeholder = availableEntries.length === 0
-    ? '+ Add a custom variable…'
-    : '+ Add a key…';
+  // Known sections always read "+ Add a key…" (selecting "Other…" adds a custom
+  // key); the Custom section overrides this with "+ Add a custom variable…".
+  placeholder = placeholder || '+ Add a key…';
   const separator = knownOpts ? '<option value="" disabled>──────────</option>' : '';
 
   return `
@@ -2730,12 +2774,13 @@ function renderSecretsSections() {
   const otherRows = secretsRows.filter(r => !SECRET_KEY_INDEX[r.key]);
   const otherGroupsHTML = otherRows.length
     ? otherRows.map(r => `<div class="secret-group">${renderRow(r.key, 'primary')}</div>`).join('')
-    : `<div class="secrets-empty">No custom variables yet. Add one via "Other…" in any section above.</div>`;
+    : `<div class="secrets-empty">No custom variables yet. Add one below.</div>`;
   const otherHTML = `
       <div class="secrets-section">
         <h3>Custom</h3>
-        <div class="section-desc">Custom or unrecognized variables. Add new ones via "Other…" in any section above.</div>
+        <div class="section-desc">Custom or unrecognized variables.</div>
         ${otherGroupsHTML}
+        ${renderSectionAdd({ id: 'custom', entries: [] }, [], '+ Add a custom variable…')}
       </div>`;
 
   container.innerHTML = knownSectionsHTML + otherHTML;

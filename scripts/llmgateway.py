@@ -43,7 +43,7 @@ _LOG_FORMAT = "%(asctime)s [%(levelname)-8s] %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 
-def _ensure_venv() -> None:
+def _ensure_venv(log: logging.Logger) -> None:
     """
     Verify that the gateway is running inside the project virtual environment.
 
@@ -52,13 +52,14 @@ def _ensure_venv() -> None:
     symlinks and venv interpreters on macOS are symlink chains back to the
     system/Homebrew Python binary.
 
-    Always prints the current Python executable path. If the interpreter is not
+    Always logs the current Python executable path. If the interpreter is not
     running inside the repo's .venv, log a critical error, wait for a keypress
-    in interactive shells, and abort.
+    in interactive shells, and abort. All output goes through the shared logger
+    so every line carries a timestamp and level, matching the rest of the daemon.
     """
     venv_dir = _REPO_DIR / ".venv"
 
-    print(f"[llm-gateway] Python executable: {sys.executable}")
+    log.info(f"Python executable: {sys.executable}")
 
     is_any_venv = sys.prefix != sys.base_prefix
     is_project_venv = (
@@ -67,24 +68,18 @@ def _ensure_venv() -> None:
     )
 
     if is_project_venv:
-        print(f"[llm-gateway] Virtual env:     {venv_dir} (OK)")
+        log.info(f"Virtual env: {venv_dir} (OK)")
         return
 
-    message_lines = [
-        "[llm-gateway] CRITICAL: service is not running inside the project virtual environment.",
-        f"[llm-gateway] Expected venv at: {venv_dir}",
-    ]
+    log.critical("Service is not running inside the project virtual environment.")
+    log.critical(f"Expected venv at: {venv_dir}")
     if is_any_venv:
-        message_lines.append(f"[llm-gateway] Active venv:     {sys.prefix}")
-        message_lines.append("[llm-gateway] A virtual environment is active, but it is not the project venv.")
+        log.critical(f"Active venv: {sys.prefix}")
+        log.critical("A virtual environment is active, but it is not the project venv.")
     else:
-        message_lines.append("[llm-gateway] No virtual environment is active.")
-    message_lines.extend([
-        "[llm-gateway] Run ./bootstrap-llmgateway.sh to create the venv,",
-        "[llm-gateway] then use the venv Python interpreter to run this script.",
-    ])
-    for line in message_lines:
-        print(line, file=sys.stderr)
+        log.critical("No virtual environment is active.")
+    log.critical("Run ./bootstrap-llmgateway.sh to create the venv,")
+    log.critical("then use the venv Python interpreter to run this script.")
 
     if sys.stdin is not None and sys.stdin.isatty():
         try:
@@ -305,12 +300,36 @@ async def cmd_serve(log: logging.Logger) -> int:
     # Run uvicorn
     import uvicorn
 
+    # Force uvicorn's own loggers to use the daemon's format so every line in
+    # gateway.log carries a timestamp and level — uvicorn's default handlers
+    # emit bare "INFO:     message" lines with neither.
+    uvicorn_log_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "uniform": {"format": _LOG_FORMAT, "datefmt": _DATE_FORMAT},
+        },
+        "handlers": {
+            "uniform": {
+                "class": "logging.StreamHandler",
+                "formatter": "uniform",
+                "stream": "ext://sys.stdout",
+            },
+        },
+        "loggers": {
+            "uvicorn":        {"handlers": ["uniform"], "level": log_level.upper(), "propagate": False},
+            "uvicorn.error":  {"handlers": ["uniform"], "level": log_level.upper(), "propagate": False},
+            "uvicorn.access": {"handlers": ["uniform"], "level": log_level.upper(), "propagate": False},
+        },
+    }
+
     config = uvicorn.Config(
         app=app,
         host=host,
         port=port,
         log_level=log_level.lower(),
         access_log=False,
+        log_config=uvicorn_log_config,
     )
     server = uvicorn.Server(config)
 
@@ -340,7 +359,6 @@ async def cmd_serve(log: logging.Logger) -> int:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> int:
-    _ensure_venv()
     parser = argparse.ArgumentParser(
         description="LLM Gateway — management service (web UI + service manager)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
