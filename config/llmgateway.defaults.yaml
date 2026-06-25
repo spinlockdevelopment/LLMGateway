@@ -45,14 +45,13 @@ services:
   #                       llama.cpp never benefits from spilling onto
   #                       efficiency cores.
   #   ctx-size: 131072  — total KV budget across all parallel slots.
-  #   parallel: 2       — two in-flight request slots, so with ctx-size
-  #                       131072 each slot addresses 64K. Two slots lets
-  #                       a primary agent and a subagent (or a streaming
-  #                       reply + a quick lookup) run concurrently
-  #                       without the 128K-single-slot tradeoff of
-  #                       blocking one on the other.
-  #                       Bump parallel back to 1 (and keep ctx-size at
-  #                       131072) if you genuinely need 128K-per-request.
+  #   parallel: 1       — a single in-flight request slot, so with ctx-size
+  #                       131072 that slot addresses the full 128K. One slot
+  #                       gives each request the maximum context, at the cost
+  #                       of serializing concurrency (a subagent blocks until
+  #                       the primary frees the slot).
+  #                       Set parallel: 2 (keep ctx-size at 131072) to run
+  #                       two 64K slots concurrently instead.
   #   no --mlock        — --mlock + large --ctx-size has panicked the
   #                       kernel on this 32 GB Mac; let macOS page weights.
   #   cache-type-k/v: q8_0 — quantized KV cache. Safe with --flash-attn on;
@@ -66,7 +65,7 @@ services:
     enabled: true
     type: "llamacpp"
     model: "gemma-4-26b-a4b"
-    description: "Local model — llama-server (Gemma-4-26B-A4B UD-Q4_K_M, 64K×2 ctx)"
+    description: "Local model — llama-server (Gemma-4-26B-A4B UD-Q4_K_M, 128K×1 ctx)"
     binary: "llama-server"
     args:
       --host: "0.0.0.0"
@@ -76,7 +75,7 @@ services:
       --ctx-size: "131072"
       --threads: "4"
       --threads-batch: "8"
-      --parallel: "2"
+      --parallel: "1"
       --batch-size: "2048"
       --ubatch-size: "512"
       --cache-type-k: "q8_0"
