@@ -187,6 +187,11 @@ litellm_settings:
   callbacks:
     - prometheus
 
+  # As of the 2026-07 litellm build, /metrics defaults to requiring a
+  # bearer key. Prometheus (internal to gateway-net, opt-in profile) has
+  # no key configured, so leave scraping unauthenticated.
+  require_auth_for_metrics_endpoint: false
+
   # Drop unsupported params instead of erroring
   drop_params: true
 
