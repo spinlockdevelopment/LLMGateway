@@ -44,10 +44,10 @@ services:
     # Pinned by digest — `main-latest` is a moving tag and silently jumped
     # the DB schema ahead of the existing Postgres volume (login 500s when
     # the proxy queries columns the DB lacks). This digest == main-latest as
-    # pulled 2026-06-24, verified against the migrated schema. To upgrade:
-    # bump the digest, then `docker exec llm-gateway prisma db push` to
-    # migrate the DB before/after rollout.
-    image: ghcr.io/berriai/litellm@sha256:f792e404f0db3b8c8d841e25e8c7b373df6079b74d660068a6d4974345c8d43d
+    # pulled 2026-07-04 (~v1.91.0), verified against the migrated schema. To
+    # upgrade: bump the digest, then `docker exec llm-gateway prisma db push`
+    # to migrate the DB before/after rollout.
+    image: ghcr.io/berriai/litellm@sha256:10264d97c2e80a664c02688b7015b3909dff024764c76aef676a6bd495ca136a
     container_name: llm-gateway
     ports:
       - "4000:4000"
@@ -113,7 +113,7 @@ services:
 
   # ── Prometheus ─────────────────────────────────────────────
   prometheus:
-    image: prom/prometheus:v2.53.0
+    image: prom/prometheus:v3.13.0
     container_name: prometheus
     profiles: ["observability"]
     ports:
@@ -129,7 +129,7 @@ services:
 
   # ── Loki (log aggregation) ────────────────────────────────
   loki:
-    image: grafana/loki:3.3.2
+    image: grafana/loki:3.7.3
     container_name: loki
     profiles: ["observability"]
     ports:
@@ -146,7 +146,7 @@ services:
   # When external agents are added, expose port 4317 (OTLP gRPC)
   # and add an otelcol.receiver.otlp block to alloy-config.alloy.
   alloy:
-    image: grafana/alloy:latest
+    image: grafana/alloy:v1.17.1
     container_name: alloy
     profiles: ["observability"]
     volumes:
@@ -161,7 +161,7 @@ services:
 
   # ── Grafana (dashboards) ───────────────────────────────────
   grafana:
-    image: grafana/grafana:11.4.0
+    image: grafana/grafana:13.1.0
     container_name: grafana
     profiles: ["observability"]
     ports:
@@ -191,7 +191,7 @@ services:
   #   STT  → Whisper on host's mlx_audio.server http://host.docker.internal:8086/v1
   # Reachable at http://localhost:3001.
   open-webui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:0.10.2
     container_name: open-webui
     ports:
       - "3001:8080"
