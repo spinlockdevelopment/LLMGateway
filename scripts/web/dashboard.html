@@ -1437,6 +1437,12 @@ function renderGatewayCard(s) {
     actions = `<button type="button" onclick="svcAction('${s.name}', 'enable')">Enable</button>`;
   } else {
     let buttons = '';
+    // whisper-server exposes a plain HTTP API a client can hit directly (no
+    // LiteLLM route needed) — surface a Copy URL button for those while running.
+    const isDirectAccess = s.name === 'whisper-fast' || s.name === 'whisper-large';
+    if (canStop && isDirectAccess && s.port) {
+      buttons += `<button type="button" onclick="copyServiceUrl(${s.port}, '${escapeAttr(title)}')">Copy URL</button>`;
+    }
     if (canStart) buttons += `<button type="button" onclick="svcAction('${s.name}', 'start')">Start</button>`;
     if (canStop) {
       buttons += `<button type="button" onclick="svcAction('${s.name}', 'stop')">Stop</button>`;
@@ -1588,10 +1594,10 @@ async function refreshDockerServices() {
   otherGroup.sort(byName);
 
   // Reveal/hide the topnav Open WebUI link based on container state.
+  const uiRunning = uiGroup.some(c => (c.state || '').toLowerCase() === 'running');
   const topnavOpenWebUI = document.getElementById('topnav-openwebui');
   if (topnavOpenWebUI) {
-    const running = uiGroup.some(c => (c.state || '').toLowerCase() === 'running');
-    topnavOpenWebUI.style.display = running ? '' : 'none';
+    topnavOpenWebUI.style.display = uiRunning ? '' : 'none';
   }
 
   // The Observability section is rendered in its own dedicated card
@@ -1599,9 +1605,19 @@ async function refreshDockerServices() {
   // button" even when no containers exist. We classify those into
   // `loggingGroup` here so the for-loop is exhaustive but don't render it.
   void loggingGroup;
+
+  const litellmRunning = litellmGroup.some(c =>
+    (c.compose_service || '').toLowerCase() === 'litellm' && (c.state || '').toLowerCase() === 'running');
+  const copyUrlBtn = (port, label) =>
+    `<button type="button" class="copy-route" onclick="copyServiceUrl(${port}, '${escapeAttr(label)}')">Copy URL</button>`;
+  const litellmHint = 'Proxy and its backing database.' +
+    (litellmRunning ? ' ' + copyUrlBtn(4000, 'LiteLLM') : '');
+  const uiHint = 'Browser chat front-end on <a href="http://localhost:3001" target="_blank" rel="noopener">http://localhost:3001</a>.' +
+    (uiRunning ? ' ' + copyUrlBtn(3001, 'Open WebUI') : '');
+
   container.innerHTML =
-    renderDockerSection('LiteLLM', 'Proxy and its backing database.', litellmGroup) +
-    renderDockerSection('OpenWebUI', 'Browser chat front-end on <a href="http://localhost:3001" target="_blank" rel="noopener">http://localhost:3001</a>.', uiGroup) +
+    renderDockerSection('LiteLLM', litellmHint, litellmGroup) +
+    renderDockerSection('OpenWebUI', uiHint, uiGroup) +
     renderDockerSection('Other', '', otherGroup);
 }
 
@@ -1640,7 +1656,8 @@ async function refreshObservabilityCard() {
     ? `<button type="button" class="danger" onclick="disableObservability()">Disable</button>`
     : `<button type="button" onclick="enableObservability()">Enable</button>`;
   const grafanaLink = (r.enabled && r.all_running)
-    ? `<a href="${escapeAttr(r.grafana_url || 'http://localhost:3000')}" target="_blank" rel="noopener" style="margin-left:8px;font-size:13px">Open Grafana →</a>`
+    ? `<a href="${escapeAttr(r.grafana_url || 'http://localhost:3000')}" target="_blank" rel="noopener" style="margin-left:8px;font-size:13px">Open Grafana →</a>
+       <button type="button" class="copy-route" style="margin-left:8px" onclick="copyServiceUrl(3000, 'Grafana')">Copy URL</button>`
     : '';
   const note = r.enabled
     ? ''
@@ -1693,8 +1710,12 @@ async function disableObservability() {
 // informational.
 async function refreshTailscaleCard() {
   const el = document.getElementById('tailscale-card');
-  if (!el) return;
   const r = await api('/api/tailscale/status');
+  // Store regardless of state/card-presence — copyServiceUrl() reads this
+  // to build reachable URLs even when Tailscale isn't installed (lan_ip
+  // fallback still comes through) or the card itself is hidden.
+  _networkInfo = r || null;
+  if (!el) return;
   if (!r) {
     el.innerHTML = '';
     return;
@@ -1967,6 +1988,33 @@ async function copyRouteName(name) {
   try {
     await navigator.clipboard.writeText(url);
     toast('Copied: ' + url, 'success');
+  } catch (e) {
+    toast('Copy failed', 'error');
+  }
+}
+
+// ── Copy/paste-ready service URLs ────────────────────────────────────────────
+// Populated by refreshTailscaleCard() with the /api/tailscale/status
+// response, which carries tailnet IP/DNS plus a LAN-IP fallback. Used to
+// build URLs a client on another machine can actually reach — "localhost"
+// only means something on the box running the dashboard.
+let _networkInfo = null;
+
+function reachableHost() {
+  const n = _networkInfo;
+  if (n) {
+    if (n.dns_name) return n.dns_name;
+    if (n.tailscale_ips && n.tailscale_ips.length) return n.tailscale_ips[0];
+    if (n.lan_ip) return n.lan_ip;
+  }
+  return window.location.hostname || 'localhost';
+}
+
+async function copyServiceUrl(port, label) {
+  const url = `http://${reachableHost()}:${port}`;
+  try {
+    await navigator.clipboard.writeText(url);
+    toast('Copied' + (label ? ' ' + label : '') + ' URL: ' + url, 'success');
   } catch (e) {
     toast('Copy failed', 'error');
   }

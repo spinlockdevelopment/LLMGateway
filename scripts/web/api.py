@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import platform
+import socket
 import sys
 import time
 from pathlib import Path
@@ -549,7 +550,24 @@ def create_api_router() -> APIRouter:
         Tailscale connectivity check. Read-only — never starts/stops the
         daemon. Used by the dashboard's Services tab to surface whether the
         host is reachable over the tailnet, plus its tailnet IP + DNS name.
+
+        Also reports the machine's LAN IP (independent of Tailscale) so the
+        dashboard can build copy/paste-ready service URLs for a client on
+        the same network even when Tailscale is down or not installed.
         """
+
+        def _lan_ip() -> str | None:
+            # UDP "connect" just picks a route/local address — no packet is
+            # actually sent — so this works offline and doesn't require the
+            # target host to be reachable.
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+                    s.connect(("8.8.8.8", 80))
+                    return s.getsockname()[0]
+            except OSError:
+                return None
+
+        lan_ip = _lan_ip()
 
         async def _run(*args: str) -> tuple[int, bytes, bytes]:
             try:
@@ -570,18 +588,20 @@ def create_api_router() -> APIRouter:
                 "installed": False,
                 "state": "not_installed",
                 "error": "tailscale CLI not found on PATH",
+                "lan_ip": lan_ip,
             }
         if rc != 0:
             return {
                 "installed": True,
                 "state": "error",
                 "error": err.decode(errors="replace").strip() or "tailscale status failed",
+                "lan_ip": lan_ip,
             }
 
         try:
             status = json.loads(out.decode("utf-8"))
         except Exception as exc:
-            return {"installed": True, "state": "error", "error": f"parse: {exc}"}
+            return {"installed": True, "state": "error", "error": f"parse: {exc}", "lan_ip": lan_ip}
 
         # Prefs reveal RunSSH + LoggedOut. Optional — if it fails we just
         # omit those fields rather than failing the whole endpoint.
@@ -614,6 +634,7 @@ def create_api_router() -> APIRouter:
             "ssh_enabled": bool(prefs.get("RunSSH")),
             "magic_dns_suffix": status.get("MagicDNSSuffix") or None,
             "health": status.get("Health") or [],
+            "lan_ip": lan_ip,
         }
 
     return router
