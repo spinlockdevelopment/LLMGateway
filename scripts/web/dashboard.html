@@ -1984,7 +1984,7 @@ const SEARCH_PROVIDER_LABELS = {
 };
 
 async function copyRouteName(name) {
-  const url = 'http://localhost:4000/' + name;
+  const url = `http://${reachableHost()}:4000/${name}`;
   try {
     await navigator.clipboard.writeText(url);
     toast('Copied: ' + url, 'success');
