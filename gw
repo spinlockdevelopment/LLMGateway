@@ -23,6 +23,7 @@ Components:
     prometheus     Prometheus metrics container
     loki           Loki log aggregation container
     alloy          Grafana Alloy collector container
+    hermes-dashboard  Hermes agent dashboard (standalone container, not in compose)
 
 Console output: clean, no timestamps. Warnings in yellow, errors in red.
 Log file: <data_dir>/logs/gw.log — full timestamps, overwritten each run.
@@ -163,7 +164,8 @@ def _enabled_components() -> set[str]:
     # Always show core components
     components = {
         "management", "docker",
-        "litellm", "postgres",
+        "litellm", "postgres", "open-webui",
+        "hermes-dashboard",
     }
     # Observability stack is opt-in (default off)
     if config.get("install_observability", False):
@@ -402,6 +404,7 @@ def _resolve_compose_service(name: str) -> str:
     return {
         "litellm": "litellm",
         "postgres": "postgres", "db": "postgres",
+        "open-webui": "open-webui",
         "grafana": "grafana",
         "prometheus": "prometheus",
         "loki": "loki",
@@ -590,10 +593,14 @@ def cmd_status(show_more: bool = False) -> None:
         docker_rows = [
             ("llm-gateway",  "litellm",    f"http://{public_host}:4000", "LiteLLM proxy (UI → /ui)"),
             ("llm-postgres", "postgres",   "http://0.0.0.0:5432",        "PostgreSQL — spend tracking"),
+            ("open-webui",   "open-webui", f"http://{public_host}:3001", "Open WebUI chat front-end"),
             ("grafana",      "grafana",    f"http://{public_host}:3000", "Grafana dashboards"),
             ("prometheus",   "prometheus", f"http://{public_host}:9090", "Prometheus metrics"),
             ("loki",         "loki",       f"http://{public_host}:3100", "Loki log aggregation"),
             ("alloy",        "alloy",      "",                           "Grafana Alloy collector"),
+            # Not part of docker-compose.yml — a standalone container managed
+            # directly via `docker start/stop`, not `docker compose`.
+            ("hermes-dashboard", "hermes-dashboard", "http://localhost:9119", "Hermes agent dashboard (external)"),
         ]
         for container, display, endpoint, desc in docker_rows:
             if display in enabled:
@@ -754,6 +761,9 @@ def cmd_start(name: str) -> None:
     elif name == "docker":
         info(f"  Starting Docker Compose stack...")
         subprocess.run(_compose_cmd("up", "-d"))
+    elif name == "hermes-dashboard":
+        info(f"  Starting {name}...")
+        subprocess.run(["docker", "start", name])
     else:
         svc = _resolve_compose_service(name)
         if not svc:
@@ -784,6 +794,9 @@ def cmd_stop(name: str) -> None:
     elif name == "docker":
         info(f"  Stopping Docker Compose stack...")
         subprocess.run(_compose_cmd("down"))
+    elif name == "hermes-dashboard":
+        info(f"  Stopping {name}...")
+        subprocess.run(["docker", "stop", name])
     else:
         svc = _resolve_compose_service(name)
         if not svc:
@@ -822,6 +835,9 @@ def cmd_restart(name: str) -> None:
     elif name == "docker":
         info(f"  Restarting Docker Compose stack...")
         subprocess.run(_compose_cmd("restart"))
+    elif name == "hermes-dashboard":
+        info(f"  Restarting {name}...")
+        subprocess.run(["docker", "restart", name])
     else:
         svc = _resolve_compose_service(name)
         if not svc:
@@ -861,6 +877,8 @@ def cmd_logs(name: str) -> None:
                 pass
     elif name == "docker":
         subprocess.run(_compose_cmd("logs", "-f", "--tail=50"))
+    elif name == "hermes-dashboard":
+        subprocess.run(["docker", "logs", "-f", "--tail=50", name])
     else:
         svc = _resolve_compose_service(name)
         if not svc:
@@ -954,6 +972,7 @@ def cmd_usage() -> None:
     info(f"    {'prometheus':<14s}  Prometheus metrics → http://localhost:9090")
     info(f"    {'loki':<14s}  Loki log aggregation → http://localhost:3100")
     info(f"    {'alloy':<14s}  Grafana Alloy collector")
+    info(f"    {'hermes-dashboard':<14s}  Hermes agent dashboard (external, not in compose) → http://localhost:9119")
     blank()
 
 
