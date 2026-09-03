@@ -39,6 +39,21 @@ services:
     networks:
       - gateway-net
 
+  # ── Redis (LiteLLM response cache) ──────────────────────────
+  # No persistent volume — it's a cache, losing it on restart is fine.
+  # Not port-published: only reachable from other gateway-net containers.
+  redis:
+    image: redis:8-alpine
+    container_name: llm-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - gateway-net
+
   # ── LiteLLM Proxy ──────────────────────────────────────────
   litellm:
     # Pinned by digest — `main-latest` is a moving tag and silently jumped
@@ -90,6 +105,8 @@ services:
       - ../config/litellm-config.yaml:/app/config.yaml:ro
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     extra_hosts:
       - "host.docker.internal:host-gateway"

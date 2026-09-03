@@ -206,12 +206,12 @@ litellm_settings:
   context_window_fallbacks:
     - {"deep-reasoning": ["cheap-research"]}
 
-  # Cache (optional — uncomment to enable Redis response caching)
-  # cache: true
-  # cache_params:
-  #   type: redis
-  #   host: redis
-  #   port: 6379
+  # Cache — Redis response caching (see docker-compose.yml `redis` service)
+  cache: true
+  cache_params:
+    type: redis
+    host: redis
+    port: 6379
 
   # Request logging (opt-in — stores prompts in spend logs table)
   # store_prompts_in_spend_logs: true
