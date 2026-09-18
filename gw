@@ -4,6 +4,7 @@ gw — LLM Gateway helper
 ========================
 Usage:
     gw                         Show status of all components + key paths
+    gw health [--json]         Probe each endpoint's health route (exit 1 if any down)
     gw start <component>       Start a component (or "all")
     gw stop <component>        Stop a component (or "all")
     gw restart <component>     Restart a component (or "all" for full teardown + restart)
@@ -40,6 +41,7 @@ import socket
 import subprocess
 import sys
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -739,6 +741,234 @@ def cmd_status(show_more: bool = False) -> None:
     blank()
 
 
+# ── Endpoint health probes ────────────────────────────────────────────────────
+# `gw` (status) answers "is the process/container up?"; `gw health` answers
+# "does the endpoint actually respond correctly?" by hitting each service's
+# own health route.
+
+def _http_probe(url: str, timeout: float = 5.0) -> tuple[int, float, str]:
+    """GET *url*; return (status_code, elapsed_ms, body). status 0 = no response."""
+    start = time.monotonic()
+    try:
+        resp = urllib.request.urlopen(url, timeout=timeout)
+        code, body = resp.status, resp.read(4096).decode("utf-8", "replace")
+    except urllib.error.HTTPError as exc:
+        code, body = exc.code, exc.read(4096).decode("utf-8", "replace")
+    except Exception as exc:
+        code, body = 0, str(getattr(exc, "reason", exc))
+    return code, (time.monotonic() - start) * 1000, body
+
+
+def _json_or_none(body: str):
+    try:
+        return json.loads(body)
+    except Exception:
+        return None
+
+
+def _http_check(name: str, url: str, validate=None) -> dict:
+    """Probe an HTTP health endpoint. *validate(body) -> (state, detail)* refines a 2xx."""
+    code, ms, body = _http_probe(url)
+    if code == 0:
+        return {"name": name, "target": url, "state": "down", "code": "---", "ms": ms, "detail": body[:60]}
+    if 200 <= code < 400:
+        state, detail = validate(body) if validate else ("ok", "")
+    else:
+        state, detail = "down", " ".join(body.split())[:60]
+    return {"name": name, "target": url, "state": state, "code": str(code), "ms": ms, "detail": detail}
+
+
+def _exec_check(name: str, container: str, argv: list[str], expect: str) -> dict:
+    """Run a CLI health command inside a container; ok if *expect* is in stdout."""
+    start = time.monotonic()
+    try:
+        result = subprocess.run(
+            ["docker", "exec", container, *argv], capture_output=True, text=True, timeout=10,
+        )
+        out = (result.stdout or result.stderr).strip()
+        state = "ok" if result.returncode == 0 and expect in out else "down"
+    except Exception as exc:
+        out, state = str(exc), "down"
+    return {"name": name, "target": f"docker exec {container} {argv[0]}", "state": state,
+            "code": "", "ms": (time.monotonic() - start) * 1000, "detail": out.splitlines()[-1][:60] if out else ""}
+
+
+def _litellm_ready(body: str) -> tuple[str, str]:
+    data = _json_or_none(body) or {}
+    db = data.get("db", "?")
+    ok = data.get("status") == "healthy" and db == "connected"
+    return ("ok" if ok else "degraded"), f"db {db}"
+
+
+def _grafana_ready(body: str) -> tuple[str, str]:
+    data = _json_or_none(body) or {}
+    db = data.get("database", "?")
+    return ("ok" if db == "ok" else "degraded"), f"v{data.get('version', '?')}, db {db}"
+
+
+def _loki_check() -> dict:
+    """Loki's /ready can sit at 503 ("Ingester not ready: waiting for 15s after
+    being ready") indefinitely while ingest + query work fine, so fall back to
+    a real query before calling it down."""
+    row = _http_check("loki", "http://localhost:3100/ready")
+    if row["state"] == "down" and row["code"] != "---":
+        code, _, body = _http_probe("http://localhost:3100/loki/api/v1/labels")
+        if code == 200 and (_json_or_none(body) or {}).get("status") == "success":
+            row["state"] = "degraded"
+            row["detail"] = "/ready 503 but queries OK"
+    return row
+
+
+def _management_checks() -> list[dict]:
+    """Probe the management API, plus every service it supervises via its health_url."""
+    url = f"http://localhost:{MANAGEMENT_PORT}/api/status"
+    code, ms, body = _http_probe(url)
+    data = _json_or_none(body) if code == 200 else None
+    if data is None:
+        rows = [{"name": "management", "target": url, "state": "down",
+                 "code": str(code) if code else "---", "ms": ms, "detail": body[:60]}]
+        # Management is down, so fall back to probing the known bare-metal ports.
+        enabled = _enabled_components()
+        if "llama-server" in enabled:
+            port = _llama_server_active_port() or LLAMA_SERVER_DEFAULT_PORT
+            rows.append(_http_check("llama-server", f"http://localhost:{port}/health"))
+        if "whisper-server" in enabled:
+            rows.append(_http_check("whisper-server", f"http://localhost:{WHISPER_SERVER_DEFAULT_PORT}/health"))
+        return rows
+
+    mem = data.get("memory", {})
+    rows = [{"name": "management", "target": url, "state": "ok", "code": "200", "ms": ms,
+             "detail": f"mem {mem.get('used_gb', '?')}/{mem.get('total_gb', '?')} GB"}]
+    for svc in data.get("services", []):
+        if svc.get("state") == "disabled" or not svc.get("health_url"):
+            continue
+        row = _http_check(f"svc:{svc['name']}", svc["health_url"])
+        if svc.get("restart_count"):
+            row["detail"] = (row["detail"] + f" restarts={svc['restart_count']}").strip()
+        if svc.get("last_error"):
+            row["detail"] = (row["detail"] + f" err={svc['last_error']}").strip()[:60]
+        rows.append(row)
+    return rows
+
+
+def _tailscale_checks() -> list[dict]:
+    """Probe each `tailscale serve` HTTPS listener through its public name.
+
+    MagicDNS often doesn't resolve the node's own name locally, so pin the
+    hostname to this node's tailnet IP with curl --resolve.
+    """
+    if not shutil.which("tailscale") or not shutil.which("curl"):
+        return []
+    try:
+        serve = json.loads(subprocess.run(
+            ["tailscale", "serve", "status", "--json"], capture_output=True, text=True, timeout=10,
+        ).stdout or "{}")
+        ip = subprocess.run(
+            ["tailscale", "ip", "-4"], capture_output=True, text=True, timeout=10,
+        ).stdout.strip().splitlines()[0]
+    except Exception:
+        return []
+
+    # Health route per local backend port; fall back to "/".
+    health_paths = {"4000": "/health/liveliness", "3001": "/health"}
+    rows = []
+    for hostport, cfg in (serve.get("Web") or {}).items():
+        host, _, port = hostport.rpartition(":")
+        backend = (cfg.get("Handlers", {}).get("/", {}) or {}).get("Proxy", "")
+        path = health_paths.get(backend.rpartition(":")[2], "/")
+        url = f"https://{host}" + ("" if port == "443" else f":{port}") + path
+        start = time.monotonic()
+        try:
+            result = subprocess.run(
+                ["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "-m", "10",
+                 "--resolve", f"{host}:{port}:{ip}", url],
+                capture_output=True, text=True, timeout=15,
+            )
+            code = result.stdout.strip() or "000"
+        except Exception:
+            code = "000"
+        ms = (time.monotonic() - start) * 1000
+        ok = code.isdigit() and 200 <= int(code) < 400
+        rows.append({"name": f"tailscale:{port}", "target": url, "state": "ok" if ok else "down",
+                     "code": code if code != "000" else "---", "ms": ms, "detail": f"→ {backend}"})
+    return rows
+
+
+def _health_checks() -> list[dict]:
+    """Run every applicable probe concurrently; return rows in display order."""
+    enabled = _enabled_components()
+    docker_ok = docker_available()
+
+    def container_up(name: str) -> bool:
+        return docker_ok and docker_container_state(name) in ("running", "unhealthy", "starting")
+
+    # Each job returns a list of rows.
+    jobs: list[callable] = [_management_checks]
+    if "litellm" in enabled:
+        jobs += [lambda: [_http_check("litellm", "http://localhost:4000/health/liveliness")],
+                 lambda: [_http_check("litellm:ready", "http://localhost:4000/health/readiness", _litellm_ready)]]
+    if "postgres" in enabled:
+        jobs.append(lambda: [_exec_check("postgres", "llm-postgres", ["pg_isready"], "accepting connections")])
+    if container_up("llm-redis"):
+        jobs.append(lambda: [_exec_check("redis", "llm-redis", ["redis-cli", "ping"], "PONG")])
+    if "open-webui" in enabled:
+        jobs.append(lambda: [_http_check("open-webui", "http://localhost:3001/health")])
+    if "hermes-dashboard" in enabled and container_up("hermes-dashboard"):
+        jobs.append(lambda: [_http_check("hermes-dashboard", "http://localhost:9119/")])
+    if "grafana" in enabled or container_up("grafana"):
+        jobs.append(lambda: [_http_check("grafana", "http://localhost:3000/api/health", _grafana_ready)])
+    if "prometheus" in enabled or container_up("prometheus"):
+        jobs.append(lambda: [_http_check("prometheus", "http://localhost:9090/-/ready")])
+    if "loki" in enabled or container_up("loki"):
+        jobs.append(lambda: [_loki_check()])
+    jobs.append(_tailscale_checks)
+
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=len(jobs)) as pool:
+        results = list(pool.map(lambda job: job(), jobs))
+    return [row for rows in results for row in rows]
+
+
+def cmd_health(as_json: bool = False) -> int:
+    """Probe every enabled endpoint's health route. Returns 1 if any is down."""
+    rows = _health_checks()
+    failed = [r for r in rows if r["state"] == "down"]
+
+    if as_json:
+        print(json.dumps({"ok": not failed, "checks": rows}, indent=2))
+        return 1 if failed else 0
+
+    blank()
+    info(f"  {bold('LLM Gateway — Endpoint health')}  {dim(datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'))}")
+    blank()
+    header = f"{'CHECK':<20s} {'STATE':<9s} {'CODE':<5s} {'TIME':>7s}  {'TARGET':<52s} DETAIL"
+    info(f"  {dim(header)}")
+    separator()
+
+    color = {"ok": green, "degraded": yellow}
+    icon = {"ok": "●", "degraded": "◐"}
+    for r in rows:
+        c = color.get(r["state"], red)
+        ms = f"{r['ms']:.0f}ms"
+        info(f"  {c(icon.get(r['state'], '○'))} {r['name']:<18s} {c(r['state'].ljust(9))} "
+             f"{r['code']:<5s} {ms:>7s}  {cyan(r['target'][:52].ljust(52))} {dim(r['detail'])}")
+        _log(f"  health {r['name']}: {r['state']} {r['code']} {ms} {r['target']} {r['detail']}")
+
+    blank()
+    degraded = sum(r["state"] == "degraded" for r in rows)
+    summary = f"{len(rows) - len(failed) - degraded}/{len(rows)} ok"
+    if degraded:
+        summary += f", {degraded} degraded"
+    if failed:
+        error(f"{summary}, {len(failed)} down: {', '.join(r['name'] for r in failed)}")
+    elif degraded:
+        warn(summary)
+    else:
+        success(summary)
+    blank()
+    return 1 if failed else 0
+
+
 def cmd_start(name: str) -> None:
     """Start a component."""
     if name == "all":
@@ -953,6 +1183,7 @@ def cmd_usage() -> None:
     info(f"  {bold('Usage:')}")
     info(f"    gw                         Show status of all components")
     info(f"    gw --more                  Show status plus detailed paths/volumes")
+    info(f"    gw health [--json]         Probe every endpoint's health route (exit 1 if any down)")
     info(f"    gw start <component>       Start a component (or 'all')")
     info(f"    gw stop <component>        Stop a component (or 'all')")
     info(f"    gw restart <component>     Restart a component (or 'all' for full teardown + restart)")
@@ -993,6 +1224,8 @@ def main() -> int:
 
     if cmd in ("", "-s", "status"):
         cmd_status(show_more=show_more)
+    elif cmd == "health":
+        return cmd_health(as_json="--json" in args)
     elif cmd == "start":
         if not component:
             error("component name required")
