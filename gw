@@ -66,6 +66,8 @@ except ImportError:
     def get_data_dir(): return Path.home() / ".llm-gateway"
     def log_dir(): return get_data_dir() / "logs"
 
+import host_probe as probe
+
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 COMPOSE_FILE = REPO_DIR / "docker" / "docker-compose.yml"
@@ -75,6 +77,22 @@ MANAGEMENT_SCRIPT = REPO_DIR / "scripts" / "llmgateway.py"
 MANAGEMENT_PLIST = Path.home() / "Library" / "LaunchAgents" / f"{MANAGEMENT_LABEL}.plist"
 MANAGEMENT_PORT = 8080
 WHISPER_SERVER_DEFAULT_PORT = 8083
+
+# (container, component, host port, health path — None means plain TCP, description)
+DOCKER_SERVICES = [
+    ("llm-gateway",  "litellm",    4000, "/health/liveliness", "LiteLLM proxy (UI -> /ui)"),
+    ("llm-postgres", "postgres",   5432, None,                 "PostgreSQL — spend tracking"),
+    ("grafana",      "grafana",    3000, "/api/health",        "Grafana dashboards"),
+    ("prometheus",   "prometheus", 9090, "/-/ready",           "Prometheus metrics"),
+    ("loki",         "loki",       3100, "/ready",             "Loki log aggregation"),
+    ("alloy",        "alloy",      None, None,                 "Grafana Alloy collector"),
+]
+
+
+def _endpoint(port: int | None, http: bool = True) -> str:
+    if not port:
+        return ""
+    return f"http://localhost:{port}" if http else f"localhost:{port}"
 
 
 # ── Log file setup ───────────────────────────────────────────────────────────
@@ -178,39 +196,32 @@ def _process_running(pattern: str) -> bool:
         return False
 
 
+_docker_status: probe.DockerStatus | None = None
+
+
+def docker_status() -> probe.DockerStatus:
+    """Cached Docker diagnosis. Also applies the /var/run/docker.sock fallback
+    (via DOCKER_HOST) so later docker/compose calls reach the daemon."""
+    global _docker_status
+    if _docker_status is None:
+        _docker_status = probe.docker_status()
+        _log(f"docker: {_docker_status}")
+    return _docker_status
+
+
 def docker_available() -> bool:
-    try:
-        result = subprocess.run(["docker", "info"], capture_output=True, timeout=10)
-        return result.returncode == 0
-    except Exception:
-        return False
+    return docker_status().state == "ok"
 
 
-def docker_container_state(container: str) -> str:
-    """Returns: running | starting | stopped | unhealthy | absent"""
-    try:
-        result = subprocess.run(
-            ["docker", "inspect", "--format", "{{.State.Status}}", container],
-            capture_output=True, text=True, timeout=10,
-        )
-        if result.returncode != 0:
-            return "absent"
-        status = result.stdout.strip()
-        if status == "running":
-            health_result = subprocess.run(
-                ["docker", "inspect", "--format",
-                 "{{if .State.Health}}{{.State.Health.Status}}{{end}}", container],
-                capture_output=True, text=True, timeout=10,
-            )
-            health = health_result.stdout.strip()
-            return "unhealthy" if health == "unhealthy" else "running"
-        elif status in ("exited", "dead"):
-            return "stopped"
-        elif status == "restarting":
-            return "starting"
-        return status
-    except Exception:
-        return "absent"
+def require_docker() -> bool:
+    """Print why Docker is unusable (if it is) and return False."""
+    ds = docker_status()
+    if ds.state == "ok":
+        return True
+    error(ds.detail)
+    if ds.hint:
+        info(f"  {dim(ds.hint)}")
+    return False
 
 
 def management_state() -> str:
@@ -247,19 +258,24 @@ def whisper_server_state() -> str:
 
 # ── Display helpers ───────────────────────────────────────────────────────────
 
+# "reachable": port answers but the container can't be inspected (no Docker access)
+# "unknown":   port doesn't answer and the container can't be inspected
 def _status_color(state: str) -> callable:
-    return {"running": green, "starting": yellow}.get(state, red)
+    return {"running": green, "reachable": green, "ok": green,
+            "starting": yellow, "no access": yellow, "unknown": yellow}.get(state, red)
 
 
 def _status_icon(state: str) -> str:
-    return {"running": "●", "starting": "◐"}.get(state, "○")
+    return {"running": "●", "reachable": "●", "ok": "●",
+            "starting": "◐", "no access": "◐", "unknown": "◌"}.get(state, "○")
 
 
 def _status_label(state: str) -> str:
     return "not found" if state == "absent" else state
 
 
-def print_row(name: str, state: str, endpoint: str = "", desc: str = "") -> None:
+def print_row(name: str, state: str, endpoint: str = "", desc: str = "",
+              tailnet: list[str] | None = None) -> None:
     color = _status_color(state)
     icon = _status_icon(state)
     label = _status_label(state)
@@ -271,7 +287,15 @@ def print_row(name: str, state: str, endpoint: str = "", desc: str = "") -> None
     if desc:
         line += f"  {dim(desc)}"
     info(line)
-    _log(f"  {name}: {label} {endpoint} {desc}")
+    _log(f"  {name}: {label} {endpoint} {desc} {tailnet or ''}")
+    if tailnet is None:
+        return
+    pad = " " * 31
+    if tailnet:
+        for url in tailnet:
+            info(f"  {pad}{dim('↳')} {cyan(url)}")
+    else:
+        info(f"  {pad}{dim('↳ not exposed on tailnet')}")
 
 
 def print_path(label: str, path: str, desc: str = "") -> None:
@@ -345,41 +369,94 @@ def cmd_status() -> None:
     separator()
     blank()
 
+    # Docker diagnosis and Tailscale lookup are independent — run together
+    ds, tn = probe.parallel(lambda f: f(), [docker_status, probe.tailnet_info])
+
+    def tailnet_urls(port: int | None, http: bool = True) -> list[str] | None:
+        """Tailnet URLs for a local port: `tailscale serve` + direct tailnet IP."""
+        if not tn.up or not port:
+            return None
+        urls = list(tn.serve.get(port, []))
+        if probe.tcp_open(tn.ip, port, timeout=0.5):
+            host = f"{tn.dns_name or tn.ip}:{port}"
+            urls.append(f"http://{host}" if http else host)
+        return urls
+
+    # Tailscale
+    if tn.up:
+        print_row("tailscale", "ok", tn.dns_name, f"tailnet IP {tn.ip}")
+    else:
+        print_row("tailscale", "stopped", "", "not connected — no tailnet endpoints")
+    blank()
+
     # Bare-metal services
     if "management" in enabled:
         print_row("management", management_state(),
-                  f"http://localhost:{MANAGEMENT_PORT}", "Gateway web UI + REST API")
+                  f"http://localhost:{MANAGEMENT_PORT}", "Gateway web UI + REST API",
+                  tailnet_urls(MANAGEMENT_PORT))
 
     if "whisper-server" in enabled:
         print_row("whisper-server", whisper_server_state(),
-                  f"http://localhost:{WHISPER_SERVER_DEFAULT_PORT}", "Speech-to-text (whisper.cpp)")
+                  f"http://localhost:{WHISPER_SERVER_DEFAULT_PORT}", "Speech-to-text (whisper.cpp)",
+                  tailnet_urls(WHISPER_SERVER_DEFAULT_PORT))
 
     blank()
 
-    # Docker containers
-    if not docker_available():
-        icon = red("○")
-        name = "docker".ljust(14)
-        status = red("unavailable".ljust(12))
-        message = dim("Docker daemon not running")
-        info(f"  {icon} {name} {status}  {message}")
-        blank()
+    # Docker engine
+    if ds.state == "ok":
+        print_row("docker", "running", "", "Docker engine" + (f" ({ds.detail})" if ds.detail else ""))
     else:
-        docker_rows = [
-            ("llm-gateway",  "litellm",    "http://localhost:4000", "LiteLLM proxy (UI -> /ui)"),
-            ("llm-postgres", "postgres",   "",                      "PostgreSQL — spend tracking"),
-        ]
-        if obs:
-            docker_rows.extend([
-                ("grafana",      "grafana",    "http://localhost:3000", "Grafana dashboards"),
-                ("prometheus",   "prometheus", "http://localhost:9090", "Prometheus metrics"),
-                ("loki",         "loki",       "http://localhost:3100", "Loki log aggregation"),
-                ("alloy",        "alloy",      "",                      "Grafana Alloy collector"),
-            ])
-        for container, display, endpoint, desc in docker_rows:
-            if display in enabled:
-                print_row(display, docker_container_state(container), endpoint, desc)
-        blank()
+        label = {"no_access": "no access", "not_installed": "absent"}.get(ds.state, "stopped")
+        print_row("docker", label, "", ds.detail)
+        if ds.hint:
+            info(f"  {' ' * 31}{dim(ds.hint)}")
+    blank()
+
+    # Docker containers — gateway stack first, then anything else running
+    known = [s for s in DOCKER_SERVICES if s[1] in enabled]
+    known_names = {s[0] for s in DOCKER_SERVICES}
+    covered_ports = {MANAGEMENT_PORT, WHISPER_SERVER_DEFAULT_PORT} | {s[2] for s in DOCKER_SERVICES if s[2]}
+
+    if ds.state == "ok":
+        containers = {c.name: c for c in probe.list_containers()}
+        for container, display, port, path, desc in known:
+            c = containers.get(container)
+            print_row(display, c.state if c else "absent", _endpoint(port, path is not None), desc,
+                      tailnet_urls(port, path is not None) if c and c.state == "running" else None)
+        others = [c for c in containers.values() if c.name not in known_names]
+        if others:
+            info(f"\n  {dim('Other containers')}")
+            blank()
+            for c in sorted(others, key=lambda c: (c.state != "running", c.name)):
+                port = c.ports[0] if c.ports else None
+                print_row(c.name, c.state, _endpoint(port), c.image,
+                          tailnet_urls(port) if c.state == "running" else None)
+    else:
+        # Can't inspect containers — fall back to probing their published ports
+        def reachable(svc) -> bool:
+            _, _, port, path, _ = svc
+            if not port:
+                return False
+            if path is None:
+                return probe.tcp_open("127.0.0.1", port)
+            return probe.http_ok(f"http://localhost:{port}{path}")
+
+        for svc, up in zip(known, probe.parallel(reachable, known)):
+            container, display, port, path, desc = svc
+            print_row(display, "reachable" if up else "unknown", _endpoint(port, path is not None), desc,
+                      tailnet_urls(port, path is not None) if up else None)
+
+        # Services published via `tailscale serve` we don't otherwise know about
+        extra = sorted(p for p in tn.serve if p not in covered_ports)
+        if extra:
+            info(f"\n  {dim('Other services (from tailscale serve)')}")
+            blank()
+            titles = probe.parallel(lambda p: probe.html_title(f"http://localhost:{p}"), extra)
+            for port, title in zip(extra, titles):
+                up = probe.tcp_open("127.0.0.1", port)
+                print_row(f"port {port}", "reachable" if up else "down", _endpoint(port),
+                          title or "unknown service", tailnet_urls(port))
+    blank()
 
     # Service accounts
     info(f"\n  {dim('Service accounts')}")
@@ -689,6 +766,10 @@ def main() -> int:
 
     if cmd in ("", "-s", "status"):
         cmd_status()
+    elif (cmd in ("start", "stop", "restart", "logs") and component
+          and component not in ("management", "gateway", "whisper-server")
+          and not require_docker()):
+        return 1
     elif cmd == "start":
         if not component:
             error("component name required")
