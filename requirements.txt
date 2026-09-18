@@ -1,4 +1,6 @@
 fastapi>=0.104
 uvicorn[standard]>=0.24
+httpx>=0.24
+python-multipart>=0.0.6
 pyyaml>=6.0
 psutil>=5.9

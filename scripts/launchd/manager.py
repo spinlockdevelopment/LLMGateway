@@ -83,13 +83,18 @@ def generate_plist(
 
 
 def _venv_python_for_repo(repo_dir: Path) -> Optional[Path]:
-    """Return the repo's venv Python path if it exists and is usable."""
+    """Return the repo's venv Python path if it exists and is usable.
+
+    Important: Do NOT resolve() the path — following the symlink to the
+    Homebrew Cellar prevents Python from detecting pyvenv.cfg at startup,
+    so it won't activate the venv's site-packages.
+    """
     venv_python = repo_dir / ".venv" / "bin" / "python3"
     if venv_python.exists():
-        return venv_python.resolve()
+        return venv_python
     venv_python = repo_dir / ".venv" / "bin" / "python"
     if venv_python.exists():
-        return venv_python.resolve()
+        return venv_python
     return None
 
 
