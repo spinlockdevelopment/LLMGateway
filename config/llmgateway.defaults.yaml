@@ -34,6 +34,7 @@ services:
   # mode is controlled per-route via chat_template_kwargs in litellm-config).
   #
   # Tuned for M4 / 32 GB unified memory. Currently runs Gemma-4-26B-A4B
+  # (July 2026 weight/template refresh from unsloth/gemma-4-26B-A4B-it-GGUF)
   # (hybrid/recurrent MoE, ~4B active params) at UD-Q4_K_M (~16 GB weights
   # on disk). Verified at 128K ctx with default KV cache: idle 17.4 GB,
   # peak 17.75 GB under realistic 11K-prompt + 8K-tool + 3K-reasoning load,
@@ -70,7 +71,7 @@ services:
     args:
       --host: "0.0.0.0"
       --port: "8082"
-      --model: "/opt/storage/gguf/gemma-4-26B-A4B-it-UD-Q4_K_M.gguf"
+      --model: "/opt/storage/gguf/gemma-4-26B-A4B-it-UD-Q4_K_M-jul2026.gguf"
       --n-gpu-layers: "99"
       --ctx-size: "131072"
       --threads: "4"
