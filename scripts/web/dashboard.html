@@ -503,6 +503,70 @@ table.routes-table tr.dim td { opacity: .55; }
 .route-fallback    { color: var(--fg3); font-size: 11px; margin-top: 3px; }
 .route-default     { color: var(--fg3); font-weight: 400; }
 button.copy-route { font-size: 12.5px; padding: 4px 12px; }
+
+/* ── Endpoints section ───────────────────────────────────────────────────── */
+.ep-group-title {
+  margin: 14px 0 6px; font-size: 11px; font-weight: 600; color: var(--fg3);
+  text-transform: uppercase; letter-spacing: .05em;
+}
+/* One row = one line: caret · dot · name · URL · probe result · actions.
+   Clicking the line expands the description, warnings and parameters
+   underneath, indented to the name. No card — the section is a list, and a
+   border per entry just builds a wall of boxes. */
+.ep-row { padding: 5px 0; border-bottom: 1px solid var(--border); }
+.ep-row:last-child { border-bottom: none; }
+.ep-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: nowrap; cursor: pointer; min-width: 0; }
+.ep-head .dot { flex-shrink: 0; align-self: center; }
+.ep-caret {
+  flex-shrink: 0; width: 10px; font-size: 9px; color: var(--fg3);
+  transition: transform .12s ease; align-self: center;
+}
+.ep-row.open .ep-caret { transform: rotate(90deg); }
+.ep-name {
+  font-weight: 600; font-size: 13px; color: rgb(17, 24, 39);
+  flex-shrink: 0; min-width: 190px; white-space: nowrap;
+}
+.ep-warn { color: var(--yellow); flex-shrink: 0; font-size: 12px; }
+.ep-body { padding: 2px 0 4px; }
+.ep-desc { font-size: 11.5px; color: var(--fg2); margin: 2px 0 2px 220px; }
+.ep-actions { margin-left: auto; display: flex; gap: 6px; flex-shrink: 0; }
+.ep-actions button { font-size: 11.5px; padding: 2px 9px; }
+.ep-url {
+  font-family: var(--mono); font-size: 12.5px; min-width: 0; flex: 0 1 auto;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ep-url a { color: var(--link); text-decoration: none; }
+.ep-url a:hover { text-decoration: underline; }
+.ep-via { flex-shrink: 0; margin-left: -4px; }
+.ep-note { font-size: 11.5px; color: var(--yellow); margin: 2px 0 0 220px; }
+.ep-params {
+  margin: 4px 0 2px 220px;
+  display: grid; grid-template-columns: max-content minmax(0, max-content) max-content;
+  justify-content: start; gap: 1px 12px; align-items: baseline;
+}
+.ep-params .ep-plabel {
+  font-size: 11px; color: var(--fg3); font-weight: 600;
+  text-transform: uppercase; letter-spacing: .03em; white-space: nowrap;
+}
+.ep-params .ep-pval {
+  font-family: var(--mono); font-size: 12px; color: var(--fg2);
+  word-break: break-all; min-width: 0;
+}
+.ep-params .ep-pnote { display: block; font-family: var(--font); font-size: 11px; color: var(--fg3); }
+.ep-params .ep-pbtns { display: flex; gap: 4px; }
+.ep-params button { font-size: 11px; padding: 1px 7px; }
+.ep-result { font-size: 11.5px; font-family: var(--mono); flex-shrink: 0; white-space: nowrap; }
+.ep-result.ok   { color: var(--green); }
+.ep-result.bad  { color: var(--red); }
+.ep-result.warn { color: var(--yellow); }
+@media (max-width: 760px) {
+  .ep-name { min-width: 0; }
+  .ep-note, .ep-params, .ep-desc { margin-left: 0; }
+}
+.dot.spin { background: var(--fg3); animation: ep-pulse 1s ease-in-out infinite; }
+@keyframes ep-pulse { 0%,100% { opacity: .25 } 50% { opacity: 1 } }
+[data-theme="dark"] .ep-name { color: var(--fg); }
+[data-theme="dark"] .ep-note, [data-theme="dark"] .ep-warn, [data-theme="dark"] .ep-result.warn { color: #fbbf24; }
 table.routes-table tr.section-row td {
   background: #fafafa;
   font-weight: 600;
@@ -950,6 +1014,9 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
     <!-- Open WebUI topnav link is hidden by default and revealed by
          refreshDockerServices() when the open-webui container is running. -->
     <a class="topnav-link" id="topnav-openwebui" href="http://localhost:3001" target="_blank" rel="noopener" style="display:none">Open WebUI</a>
+    <!-- Hermes topnav link: revealed by refreshDockerServices() when the
+         hermes-dashboard container is running; href set by refreshEndpoints(). -->
+    <a class="topnav-link" id="topnav-hermes" href="http://localhost:9119" target="_blank" rel="noopener" style="display:none">Hermes</a>
     <!-- Grafana topnav link is hidden by default and revealed by
          refreshObservabilityCard() when the observability stack is on. -->
     <a class="topnav-link" id="topnav-grafana" href="http://localhost:3000" target="_blank" rel="noopener" style="display:none">Grafana</a>
@@ -1055,6 +1122,22 @@ button.secret-reveal svg { width: 14px; height: 14px; pointer-events: none; disp
         <summary>Top 10 processes by memory</summary>
         <div id="top-procs-body"><div class="card-meta" style="font-size:12px;padding:8px 0">Loading…</div></div>
       </details>
+    </div>
+
+    <div class="section-header">
+      <h3>Endpoints</h3>
+      <div class="section-actions">
+        <button type="button" onclick="testAllEndpoints()">Test all</button>
+      </div>
+    </div>
+    <p class="muted" style="margin-bottom:10px">
+      Each service shows the one URL it is meant to be called on:
+      <code>tailnet</code> for anything a remote client uses, <code>internal only</code>
+      for what never leaves this host. Tests run server-side, so they reflect what a
+      remote client would see rather than what this browser can reach.
+    </p>
+    <div id="endpoints-list">
+      <div class="card-meta">Loading…</div>
     </div>
 
     <div class="section-header">
@@ -1281,7 +1364,7 @@ function switchToTab(tab, subtab) {
 
   if (tab === 'config') loadConfigEditor();
   if (tab === 'secrets') loadSecrets();
-  if (tab === 'system') { refreshDashboard(); refreshDockerServices(); refreshObservabilityCard(); refreshTailscaleCard(); }
+  if (tab === 'system') { refreshDashboard(); refreshDockerServices(); refreshObservabilityCard(); refreshTailscaleCard(); refreshEndpoints(); }
   if (tab === 'models') { switchModelsSubtab(subtab || modelsSubtab || 'routes'); }
   if (tab === 'logs') { initLogsPanel(); }
 }
@@ -1513,11 +1596,258 @@ async function restartContainer(name) {
   }, 3000);
 }
 
+// ── Endpoints panel ────────────────────────────────────────────────────────
+// Catalog comes from /api/endpoints; live status from /api/endpoints/test.
+// Both are server-side: the dashboard is a different origin from every
+// service it lists, so probing from the page would hit CORS, not the service.
+
+let _endpoints = [];            // last catalog from /api/endpoints
+let _epResults = {};            // id → probe result
+let _epRevealed = {};           // "id:paramIndex" → true (secret shown)
+let _epTesting = {};            // id → true while a probe is in flight
+let _epExpanded = {};           // id → true (row expanded); survives re-renders
+
+// Two tiers, split on the server's exposure policy rather than on the
+// service's role: what a remote client uses comes first, what never leaves
+// this host goes last. Within a tier these ids lead, in this order; the rest
+// keep catalog order.
+const EP_PINNED = ['management', 'litellm'];
+const EP_TIERS = [
+  { title: 'Tailnet reachable', match: ep => ep.via !== 'internal only' },
+  { title: 'Internal only',     match: ep => ep.via === 'internal only' },
+];
+
+// Dot colour encodes remote reachability, not just liveness:
+//   green  — reachable at the URL shown
+//   yellow — up on localhost but the public URL failed (not exposed remotely)
+//   red    — not responding anywhere
+//   gray   — not probed yet
+function epDot(id) {
+  if (_epTesting[id]) return 'spin';
+  const r = _epResults[id];
+  if (!r || r.skipped) return 'gray';
+  if (r.ok) return 'green';
+  if (r.fallback && r.fallback.ok) return 'yellow';
+  return 'red';
+}
+
+// Sits inline on the major line, so it stays terse — the full detail goes in
+// the tooltip rather than wrapping the row onto a second line.
+function epResultLine(id) {
+  if (_epTesting[id]) return '<span class="ep-result">testing…</span>';
+  const r = _epResults[id];
+  if (!r) return '';
+  const tip = escapeAttr(r.detail || '');
+  if (r.skipped) return `<span class="ep-result" title="${tip}">○ ${escapeHtml(r.detail || 'not probed')}</span>`;
+  const ms = (r.ms != null) ? ` · ${r.ms}ms` : '';
+  if (r.ok) return `<span class="ep-result ok" title="${tip}">● ${escapeHtml(r.code)}${ms}</span>`;
+  if (r.fallback && r.fallback.ok) {
+    return `<span class="ep-result warn" title="${tip}">◐ up locally, not at this URL</span>`;
+  }
+  return `<span class="ep-result bad" title="${tip}">○ ${escapeHtml(r.detail || r.code || 'no response')}</span>`;
+}
+
+function epParamsBlock(ep, idx) {
+  if (!ep.params || ep.params.length === 0) return '';
+  const rows = ep.params.map((prm, i) => {
+    const key = `${idx}:${i}`;
+    const shown = !prm.secret || _epRevealed[key];
+    const display = prm.value
+      ? (shown ? prm.value : '•'.repeat(Math.min(24, Math.max(8, String(prm.value).length))))
+      : '(not set)';
+    const note = prm.note ? `<span class="ep-pnote">${escapeHtml(prm.note)}</span>` : '';
+    const reveal = prm.secret && prm.value
+      ? `<button type="button" onclick="toggleEpSecret('${escapeAttr(key)}')">${shown ? 'Hide' : 'Show'}</button>`
+      : '';
+    const copy = prm.value
+      ? `<button type="button" onclick="copyEpParam(${idx}, ${i})">Copy</button>`
+      : '';
+    return `
+      <div class="ep-plabel">${escapeHtml(prm.label)}</div>
+      <div class="ep-pval">${escapeHtml(display)}${note}</div>
+      <div class="ep-pbtns">${reveal}${copy}</div>`;
+  }).join('');
+  return `<div class="ep-params">${rows}</div>`;
+}
+
+function renderEndpointRow(ep, idx) {
+  const isHttp = ep.url && /^https?:\/\//.test(ep.url);
+  const urlPart = ep.url
+    ? `${isHttp
+        ? `<a href="${escapeAttr(ep.url)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">${escapeHtml(ep.url)}</a>`
+        : escapeHtml(ep.url)}`
+    : `<span class="chip key-none">no published URL</span>`;
+  // Outside .ep-url so the ellipsis on a long URL never swallows it.
+  const viaChip = `<span class="chip other ep-via" title="how this URL reaches the service">${escapeHtml(ep.via)}</span>`;
+  // A stopped container can't answer a probe — say so rather than showing a
+  // Test button that is guaranteed to come back red.
+  const down = ep.state && !['running', 'starting', 'unhealthy', 'unknown'].includes(ep.state);
+  const stateChip = down ? `<span class="chip key-missing">${escapeHtml(ep.state)}</span>` : '';
+  // Collapsed, a row is one line. A warning still gets a ⚠ on that line so
+  // it isn't hidden behind the fold; the text itself lives in the body.
+  const warn = ep.note && ep.note_level === 'warn';
+  const warnMark = warn ? `<span class="ep-warn" title="${escapeAttr(ep.note)}">⚠</span>` : '';
+  const copyBtn = ep.url
+    ? `<button type="button" class="copy-route" onclick="event.stopPropagation(); copyEndpointUrl(${idx})">Copy</button>`
+    : '';
+  const testBtn = ep.probe
+    ? `<button type="button" ${_epTesting[ep.id] ? 'disabled' : ''} onclick="event.stopPropagation(); testEndpoint('${escapeAttr(ep.id)}')">Test</button>`
+    : '';
+  const open = !!_epExpanded[ep.id];
+  const body = open ? `
+      <div class="ep-body">
+        ${ep.description ? `<div class="ep-desc">${escapeHtml(ep.description)}</div>` : ''}
+        ${ep.note ? `<div class="${warn ? 'ep-note' : 'ep-desc'}">${escapeHtml(ep.note)}</div>` : ''}
+        ${epParamsBlock(ep, idx)}
+      </div>` : '';
+  return `
+    <div class="ep-row${open ? ' open' : ''}">
+      <div class="ep-head" onclick="toggleEpRow('${escapeAttr(ep.id)}')" title="${open ? 'Collapse' : 'Expand'}">
+        <span class="ep-caret">▶</span>
+        <span class="dot ${epDot(ep.id)}"></span>
+        <span class="ep-name">${escapeHtml(ep.label)}</span>
+        <span class="ep-url" title="${escapeAttr(ep.url || '')}">${urlPart}</span>${viaChip}${stateChip}${warnMark}
+        ${epResultLine(ep.id)}
+        <span class="ep-actions">${testBtn}${copyBtn}</span>
+      </div>
+      ${body}
+    </div>`;
+}
+
+function toggleEpRow(id) {
+  _epExpanded[id] = !_epExpanded[id];
+  renderEndpoints();
+}
+
+function renderEndpoints() {
+  const el = document.getElementById('endpoints-list');
+  if (!el) return;
+  if (_endpoints.length === 0) {
+    el.innerHTML = '<div class="card-meta">No endpoints detected.</div>';
+    return;
+  }
+  // idx stays the catalog index — Copy/Show buttons look entries up by it.
+  const rank = ([ep, idx]) => {
+    const p = EP_PINNED.indexOf(ep.id);
+    return p === -1 ? EP_PINNED.length + idx : p;
+  };
+  const indexed = _endpoints.map((ep, idx) => [ep, idx]);
+  el.innerHTML = EP_TIERS.map(tier => {
+    const rows = indexed.filter(([ep]) => tier.match(ep)).sort((a, b) => rank(a) - rank(b));
+    if (rows.length === 0) return '';
+    return `
+    <div class="ep-group-title">${escapeHtml(tier.title)}</div>
+    ${rows.map(([ep, idx]) => renderEndpointRow(ep, idx)).join('')}`;
+  }).join('');
+}
+
+async function refreshEndpoints(probeAfter = true) {
+  const el = document.getElementById('endpoints-list');
+  if (!el) return;
+  const r = await api('/api/endpoints');
+  if (!r || r.error || r.detail) {
+    el.innerHTML = '<div class="card-meta">Failed to load endpoints'
+      + (r && (r.detail || r.error) ? ': ' + escapeHtml(r.detail || r.error) : '.') + '</div>';
+    return;
+  }
+  _endpoints = r.endpoints || [];
+  syncTopnavHermes();
+  renderEndpoints();
+  if (probeAfter) testAllEndpoints({ quiet: true });
+}
+
+// Hermes is loopback-bound, so from another device only its tailscale-serve
+// URL works. On this box, keep localhost: MagicDNS names often don't resolve
+// on the host itself.
+function syncTopnavHermes() {
+  const link = document.getElementById('topnav-hermes');
+  const ep = _endpoints.find(e => e.id === 'hermes-dashboard');
+  if (!link || !ep || !ep.url) return;
+  const onHost = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(window.location.hostname);
+  link.href = onHost ? (ep.local_url || ep.url) : ep.url;
+}
+
+function toggleEpSecret(key) {
+  _epRevealed[key] = !_epRevealed[key];
+  renderEndpoints();
+}
+
+async function copyToClipboard(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast('Copied ' + label + ': ' + (text.length > 60 ? text.slice(0, 57) + '…' : text), 'success');
+  } catch (e) {
+    toast('Copy failed', 'error');
+  }
+}
+
+function copyEndpointUrl(idx) {
+  const ep = _endpoints[idx];
+  if (ep && ep.url) copyToClipboard(ep.url, ep.label + ' URL');
+}
+
+function copyEpParam(idx, i) {
+  const ep = _endpoints[idx];
+  const prm = ep && ep.params && ep.params[i];
+  if (prm && prm.value) copyToClipboard(prm.value, ep.label + ' ' + prm.label);
+}
+
+async function testEndpoint(id) {
+  _epTesting[id] = true;
+  renderEndpoints();
+  const r = await api('/api/endpoints/test?id=' + encodeURIComponent(id));
+  delete _epTesting[id];
+  const res = r && r.results && r.results[0];
+  if (res) {
+    _epResults[id] = res;
+    const ep = _endpoints.find(e => e.id === id);
+    const label = ep ? ep.label : id;
+    if (res.skipped) toast(label + ': ' + (res.detail || 'not probed'), 'error');
+    else if (res.ok) toast(label + ' reachable (' + res.code + ', ' + res.ms + 'ms)', 'success');
+    else if (res.fallback && res.fallback.ok) toast(label + ' is up but not reachable remotely', 'error');
+    else toast(label + ' failed: ' + (res.detail || res.code), 'error');
+  } else {
+    toast('Test failed for ' + id, 'error');
+  }
+  renderEndpoints();
+}
+
+// Probes run concurrently server-side, so this is one request, not N.
+async function testAllEndpoints(opts = {}) {
+  if (_endpoints.length === 0) return;
+  _endpoints.forEach(ep => { if (ep.probe) _epTesting[ep.id] = true; });
+  renderEndpoints();
+  const r = await api('/api/endpoints/test');
+  _epTesting = {};
+  if (r && r.results) {
+    for (const res of r.results) _epResults[res.id] = res;
+    if (!opts.quiet) {
+      // Skipped endpoints (stopped/disabled) aren't failures — leave them out
+      // of the denominator so "3/3 reachable" doesn't read as "7 broken".
+      const probed = r.results.filter(x => !x.skipped);
+      const ok = probed.filter(x => x.ok).length;
+      const skipped = r.results.length - probed.length;
+      toast(`${ok}/${probed.length} endpoints reachable`
+            + (skipped ? ` · ${skipped} not running` : ''),
+            ok === probed.length ? 'success' : 'error');
+    }
+  } else if (!opts.quiet) {
+    toast('Endpoint test failed', 'error');
+  }
+  renderEndpoints();
+}
+
 // ── Services panel (Docker containers) ─────────────────────────────────────
-// Which compose service goes in which group. Anything not here falls into "Other".
-const LITELLM_STACK_SERVICES = new Set(['litellm', 'postgres']);
+// Which compose service goes in which group. Anything not here — and not in
+// OTHER_STACK_CONTAINERS below — falls into "Unmanaged containers".
+// redis lives here rather than in the catch-all: it's LiteLLM's response
+// cache, not part of the gateway service itself.
+const LITELLM_STACK_SERVICES = new Set(['litellm', 'postgres', 'redis']);
 const UI_STACK_SERVICES      = new Set(['open-webui']);
 const LOGGING_STACK_SERVICES = new Set(['grafana', 'loki', 'prometheus', 'alloy']);
+// Gateway-managed containers that aren't in docker-compose.yml, so they have
+// no compose_service to group on — matched by container name instead.
+const OTHER_STACK_CONTAINERS = new Set(['hermes-dashboard']);
 
 function renderDockerRow(c) {
   const state = (c.state || '').toLowerCase();
@@ -1583,8 +1913,9 @@ async function refreshDockerServices() {
   const otherGroup = [];
   for (const c of containers) {
     const svc = (c.compose_service || '').toLowerCase();
+    const name = (c.name || '').toLowerCase();
     if (LITELLM_STACK_SERVICES.has(svc)) litellmGroup.push(c);
-    else if (UI_STACK_SERVICES.has(svc)) uiGroup.push(c);
+    else if (UI_STACK_SERVICES.has(svc) || OTHER_STACK_CONTAINERS.has(name)) uiGroup.push(c);
     else if (LOGGING_STACK_SERVICES.has(svc)) loggingGroup.push(c);
     else otherGroup.push(c);
   }
@@ -1593,11 +1924,19 @@ async function refreshDockerServices() {
   uiGroup.sort(byName);
   otherGroup.sort(byName);
 
-  // Reveal/hide the topnav Open WebUI link based on container state.
-  const uiRunning = uiGroup.some(c => (c.state || '').toLowerCase() === 'running');
+  // Reveal/hide the topnav Open WebUI link based on container state. Keyed on
+  // the open-webui container specifically — uiGroup also holds hermes-dashboard.
+  const uiRunning = uiGroup.some(c =>
+    (c.compose_service || '').toLowerCase() === 'open-webui' && (c.state || '').toLowerCase() === 'running');
   const topnavOpenWebUI = document.getElementById('topnav-openwebui');
   if (topnavOpenWebUI) {
     topnavOpenWebUI.style.display = uiRunning ? '' : 'none';
+  }
+  const hermesRunning = uiGroup.some(c =>
+    (c.name || '').toLowerCase() === 'hermes-dashboard' && (c.state || '').toLowerCase() === 'running');
+  const topnavHermes = document.getElementById('topnav-hermes');
+  if (topnavHermes) {
+    topnavHermes.style.display = hermesRunning ? '' : 'none';
   }
 
   // The Observability section is rendered in its own dedicated card
@@ -1606,19 +1945,23 @@ async function refreshDockerServices() {
   // `loggingGroup` here so the for-loop is exhaustive but don't render it.
   void loggingGroup;
 
-  const litellmRunning = litellmGroup.some(c =>
-    (c.compose_service || '').toLowerCase() === 'litellm' && (c.state || '').toLowerCase() === 'running');
-  const copyUrlBtn = (port, label) =>
-    `<button type="button" class="copy-route" onclick="copyServiceUrl(${port}, '${escapeAttr(label)}')">Copy URL</button>`;
-  const litellmHint = 'Proxy and its backing database.' +
-    (litellmRunning ? ' ' + copyUrlBtn(4000, 'LiteLLM') : '');
-  const uiHint = 'Browser chat front-end on <a href="http://localhost:3001" target="_blank" rel="noopener">http://localhost:3001</a>.' +
-    (uiRunning ? ' ' + copyUrlBtn(3001, 'Open WebUI') : '');
+  // Copy/Test buttons deliberately live in the Endpoints section instead of
+  // here. That section knows each service's actual bind address and its
+  // tailscale-serve front door, so it hands out URLs that work; a button here
+  // could only guess `http://<host>:<port>`, which is wrong for anything
+  // loopback-bound (Hermes) or fronted by HTTPS (Open WebUI).
+  const litellmHint = 'Proxy, its backing database and the Redis response cache.';
+  const uiHint = 'Front-ends that sit on top of the gateway: Open WebUI chat on ' +
+    '<a href="http://localhost:3001" target="_blank" rel="noopener">:3001</a>' +
+    ', Hermes agent dashboard on ' +
+    '<a href="http://localhost:9119" target="_blank" rel="noopener">:9119</a>' +
+    ' (loopback only). Reachable URLs are in the Endpoints section above.';
 
   container.innerHTML =
     renderDockerSection('LiteLLM', litellmHint, litellmGroup) +
-    renderDockerSection('OpenWebUI', uiHint, uiGroup) +
-    renderDockerSection('Other', '', otherGroup);
+    renderDockerSection('Other Services', uiHint, uiGroup) +
+    renderDockerSection('Unmanaged containers',
+      'Containers on this host that are not part of the LLM Gateway stack.', otherGroup);
 }
 
 // ── Observability stack card (Grafana + Prometheus + Loki + Alloy) ──────────
@@ -3080,6 +3423,7 @@ function startAutoRefresh() {
   refreshDockerServices();
   refreshObservabilityCard();
   refreshTailscaleCard();
+  refreshEndpoints();
   refreshTimer = setInterval(() => {
     refreshDashboard();
     refreshTopProcesses();

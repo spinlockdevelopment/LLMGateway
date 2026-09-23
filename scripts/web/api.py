@@ -11,6 +11,8 @@ Endpoints:
     GET /api/services/{name} — single service detail
     GET /api/config         — current config (secrets masked)
     GET /api/memory         — system memory usage
+    GET /api/endpoints      — reachable URLs for every exposed service
+    GET /api/endpoints/test — probe those URLs (all, or ?id=<endpoint>)
 """
 
 from __future__ import annotations
@@ -28,6 +30,8 @@ import psutil
 import yaml as pyyaml
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+from .endpoints import build_catalog, probe as probe_endpoint
 
 
 _start_time = time.time()
@@ -636,5 +640,39 @@ def create_api_router() -> APIRouter:
             "health": status.get("Health") or [],
             "lan_ip": lan_ip,
         }
+
+    @router.get("/endpoints")
+    async def list_endpoints(request: Request):
+        """
+        Every service this gateway exposes, paired with the URL a client on
+        the tailnet can actually reach it on, plus any extra parameters
+        (base-URL suffix, API key, credentials) that client needs.
+
+        Catalog only — no probing, so this stays fast. Call
+        /api/endpoints/test for live status.
+        """
+        return await build_catalog(request)
+
+    @router.get("/endpoints/test")
+    async def test_endpoints(request: Request, id: str | None = None):
+        """
+        Probe endpoints server-side and report reachability.
+
+        Server-side because the dashboard is a different origin from every
+        service it lists — a fetch() from the page would hit CORS before it
+        learned anything. Without `id` every endpoint is probed
+        concurrently; with `id` just that one.
+
+        All probes are read-only: HTTP GET, TCP connect, or `redis-cli ping`.
+        """
+        catalog = await build_catalog(request)
+        targets = catalog["endpoints"]
+        if id is not None:
+            targets = [e for e in targets if e["id"] == id]
+            if not targets:
+                raise HTTPException(status_code=404, detail=f"Unknown endpoint: {id}")
+        resolve = catalog.get("resolve") or {}
+        results = await asyncio.gather(*(probe_endpoint(e, resolve=resolve) for e in targets))
+        return {"results": list(results)}
 
     return router
