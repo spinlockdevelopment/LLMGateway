@@ -416,6 +416,18 @@ class ServiceRegistry:
 
                     healthy = await svc.health_check()
 
+                    # Per-service startup grace: a process that loads or
+                    # downloads weights before binding its port (laya-serve
+                    # preloads) isn't failed until the window has passed.
+                    grace = float(svc.svc_config.get("startup_grace_sec", 0) or 0)
+                    if (
+                        not healthy
+                        and svc.state == ServiceState.RUNNING
+                        and svc._started_at
+                        and time.time() - svc._started_at < grace
+                    ):
+                        continue
+
                     if healthy and svc.state == ServiceState.UNHEALTHY:
                         svc._state = ServiceState.RUNNING
                         log.info(f"  [{svc.name}] Recovered — now healthy")

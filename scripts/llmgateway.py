@@ -122,9 +122,10 @@ def _create_service(name: str, svc_config: dict):
 
     if svc_type == "llamacpp":
         return LlamaCppService(name, svc_config)
-    elif svc_type in ("whisper", "audio"):
-        # "audio" covers mlx_audio.server (TTS + STT in one process);
-        # the underlying handler is the same generic binary+args wrapper.
+    elif svc_type in ("whisper", "audio", "generic"):
+        # "audio" covers mlx_audio.server (TTS + STT in one process) and
+        # "generic" any other binary+env server (e.g. laya-serve); the
+        # underlying handler is the same generic binary+args wrapper.
         return WhisperService(name, svc_config)
     else:
         logging.getLogger("llm-gateway").warning(

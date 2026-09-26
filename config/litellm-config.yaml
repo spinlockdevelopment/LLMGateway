@@ -4,13 +4,11 @@
 # Default stack: Anthropic Claude via OpenRouter + native llama-server locals
 # Clients: Claude Code, Cursor IDE, any OpenAI/Anthropic SDK
 #
-# Local model routes (local-code / local-think / local-reason) call the
-# gateway-managed native llama-server on the host at :8082, reachable
-# from inside this container via host.docker.internal. Whisper STT slots
-# are also served by gateway-managed llama-server / whisper-server
-# processes (see config/llmgateway.defaults.yaml).
-#
-# Currently serving Gemma-4-26B-A4B (UD-Q4_K_M) on the local slot.
+# Routes: local (Gemma-4 on the host llama-server at :8082, reached via
+# host.docker.internal), coding (Sonnet 5), deep-reasoning (Opus 5.5),
+# cheap-research (DeepSeek V4.1 Flash → Qwen3.8 Flash), jev (TypeSafe
+# Jev Router). Plus the /laya pass-through (see general_settings).
+# Local services are defined in config/llmgateway.defaults.yaml.
 # ============================================================
 
 # ── Model Deployments ─────────────────────────────────────────
@@ -21,157 +19,59 @@
 
 model_list:
 
-  # ── deep-reasoning ──────────────────────────────────────────
-  # Primary workhorse for Claude Code and Cursor.
-  # OpenRouter primary → direct Anthropic fallback.
-  - model_name: deep-reasoning
-    litellm_params:
-      model: openrouter/anthropic/claude-sonnet-4
-      api_key: os.environ/OPENROUTER_API_KEY
-      order: 1
-      rpm: 100
-      tpm: 200000
-  - model_name: deep-reasoning
-    litellm_params:
-      model: anthropic/claude-sonnet-4-20250514
-      api_key: os.environ/ANTHROPIC_API_KEY
-      order: 2
-      rpm: 50
-      tpm: 100000
-
-  # ── coding ──────────────────────────────────────────────────
-  # Optimized for code generation, review, and refactoring.
-  - model_name: coding
-    litellm_params:
-      model: openrouter/anthropic/claude-sonnet-4
-      api_key: os.environ/OPENROUTER_API_KEY
-      order: 1
-      rpm: 100
-      tpm: 200000
-  - model_name: coding
-    litellm_params:
-      model: anthropic/claude-sonnet-4-20250514
-      api_key: os.environ/ANTHROPIC_API_KEY
-      order: 2
-      rpm: 50
-      tpm: 100000
-
-  # ── vision ──────────────────────────────────────────────────
-  # Image understanding — screenshots, diagrams, UI mockups.
-  - model_name: vision
-    litellm_params:
-      model: openrouter/anthropic/claude-sonnet-4
-      api_key: os.environ/OPENROUTER_API_KEY
-      order: 1
-      rpm: 60
-      tpm: 100000
-  - model_name: vision
-    litellm_params:
-      model: openrouter/openai/gpt-4o
-      api_key: os.environ/OPENROUTER_API_KEY
-      order: 2
-      rpm: 60
-      tpm: 100000
-
-  # ── cheap-research ──────────────────────────────────────────
-  # Affordable models for bulk research, summarization, triage.
-  - model_name: cheap-research
-    litellm_params:
-      model: openrouter/deepseek/deepseek-chat
-      api_key: os.environ/OPENROUTER_API_KEY
-      rpm: 120
-      tpm: 500000
-  - model_name: cheap-research
-    litellm_params:
-      model: openrouter/meta-llama/llama-3.1-70b-instruct
-      api_key: os.environ/OPENROUTER_API_KEY
-      rpm: 120
-      tpm: 500000
-  - model_name: cheap-research
-    litellm_params:
-      model: openrouter/mistralai/mistral-small-latest
-      api_key: os.environ/OPENROUTER_API_KEY
-      rpm: 120
-      tpm: 500000
-
-  # ── budget ──────────────────────────────────────────────────
-  # Cheapest available for high-volume low-stakes tasks.
-  - model_name: budget
-    litellm_params:
-      model: openrouter/deepseek/deepseek-chat
-      api_key: os.environ/OPENROUTER_API_KEY
-      rpm: 200
-      tpm: 1000000
-  - model_name: budget
-    litellm_params:
-      model: openrouter/meta-llama/llama-3.1-8b-instruct
-      api_key: os.environ/OPENROUTER_API_KEY
-      rpm: 200
-      tpm: 1000000
-
-  # ── local-code ──────────────────────────────────────────────
+  # ── local ───────────────────────────────────────────────────
   # Native llama-server on the host (gateway-managed) — see
   # config/llmgateway.defaults.yaml services.local. Currently
   # serving Gemma-4-26B-A4B UD-Q4_K_M at 128K ctx.
-  - model_name: local-code
+  - model_name: local
     litellm_params:
       model: openai/gemma-4-26b-a4b
       api_base: http://host.docker.internal:8082/v1
       api_key: none
 
-  # ── local-think ─────────────────────────────────────────────
-  # Same backend as local-code. The enable_thinking toggle is a
-  # Qwen3-only chat-template kwarg and is a no-op on Gemma-4
-  # (drop_params removes it before the upstream call). Kept here
-  # so clients can keep their existing route name when we swap
-  # the backend back to a thinking-capable model.
-  - model_name: local-think
+  # ── coding ──────────────────────────────────────────────────
+  # Primary workhorse for Claude Code and Cursor. Vision-capable.
+  - model_name: coding
     litellm_params:
-      model: openai/gemma-4-26b-a4b
-      api_base: http://host.docker.internal:8082/v1
-      api_key: none
-      extra_body:
-        chat_template_kwargs:
-          enable_thinking: true
-
-  # ── local-reason ────────────────────────────────────────────
-  - model_name: local-reason
-    litellm_params:
-      model: openai/gemma-4-26b-a4b
-      api_base: http://host.docker.internal:8082/v1
-      api_key: none
-      extra_body:
-        chat_template_kwargs:
-          enable_thinking: false
-
-  # ── Direct pass-through models ──────────────────────────────
-  # Clients can also request specific models directly using
-  # LiteLLM model format strings. These aliases provide
-  # convenient shortcuts for commonly used models.
-
-  - model_name: claude-sonnet
-    litellm_params:
-      model: openrouter/anthropic/claude-sonnet-4
+      model: openrouter/anthropic/claude-sonnet-5
       api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 100
+      tpm: 400000
 
-  - model_name: claude-haiku
+  # ── deep-reasoning ──────────────────────────────────────────
+  # Hard problems: architecture, planning, long-horizon debugging.
+  - model_name: deep-reasoning
     litellm_params:
-      model: openrouter/anthropic/claude-3.5-haiku
+      model: openrouter/anthropic/claude-opus-5.5
       api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 60
+      tpm: 400000
 
-  - model_name: claude-opus
+  # ── cheap-research ──────────────────────────────────────────
+  # Bulk research, summarization, triage. DeepSeek V4.1 Flash
+  # primary, Qwen3.8 Flash fallback (both ~$0.15/$0.45 per M, 1M ctx).
+  - model_name: cheap-research
     litellm_params:
-      model: openrouter/anthropic/claude-opus-4
+      model: openrouter/deepseek/deepseek-v4.1-flash
       api_key: os.environ/OPENROUTER_API_KEY
-
-  - model_name: gpt-4o
+      order: 1
+      rpm: 200
+      tpm: 1000000
+  - model_name: cheap-research
     litellm_params:
-      model: openrouter/openai/gpt-4o
+      model: openrouter/qwen/qwen3.8-flash
       api_key: os.environ/OPENROUTER_API_KEY
+      order: 2
+      rpm: 200
+      tpm: 1000000
 
-  - model_name: deepseek
+  # ── jev ─────────────────────────────────────────────────────
+  # TypeSafe Jev Router via OpenRouter: Jev (TypeSafe's System One
+  # model) picks the underlying model + reasoning effort per request.
+  # Pricing is per-routed-model (OpenRouter lists it as variable).
+  - model_name: jev
     litellm_params:
-      model: openrouter/deepseek/deepseek-chat
+      model: openrouter/typesafe/jev-router
       api_key: os.environ/OPENROUTER_API_KEY
 
 
@@ -183,9 +83,16 @@ litellm_settings:
   # by the proxy's get_instance_fn and crash startup with
   # `'dict' object has no attribute 'startswith'`.
   # Web search providers are declared in the top-level `search_tools:`
-  # section near the bottom of this file instead.
+  # section near the bottom of this file.
   callbacks:
     - prometheus
+    - websearch_interception
+
+  # Run the `litellm_web_search` tool server-side (first search_tools
+  # entry unless search_tool_name is set) for these upstream providers.
+  websearch_interception_params:
+    enabled_providers: ["openrouter", "openai"]
+    search_tool_name: tavily-search
 
   # As of the 2026-07 litellm build, /metrics defaults to requiring a
   # bearer key. Prometheus (internal to gateway-net, opt-in profile) has
@@ -200,11 +107,6 @@ litellm_settings:
   fallbacks:
     - {"deep-reasoning": ["coding"]}
     - {"coding": ["deep-reasoning"]}
-    - {"vision": ["deep-reasoning"]}
-
-  # Context window fallbacks: auto-switch to larger context model
-  context_window_fallbacks:
-    - {"deep-reasoning": ["cheap-research"]}
 
   # Cache — Redis response caching (see docker-compose.yml `redis` service)
   cache: true
@@ -242,7 +144,6 @@ router_settings:
   model_group_alias:
     "reasoning": "deep-reasoning"
     "code": "coding"
-    "local": "local-reason"
 
 
 # ── Proxy Server Settings ────────────────────────────────────
@@ -261,6 +162,21 @@ general_settings:
   # Store models in DB so UI changes persist across restarts
   store_model_in_db: true
 
+  # ── Pass-through routes ──────────────────────────────────────
+  # /laya → gateway-managed laya-serve on the host (:8087; see
+  # config/llmgateway.defaults.yaml services.laya). Laya is a classifier,
+  # not a chat model, so it gets a raw path instead of a model_name:
+  #   POST /laya/v1/systemone   (Authorization: Bearer <litellm key>)
+  #   GET  /laya/health
+  # auth: true makes LiteLLM check the virtual key; laya-serve itself is
+  # unauthenticated. No LLM token spend is tracked for these calls.
+  pass_through_endpoints:
+    - path: "/laya"
+      target: "http://host.docker.internal:8087"
+      include_subpath: true
+      auth: true
+      timeout: 60
+
   # Allow direct model pass-through for models not in model_list
   # (clients can request any litellm-supported model string)
   # enable_all_model_access: true
@@ -269,8 +185,9 @@ general_settings:
 # ── Web Search Tools (managed by the proxy) ───────────────────
 # Keys live in .env; clients never see them. Clients invoke web search
 # by including a tool named `litellm_web_search` in their request — the
-# proxy intercepts it and runs the call against the first entry below.
-# Reorder to swap the default.
+# proxy intercepts it (websearch_interception callback above) and runs the
+# call against websearch_interception_params.search_tool_name. Also
+# callable directly: POST /v1/search/<search_tool_name>.
 
 search_tools:
   - search_tool_name: tavily-search

@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import re
 import shutil
 from datetime import datetime
@@ -248,7 +249,9 @@ async def _restart_litellm_container(repo_dir: Path, data_dir: Path | None = Non
     env_file = (data_dir or repo_dir) / ".env"
     if env_file.exists():
         cmd.extend(["--env-file", str(env_file)])
-    cmd.extend(["restart", "litellm"])
+    # `restart` reuses the container's original environment, so .env edits
+    # would never land; force-recreate re-reads .env (and the config mount).
+    cmd.extend(["up", "-d", "--no-deps", "--force-recreate", "litellm"])
 
     try:
         proc = await asyncio.create_subprocess_exec(
@@ -258,7 +261,7 @@ async def _restart_litellm_container(repo_dir: Path, data_dir: Path | None = Non
         )
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
         if proc.returncode == 0:
-            log.info("  LiteLLM container restarted after .env change")
+            log.info("  LiteLLM container recreated after config/.env change")
             return True
         else:
             err = (stderr or stdout or b"").decode(errors="replace").strip()
@@ -539,11 +542,14 @@ def create_ui_router() -> APIRouter:
         return data_dir / "litellm-config.yaml", repo_dir / "config" / "litellm-config.yaml"
 
     def _read_litellm_yaml(request: Request) -> str:
+        # Prefer the repo copy: it is the file docker-compose bind-mounts
+        # into the LiteLLM container. The data-dir copy is a mirror written
+        # on save and goes stale when the repo file is edited directly.
         data_cfg, repo_cfg = _litellm_cfg_paths(request)
-        if data_cfg.exists():
-            return data_cfg.read_text(encoding="utf-8")
         if repo_cfg.exists():
             return repo_cfg.read_text(encoding="utf-8")
+        if data_cfg.exists():
+            return data_cfg.read_text(encoding="utf-8")
         return ""
 
     def _validate_litellm_yaml(yaml_text: str) -> tuple[list[str], list[str], dict | None]:
@@ -1561,6 +1567,62 @@ def create_ui_router() -> APIRouter:
                 })
         return out
 
+    def _hf_hub_dir() -> Path:
+        """HuggingFace hub cache the gateway's services download into.
+
+        launchd sets HF_HOME to <data_dir>/hf-cache for the gateway, and
+        child services (mlx_audio.server, laya-serve) inherit it.
+        """
+        if os.environ.get("HF_HUB_CACHE"):
+            return Path(os.environ["HF_HUB_CACHE"])
+        hf_home = os.environ.get("HF_HOME") or str(Path.home() / ".cache" / "huggingface")
+        return Path(hf_home) / "hub"
+
+    def _scan_hf_models(request: Request) -> list[dict]:
+        """Return DMR-shaped entries for repos in the HuggingFace hub cache.
+
+        Entries carry `source: "hf"`. A repo counts as running when a
+        running service has it as its configured `model`.
+        """
+        hub = _hf_hub_dir()
+        try:
+            repo_dirs = sorted(hub.glob("models--*"))
+        except OSError:
+            return []
+
+        running_models: set[str] = set()
+        registry = getattr(request.app.state, "service_registry", None)
+        if registry is not None:
+            for st in registry.all_status():
+                if st.get("state") == "running" and st.get("model"):
+                    running_models.add(str(st["model"]).lower())
+
+        out: list[dict] = []
+        for d in repo_dirs:
+            repo_id = d.name[len("models--"):].replace("--", "/")
+            size = 0
+            try:
+                for b in (d / "blobs").iterdir():
+                    try:
+                        size += b.stat().st_size
+                    except OSError:
+                        pass
+                mtime = int(d.stat().st_mtime)
+            except OSError:
+                continue
+            if size < 1_000_000:
+                continue  # config/metadata only — weights never downloaded
+            out.append({
+                "id": "hf:" + repo_id,
+                "tags": [repo_id],
+                "source": "hf",
+                "path": str(d),
+                "running": repo_id.lower() in running_models,
+                "created": mtime,
+                "config": {"size": size},
+            })
+        return out
+
     @router.get("/ui/dmr/ps")
     async def dmr_ps():
         """List currently-running models in Docker Model Runner."""
@@ -1577,7 +1639,7 @@ def create_ui_router() -> APIRouter:
         side-loaded files get `source: "file"`. The frontend renders both
         and gates destructive actions on source.
         """
-        local_files = _scan_local_ggufs(request)
+        local_files = _scan_local_ggufs(request) + _scan_hf_models(request)
 
         if not shutil.which("docker"):
             return {"models": local_files, "running": []}

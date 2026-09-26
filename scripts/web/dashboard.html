@@ -451,6 +451,7 @@ select { cursor: pointer; }
 .chip.local-llamacpp,
 .chip.local             { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
 .chip.search-tool       { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+.chip.pass-through      { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
 .chip.other             { background: #f3f4f6; color: var(--fg2); border-color: var(--border); }
 .chip.key-set     { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
 .chip.key-missing { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
@@ -2509,16 +2510,35 @@ async function loadLitellmRoutes() {
       </tr>`;
   }
 
-  // Active section order: local model groups → active search tools → remote model groups.
+  // Pass-through paths (general_settings.pass_through_endpoints): raw
+  // proxy paths for non-chat backends such as /laya. Always active — they
+  // authenticate with the caller's LiteLLM key, not a provider env key.
+  function renderPassThroughRow(pt) {
+    const name = String(pt.path || '').replace(/^\/+/, '');
+    const sub = pt.include_subpath ? `${pt.path}/*` : pt.path;
+    const authNote = pt.auth ? 'LiteLLM key required' : 'no auth';
+    return `
+      <tr>
+        <td><strong>${escapeHtml(pt.path)}</strong><div class="route-fallback">${escapeHtml(sub)} · ${escapeHtml(authNote)}</div></td>
+        <td><span class="chip pass-through">Pass-through</span></td>
+        <td class="mono">${escapeHtml(pt.target || '')}</td>
+        <td><button type="button" class="copy-route" onclick="copyRouteName('${escapeAttr(name)}')">Copy Route</button></td>
+      </tr>`;
+  }
+  const passThrough = r.pass_through || [];
+
+  // Active section order: local model groups → pass-through paths →
+  // active search tools → remote model groups.
   const seenA = new Set();
   const localRowsHTML = localGroups.flatMap(n => groupRows.get(n))
-    .map(rt => renderRow(rt, seenA, false)).join('');
+    .map(rt => renderRow(rt, seenA, false)).join('')
+    + passThrough.map(renderPassThroughRow).join('');
   const searchActiveHTML = searchActive.map(st => renderSearchToolRow(st, false)).join('');
   const remoteRowsHTML = remoteGroups.flatMap(n => groupRows.get(n))
     .map(rt => renderRow(rt, seenA, false)).join('');
   const activeRows = (localRowsHTML + searchActiveHTML + remoteRowsHTML)
     || `<tr><td colspan="4" style="color:var(--fg3);text-align:center;padding:8px">No active routes</td></tr>`;
-  const activeCount = active.length + searchActive.length;
+  const activeCount = active.length + passThrough.length + searchActive.length;
 
   // Inactive section: missing-key model routes + missing-key search tools.
   const seenI = new Set();
@@ -2679,15 +2699,20 @@ async function loadDmrModels() {
   el.innerHTML = models.map(m => {
     const tag = (m.tags && m.tags[0]) || m.id || '?';
     const isFile = m.source === 'file';
+    const isHf = m.source === 'hf';
     const { prefix, basename } = isFile
       ? { prefix: m.path ? m.path.replace(/\/[^\/]*$/, '') : '', basename: tag }
-      : splitModelPath(tag);
+      : isHf
+        ? { prefix: m.path ? m.path.replace(/\/[^\/]*$/, '') + '/' : '', basename: tag }
+        : splitModelPath(tag);
     const cfg = m.config || {};
     const sourceBadge = isFile
       ? ' <span class="chip key-none" title="GGUF file on disk — not pulled via Docker Model Runner">local file</span>'
-      : '';
+      : isHf
+        ? ' <span class="chip key-none" title="HuggingFace hub cache (HF_HOME) — downloaded by a gateway service">HF cache</span>'
+        : '';
     const runningBadge = m.running
-      ? ' <span class="chip local" title="currently being served by llama-server">● running</span>'
+      ? ' <span class="chip local" title="currently being served by a gateway service">● running</span>'
       : ' <span class="chip key-none">idle</span>';
     const pathLine = prefix
       ? `<div class="svc-desc" style="font-family:var(--mono);font-size:11.5px;color:var(--fg3);margin-top:2px">${escapeHtml(prefix)}</div>`
@@ -2704,6 +2729,8 @@ async function loadDmrModels() {
     // it's obvious why deletion is unavailable.
     const action = isFile
       ? `<button type="button" disabled title="Side-loaded GGUFs are not managed by Docker Model Runner — delete the file directly to remove.">Delete</button>`
+      : isHf
+      ? `<button type="button" disabled title="HuggingFace cache entries are not managed by Docker Model Runner — delete the repo folder directly to remove.">Delete</button>`
       : `<button type="button" class="danger" onclick="dmrRm('${escapeAttr(tag)}')">Delete</button>`;
     return `
       <div class="svc-row">
