@@ -123,6 +123,15 @@ class BaseService:
             p = args.get("--port")
             if p is not None:
                 return int(p)
+        # Servers configured via env vars (laya-serve: LAYA_PORT) have no
+        # --port arg; the health-check URL still names the port.
+        url = self.svc_config.get("health_check_url")
+        if url:
+            from urllib.parse import urlparse
+            try:
+                return urlparse(url).port
+            except ValueError:
+                return None
         return None
 
     # ── Abstract method ───────────────────────────────────────────────────────

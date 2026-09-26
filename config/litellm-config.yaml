@@ -5,9 +5,10 @@
 # Clients: Claude Code, Cursor IDE, any OpenAI/Anthropic SDK
 #
 # Routes: local (Gemma-4 on the host llama-server at :8082, reached via
-# host.docker.internal), coding (Sonnet 5), deep-reasoning (Opus 5.5),
-# cheap-research (DeepSeek V4.1 Flash → Qwen3.8 Flash), jev (TypeSafe
-# Jev Router). Plus the /laya pass-through (see general_settings).
+# host.docker.internal), transcribe (whisper :8083), speech (Kokoro :8880); cheap OpenRouter routes coding, reasoning,
+# research; premium deep-reasoning (Opus 5.5 via OpenRouter) and
+# deep-research (Grok 4.7 via xAI direct); decision (TypeSafe Jev Router).
+# Plus the /local-decision pass-through (Laya) (see general_settings).
 # Local services are defined in config/llmgateway.defaults.yaml.
 # ============================================================
 
@@ -29,35 +30,81 @@ model_list:
       api_base: http://host.docker.internal:8082/v1
       api_key: none
 
+  # ── transcribe ──────────────────────────────────────────────
+  # Speech-to-text: whisper.cpp whisper-server (large-v3-turbo) on the
+  # host, started with --inference-path /v1/audio/transcriptions.
+  #   POST /v1/audio/transcriptions  model=transcribe  file=@clip.wav
+  - model_name: transcribe
+    litellm_params:
+      model: openai/whisper-large-v3-turbo
+      api_base: http://host.docker.internal:8083/v1
+      api_key: none
+    model_info:
+      mode: audio_transcription
+
+  # ── speech ──────────────────────────────────────────────────
+  # Text-to-speech: Kokoro-82M via mlx_audio.server on the host. The
+  # model is lazy-loaded (~13 s on the first call after a restart).
+  #   POST /v1/audio/speech  {"model":"speech","input":"…","voice":"af_heart"}
+  - model_name: speech
+    litellm_params:
+      model: openai/mlx-community/Kokoro-82M-bf16
+      api_base: http://host.docker.internal:8880/v1
+      api_key: none
+    model_info:
+      mode: audio_speech
+
+  # ── OpenRouter policy ───────────────────────────────────────
+  # Everything routed through OpenRouter is a cheap model, with ONE
+  # deliberate exception: deep-reasoning (Opus 5.5). decision (Jev) is a
+  # meta-router and prices per request. deep-research calls xAI directly.
+
   # ── coding ──────────────────────────────────────────────────
-  # Primary workhorse for Claude Code and Cursor. Vision-capable.
+  # Cheap coding workhorse. Qwen3.8 27B primary (vision + tools),
+  # DeepSeek V4 Pro fallback.
   - model_name: coding
     litellm_params:
-      model: openrouter/anthropic/claude-sonnet-5
+      model: openrouter/qwen/qwen3.8-27b
       api_key: os.environ/OPENROUTER_API_KEY
-      rpm: 100
-      tpm: 400000
-
-  # ── deep-reasoning ──────────────────────────────────────────
-  # Hard problems: architecture, planning, long-horizon debugging.
-  - model_name: deep-reasoning
+      order: 1
+      rpm: 200
+      tpm: 1000000
+  - model_name: coding
     litellm_params:
-      model: openrouter/anthropic/claude-opus-5.5
+      model: openrouter/deepseek/deepseek-v4-pro-0813
       api_key: os.environ/OPENROUTER_API_KEY
-      rpm: 60
-      tpm: 400000
+      order: 2
+      rpm: 200
+      tpm: 1000000
 
-  # ── cheap-research ──────────────────────────────────────────
+  # ── reasoning ───────────────────────────────────────────────
+  # Cheap reasoning. DeepSeek V4 Pro primary, Qwen3.8 27B fallback.
+  - model_name: reasoning
+    litellm_params:
+      model: openrouter/deepseek/deepseek-v4-pro-0813
+      api_key: os.environ/OPENROUTER_API_KEY
+      order: 1
+      rpm: 200
+      tpm: 1000000
+  - model_name: reasoning
+    litellm_params:
+      model: openrouter/qwen/qwen3.8-27b
+      api_key: os.environ/OPENROUTER_API_KEY
+      order: 2
+      rpm: 200
+      tpm: 1000000
+
+  # ── research ────────────────────────────────────────────────
   # Bulk research, summarization, triage. DeepSeek V4.1 Flash
   # primary, Qwen3.8 Flash fallback (both ~$0.15/$0.45 per M, 1M ctx).
-  - model_name: cheap-research
+  - model_name: research
     litellm_params:
       model: openrouter/deepseek/deepseek-v4.1-flash
       api_key: os.environ/OPENROUTER_API_KEY
       order: 1
       rpm: 200
       tpm: 1000000
-  - model_name: cheap-research
+  - model_name: research
     litellm_params:
       model: openrouter/qwen/qwen3.8-flash
       api_key: os.environ/OPENROUTER_API_KEY
@@ -65,11 +112,30 @@ model_list:
       rpm: 200
       tpm: 1000000
 
-  # ── jev ─────────────────────────────────────────────────────
+  # ── deep-reasoning ──────────────────────────────────────────
+  # Premium: Claude Opus 5.5. The one non-cheap OpenRouter route.
+  - model_name: deep-reasoning
+    litellm_params:
+      model: openrouter/anthropic/claude-opus-5.5
+      api_key: os.environ/OPENROUTER_API_KEY
+      rpm: 60
+      tpm: 400000
+
+  # ── deep-research ───────────────────────────────────────────
+  # Premium: Grok 4.7 direct from xAI (not OpenRouter). Inactive until
+  # XAI_API_KEY is set in .env.
+  - model_name: deep-research
+    litellm_params:
+      model: xai/grok-4.7
+      api_key: os.environ/XAI_API_KEY
+      rpm: 60
+      tpm: 400000
+
+  # ── decision ────────────────────────────────────────────────
   # TypeSafe Jev Router via OpenRouter: Jev (TypeSafe's System One
   # model) picks the underlying model + reasoning effort per request.
   # Pricing is per-routed-model (OpenRouter lists it as variable).
-  - model_name: jev
+  - model_name: decision
     litellm_params:
       model: openrouter/typesafe/jev-router
       api_key: os.environ/OPENROUTER_API_KEY
@@ -91,7 +157,7 @@ litellm_settings:
   # Run the `litellm_web_search` tool server-side (first search_tools
   # entry unless search_tool_name is set) for these upstream providers.
   websearch_interception_params:
-    enabled_providers: ["openrouter", "openai"]
+    enabled_providers: ["openrouter", "openai", "xai"]
     search_tool_name: tavily-search
 
   # As of the 2026-07 litellm build, /metrics defaults to requiring a
@@ -105,8 +171,8 @@ litellm_settings:
   # Fallback chains: if the primary pseudo-model fails entirely, try these
   # alternatives.
   fallbacks:
-    - {"deep-reasoning": ["coding"]}
-    - {"coding": ["deep-reasoning"]}
+    - {"coding": ["reasoning"]}
+    - {"reasoning": ["coding"]}
 
   # Cache — Redis response caching (see docker-compose.yml `redis` service)
   cache: true
@@ -140,10 +206,6 @@ router_settings:
   retry_after: 5
   num_retries: 2
 
-  # Model aliases — semantic shortcuts.
-  model_group_alias:
-    "reasoning": "deep-reasoning"
-    "code": "coding"
 
 
 # ── Proxy Server Settings ────────────────────────────────────
@@ -163,15 +225,15 @@ general_settings:
   store_model_in_db: true
 
   # ── Pass-through routes ──────────────────────────────────────
-  # /laya → gateway-managed laya-serve on the host (:8087; see
+  # /local-decision → gateway-managed laya-serve on the host (:8087; see
   # config/llmgateway.defaults.yaml services.laya). Laya is a classifier,
   # not a chat model, so it gets a raw path instead of a model_name:
-  #   POST /laya/v1/systemone   (Authorization: Bearer <litellm key>)
-  #   GET  /laya/health
+  #   POST /local-decision/v1/systemone   (Authorization: Bearer <litellm key>)
+  #   GET  /local-decision/health
   # auth: true makes LiteLLM check the virtual key; laya-serve itself is
   # unauthenticated. No LLM token spend is tracked for these calls.
   pass_through_endpoints:
-    - path: "/laya"
+    - path: "/local-decision"
       target: "http://host.docker.internal:8087"
       include_subpath: true
       auth: true

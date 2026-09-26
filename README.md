@@ -212,11 +212,15 @@ Clients send requests to LiteLLM with a **model name**. LiteLLM maps that to rea
 | You request | Routed to (default) |
 |-------------|----------------------|
 | `local` | Gemma-4-26B-A4B on the gateway-managed llama-server `:8082` — local |
-| `coding` (alias `code`) | Claude Sonnet 5 via OpenRouter (falls back to `deep-reasoning`) |
-| `deep-reasoning` (alias `reasoning`) | Claude Opus 5.5 via OpenRouter (falls back to `coding`) |
-| `cheap-research` | DeepSeek V4.1 Flash → Qwen3.8 Flash via OpenRouter |
-| `jev` | TypeSafe Jev Router via OpenRouter (picks model + effort per request) |
-| `POST /laya/v1/systemone` | Pass-through to local `laya-serve` on `:8087` (classifier, not chat) |
+| `transcribe` | Whisper large-v3-turbo on local whisper-server `:8083` (`/v1/audio/transcriptions`) |
+| `speech` | Kokoro-82M on local mlx_audio `:8880` (`/v1/audio/speech`) |
+| `coding` | Qwen3.8 27B → DeepSeek V4 Pro via OpenRouter (cheap; falls back to `reasoning`) |
+| `reasoning` | DeepSeek V4 Pro → Qwen3.8 27B via OpenRouter (cheap; falls back to `coding`) |
+| `research` | DeepSeek V4.1 Flash → Qwen3.8 Flash via OpenRouter (cheap) |
+| `deep-reasoning` | Claude Opus 5.5 via OpenRouter (premium) |
+| `deep-research` | Grok 4.7 direct from xAI — needs `XAI_API_KEY` (premium) |
+| `decision` | TypeSafe Jev Router via OpenRouter (picks model + effort per request) |
+| `POST /local-decision/v1/systemone` | Pass-through to local Laya (`laya-serve`) on `:8087` (classifier, not chat) |
 
 Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) changes routing. You can also add models at runtime via the LiteLLM UI or API.
 

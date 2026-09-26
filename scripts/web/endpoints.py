@@ -405,11 +405,12 @@ async def build_catalog(request) -> dict[str, Any]:
         "kokoro": "TTS — kokoro",
         "whisper-fast": "STT — whisper-fast",
         "whisper-large": "STT — whisper-large",
+        "laya": "Decisions — laya",
     }
     # Local inference is reached through LiteLLM, never directly, so it stays
     # host-internal. Speech is the exception: Open WebUI calls STT/TTS straight
     # from the browser, which is on the tailnet.
-    svc_internal = {"local"}
+    svc_internal = {"local", "laya"}
     if registry is not None:
         try:
             statuses = registry.all_status()
@@ -433,6 +434,9 @@ async def build_catalog(request) -> dict[str, Any]:
             if name in ("kokoro", "whisper-fast"):
                 params.append(_param("OpenAI base URL", f"{pub}/v1",
                                      note="mlx_audio.server speaks the OpenAI audio API"))
+            if name == "laya":
+                params.append(_param("Via LiteLLM", "POST /local-decision/v1/systemone",
+                                     note="needs a LiteLLM key; laya-serve itself is unauthenticated"))
             add(f"svc:{name}", svc_titles.get(name, name), "Local services",
                 svc.get("description") or "",
                 url=pub, local_url=loc, via=via, state=state,
