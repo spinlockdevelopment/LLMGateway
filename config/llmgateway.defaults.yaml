@@ -24,7 +24,7 @@ gateway:
 #   local         → single local model, backs the `local` LiteLLM route
 #   whisper-large → primary STT (high quality)
 #   whisper-fast  → low-latency STT
-#   laya          → Laya decision/classification model (LiteLLM /laya)
+#   laya          → Laya decision/classification model (LiteLLM /local-decision)
 #
 # whisper-large and whisper-fast share a mutex group: only one runs at a time.
 # ---------------------------------------------------------------------------
@@ -155,7 +155,7 @@ services:
   # laya, Apache-2.0). Not a chat model: POST /v1/systemone takes a state +
   # typed questions (choice / score / noul) and returns calibrated
   # probabilities in one forward pass. Request shape matches TypeSafe Jev.
-  # Exposed through LiteLLM as the /laya pass-through (see litellm-config).
+  # Exposed through LiteLLM as the /local-decision pass-through (see litellm-config).
   #
   # Runs `laya-serve` from its own venv (torch + transformers), installed by
   # scripts/install-laya.sh. The venv lives on the internal disk (it's

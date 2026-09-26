@@ -18,6 +18,8 @@ Endpoints:
 from __future__ import annotations
 
 import asyncio
+import ctypes
+import ctypes.util
 import json
 import platform
 import socket
@@ -52,6 +54,8 @@ _MODEL_SIGS = (
     # alongside the LLM ones so the bar reflects total model memory.
     "whisper-server", "whisper.cpp", "whisper_cpp", "faster-whisper",
     "faster_whisper", "kokoro", "piper",
+    # Laya decision model (laya-serve under the venv's python).
+    "laya-serve", "venv-laya",
 )
 _SERVICE_SIGS = (
     "docker", "dockerd",                              # Docker Desktop / engine
@@ -74,6 +78,55 @@ def _classify_process_bucket(name: str | None, cmdline: list[str] | None) -> str
     return "system"
 
 
+class _RUsageInfoV2(ctypes.Structure):
+    # struct rusage_info_v2 from <sys/resource.h>; we only need
+    # ri_phys_footprint, but the layout up to it must match.
+    _fields_ = [
+        ("ri_uuid", ctypes.c_uint8 * 16),
+        ("ri_user_time", ctypes.c_uint64),
+        ("ri_system_time", ctypes.c_uint64),
+        ("ri_pkg_idle_wkups", ctypes.c_uint64),
+        ("ri_interrupt_wkups", ctypes.c_uint64),
+        ("ri_pageins", ctypes.c_uint64),
+        ("ri_wired_size", ctypes.c_uint64),
+        ("ri_resident_size", ctypes.c_uint64),
+        ("ri_phys_footprint", ctypes.c_uint64),
+        ("ri_proc_start_abstime", ctypes.c_uint64),
+        ("ri_proc_exit_abstime", ctypes.c_uint64),
+        ("ri_child_user_time", ctypes.c_uint64),
+        ("ri_child_system_time", ctypes.c_uint64),
+        ("ri_child_pkg_idle_wkups", ctypes.c_uint64),
+        ("ri_child_interrupt_wkups", ctypes.c_uint64),
+        ("ri_child_pageins", ctypes.c_uint64),
+        ("ri_child_elapsed_abstime", ctypes.c_uint64),
+        ("ri_diskio_bytesread", ctypes.c_uint64),
+        ("ri_diskio_byteswritten", ctypes.c_uint64),
+    ]
+
+
+_libproc = None
+if sys.platform == "darwin":
+    try:
+        _libproc = ctypes.CDLL(ctypes.util.find_library("proc") or "/usr/lib/libproc.dylib")
+    except OSError:
+        _libproc = None
+
+
+def _phys_footprint(pid: int) -> int:
+    """macOS phys_footprint for pid (0 if unavailable).
+
+    RSS misses GPU allocations: a PyTorch/MPS process (laya-serve) holds its
+    weights in IOAccelerator memory, so RSS reads ~30 MB against a ~3 GB
+    footprint. Only works for processes owned by the same user.
+    """
+    if _libproc is None:
+        return 0
+    info = _RUsageInfoV2()
+    if _libproc.proc_pid_rusage(pid, 2, ctypes.byref(info)) != 0:  # RUSAGE_INFO_V2
+        return 0
+    return int(info.ri_phys_footprint)
+
+
 def _memory_breakdown_bytes() -> tuple[int, int]:
     """
     Walk processes once and return (services_rss, models_rss) in bytes.
@@ -91,7 +144,9 @@ def _memory_breakdown_bytes() -> tuple[int, int]:
             rss = mi.rss
             bucket = _classify_process_bucket(info.get("name"), info.get("cmdline"))
             if bucket == "models":
-                models += rss
+                # max(): llama-server's mmapped weights count in RSS but not
+                # footprint; MPS/Metal buffers count in footprint but not RSS.
+                models += max(rss, _phys_footprint(p.pid))
             elif bucket == "services":
                 services += rss
         except (psutil.NoSuchProcess, psutil.AccessDenied):
@@ -400,7 +455,7 @@ def create_api_router() -> APIRouter:
                 "env_key_set": (env_key in env_keys_present) if env_key else None,
             })
 
-        # pass_through_endpoints: raw proxy paths (e.g. /laya) for backends
+        # pass_through_endpoints: raw proxy paths (e.g. /local-decision) for backends
         # that aren't chat models, forwarded as-is by LiteLLM.
         general_settings = parsed.get("general_settings") or {}
         pass_through: list[dict[str, Any]] = []
