@@ -21,17 +21,16 @@ gateway:
 #
 # Service slots:
 #
-#   local         → single local model, backs the local-* LiteLLM routes
+#   local         → single local model, backs the `local` LiteLLM route
 #   whisper-large → primary STT (high quality)
 #   whisper-fast  → low-latency STT
+#   laya          → Laya decision/classification model (LiteLLM /laya)
 #
 # whisper-large and whisper-fast share a mutex group: only one runs at a time.
 # ---------------------------------------------------------------------------
 services:
 
-  # Local model — one llama-server slot backing the local-code / local-think
-  # / local-reason LiteLLM routes (they all share this backend; the thinking
-  # mode is controlled per-route via chat_template_kwargs in litellm-config).
+  # Local model — one llama-server slot backing the `local` LiteLLM route.
   #
   # Tuned for M4 / 32 GB unified memory. Currently runs Gemma-4-26B-A4B
   # (July 2026 weight/template refresh from unsloth/gemma-4-26B-A4B-it-GGUF)
@@ -151,6 +150,42 @@ services:
     extra_args: []
     health_check_url: "http://localhost:8880/v1/models"
     expected_memory_gb: 0.5
+
+  # Laya — non-autoregressive "System 1" decision model (convaiinnovations/
+  # laya, Apache-2.0). Not a chat model: POST /v1/systemone takes a state +
+  # typed questions (choice / score / noul) and returns calibrated
+  # probabilities in one forward pass. Request shape matches TypeSafe Jev.
+  # Exposed through LiteLLM as the /laya pass-through (see litellm-config).
+  #
+  # Runs `laya-serve` from its own venv (torch + transformers), installed by
+  # scripts/install-laya.sh. The venv lives on the internal disk (it's
+  # reproducible, and TCC blocks writing /opt/storage from an interactive
+  # shell); checkpoints (~2.5 GB) download into HF_HOME under /opt/storage
+  # on first start, which is why startup_grace_sec is long — laya-serve only
+  # binds its port once the preload finishes.
+  # LAYA_MODELS preloads the English (ModernBERT-large, 421M) and
+  # multilingual (mmBERT-base, 322M) checkpoints on MPS; typed-decisions
+  # is lazy-loaded if a request names it. LAYA_PORT is the bind port
+  # (laya-serve takes no CLI flags).
+  laya:
+    enabled: true
+    type: "generic"
+    model: "convaiinnovations/laya"
+    description: "Laya System-1 decision model — laya-serve (/v1/systemone)"
+    binary: "~/.local/share/llmgateway/venv-laya/bin/laya-serve"
+    args: {}
+    extra_args: []
+    environment:
+      LAYA_HOST: "0.0.0.0"
+      LAYA_PORT: "8087"
+      LAYA_DEVICE: "mps"
+      LAYA_PRELOAD: "1"
+      LAYA_MODELS: "english,multilingual"
+      PYTORCH_ENABLE_MPS_FALLBACK: "1"
+      TRANSFORMERS_NO_TF: "1"
+    health_check_url: "http://localhost:8087/health"
+    startup_grace_sec: 900
+    expected_memory_gb: 3.0
 
 # ---------------------------------------------------------------------------
 # Docker Compose stack (LiteLLM, Grafana, Prometheus, Loki).

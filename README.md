@@ -211,17 +211,16 @@ Clients send requests to LiteLLM with a **model name**. LiteLLM maps that to rea
 
 | You request | Routed to (default) |
 |-------------|----------------------|
-| `deep-reasoning` | Claude Sonnet 4 (OpenRouter or direct Anthropic) |
-| `coding` | Claude Sonnet 4 (OpenRouter or direct Anthropic) |
-| `vision` | Claude Sonnet 4 (OpenRouter) |
-| `local-fast` (alias `heartbeat`) | llama-server `local-fast` on `:8081` — local |
-| `local-only` | llama-server `local-coding` on `:8082` — local |
-| `local-coding` | llama-server `local-coding` on `:8082` — local |
-| Others | See `litellm-config.yaml` (e.g. `cheap-research`, `budget`, aliases) |
+| `local` | Gemma-4-26B-A4B on the gateway-managed llama-server `:8082` — local |
+| `coding` (alias `code`) | Claude Sonnet 5 via OpenRouter (falls back to `deep-reasoning`) |
+| `deep-reasoning` (alias `reasoning`) | Claude Opus 5.5 via OpenRouter (falls back to `coding`) |
+| `cheap-research` | DeepSeek V4.1 Flash → Qwen3.8 Flash via OpenRouter |
+| `jev` | TypeSafe Jev Router via OpenRouter (picks model + effort per request) |
+| `POST /laya/v1/systemone` | Pass-through to local `laya-serve` on `:8087` (classifier, not chat) |
 
 Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) changes routing. You can also add models at runtime via the LiteLLM UI or API.
 
-**Web search (search API)** — LiteLLM supports web search via the same proxy. Use `/chat/completions` with `web_search_options` on search-capable models (e.g. OpenAI `gpt-4o-search-preview`, xAI `grok-3`, Anthropic Claude, Gemini), or `/responses` with the `web_search_preview` tool on regular models. You can set default `web_search_options` in `litellm-config.yaml`. See [LiteLLM Web Search](https://docs.litellm.ai/docs/completion/web_search) for endpoints, providers, and config.
+**Web search** — the proxy holds Tavily (default) and Exa keys as `search_tools`. Call them directly with `POST /v1/search/tavily-search` (or `exa-search`), or include a `litellm_web_search` tool in a chat request to any route and the `websearch_interception` callback runs the search server-side. See [LiteLLM Web Search](https://docs.litellm.ai/docs/completion/web_search).
 
 ---
 

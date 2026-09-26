@@ -10,6 +10,7 @@ endpoint that LiteLLM can route to.
 from __future__ import annotations
 
 import logging
+import os
 
 from . import BaseService
 
@@ -36,7 +37,7 @@ class WhisperService(BaseService):
     service_type = "whisper"
 
     def _build_command(self) -> list[str]:
-        binary = self.svc_config.get("binary", "whisper-server")
+        binary = os.path.expanduser(self.svc_config.get("binary", "whisper-server"))
         cmd = [binary]
 
         args = self.svc_config.get("args", {})

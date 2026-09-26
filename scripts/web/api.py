@@ -239,11 +239,13 @@ def create_api_router() -> APIRouter:
         repo_dir = getattr(request.app.state, "repo_dir", None)
         data_dir = getattr(request.app.state, "data_dir", None) or repo_dir
 
+        # Repo copy first — it's what docker-compose mounts into the
+        # container; the data-dir copy is only a mirror written on save.
         candidates: list[Path] = []
-        if data_dir is not None:
-            candidates.append(data_dir / "litellm-config.yaml")
         if repo_dir is not None:
             candidates.append(repo_dir / "config" / "litellm-config.yaml")
+        if data_dir is not None:
+            candidates.append(data_dir / "litellm-config.yaml")
         yaml_path = next((p for p in candidates if p.exists()), None)
 
         base_url = "http://localhost:4000"
@@ -297,11 +299,13 @@ def create_api_router() -> APIRouter:
         repo_dir = getattr(request.app.state, "repo_dir", None)
         data_dir = getattr(request.app.state, "data_dir", None) or repo_dir
 
+        # Repo copy first — it's what docker-compose mounts into the
+        # container; the data-dir copy is only a mirror written on save.
         candidates: list[Path] = []
-        if data_dir is not None:
-            candidates.append(data_dir / "litellm-config.yaml")
         if repo_dir is not None:
             candidates.append(repo_dir / "config" / "litellm-config.yaml")
+        if data_dir is not None:
+            candidates.append(data_dir / "litellm-config.yaml")
         yaml_path = next((p for p in candidates if p.exists()), None)
 
         if yaml_path is None:
@@ -396,12 +400,26 @@ def create_api_router() -> APIRouter:
                 "env_key_set": (env_key in env_keys_present) if env_key else None,
             })
 
+        # pass_through_endpoints: raw proxy paths (e.g. /laya) for backends
+        # that aren't chat models, forwarded as-is by LiteLLM.
+        general_settings = parsed.get("general_settings") or {}
+        pass_through: list[dict[str, Any]] = []
+        for entry in general_settings.get("pass_through_endpoints") or []:
+            if not isinstance(entry, dict) or not entry.get("path"):
+                continue
+            pass_through.append({
+                "path": entry["path"],
+                "target": entry.get("target"),
+                "include_subpath": bool(entry.get("include_subpath")),
+                "auth": str(entry.get("auth")).lower() == "true",
+            })
+
         router_settings = parsed.get("router_settings") or {}
         litellm_settings = parsed.get("litellm_settings") or {}
 
         # Pull the active web-search tool name (if any) so the dashboard can
         # flag the default. None → LiteLLM uses the first search_tools entry.
-        active_search_tool = None
+        active_search_tool = (litellm_settings.get("websearch_interception_params") or {}).get("search_tool_name")
         for cb in litellm_settings.get("callbacks") or []:
             if isinstance(cb, dict) and "websearch_interception" in cb:
                 wsi = cb["websearch_interception"] or {}
@@ -411,6 +429,7 @@ def create_api_router() -> APIRouter:
         return {
             "routes": routes,
             "search_tools": search_tools,
+            "pass_through": pass_through,
             "active_search_tool": active_search_tool,
             "aliases": router_settings.get("model_group_alias") or {},
             "fallbacks": litellm_settings.get("fallbacks") or [],
