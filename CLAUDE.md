@@ -36,7 +36,7 @@
 
 ## Next
 
-- Push `761983a` to main (committed locally, not pushed), then add `XAI_API_KEY` on the Secrets page to activate `deep-research`.
+- Add `XAI_API_KEY` on the Secrets page to activate `deep-research`.
 
 ## Todo
 
