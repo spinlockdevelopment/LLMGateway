@@ -26,7 +26,19 @@
   `/local-decision` (Laya pass-through). The local model stays Gemma-4;
   don't propose swapping it.
 
-## Follow-up TODO
+## Rules
+
+- Put installable venvs/tools on the internal disk (`~/.local/share/llmgateway/`), not `/opt/storage`. TCC blocks interactive shells there even under sudo; the install failed. 2026-09-26
+- Apply LiteLLM config/.env changes via `/ui/litellm-config/save`, never `docker compose restart`. Restart keeps the old env, so a rotated key silently never lands. 2026-09-26
+- Measure model memory as max(RSS, phys_footprint). MPS/Metal weights are invisible to RSS (laya-serve: 32 MB RSS vs 3.35 GB real). 2026-09-26
+- Keep dashboard rows minimal: no explanatory subtitle lines beyond "↳ fallback:". User removed them as noise. 2026-09-26
+- Don't propose swapping the local model off Gemma or re-running the Gemma vs Qwen A/B. User closed it. 2026-09-26
+
+## Next
+
+- Push `761983a` to main (committed locally, not pushed), then add `XAI_API_KEY` on the Secrets page to activate `deep-research`.
+
+## Todo
 
 - [ ] **`embed` route.** Local `llama-server --embedding` (e.g.
       Qwen3-Embedding-0.6B GGUF, ~0.6 GB) as a new gateway service, or
@@ -46,4 +58,3 @@
       (only after `embed`). Low priority; vision models + Open WebUI cover them.
 - [ ] Point Open WebUI's STT/TTS at LiteLLM `transcribe` / `speech`
       instead of calling :8083 / :8880 directly (keys + spend logging).
-- [ ] Add `XAI_API_KEY` (Secrets page) to activate `deep-research`.
