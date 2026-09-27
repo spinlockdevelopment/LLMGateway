@@ -6,8 +6,9 @@
 #
 # Routes: local (Gemma-4 on the host llama-server at :8082, reached via
 # host.docker.internal), transcribe (whisper :8083), speech (Kokoro :8880); cheap OpenRouter routes coding, reasoning,
-# research; premium deep-reasoning (Opus 5.5 via OpenRouter) and
-# deep-research (Grok 4.7 via xAI direct); decision (TypeSafe Jev Router).
+# research; auto (OpenRouter Auto Router); premium deep-reasoning (Opus 5.5
+# via Anthropic direct) and deep-research (Grok 4.7 via xAI direct);
+# decision (TypeSafe Jev Router).
 # Plus the /local-decision pass-through (Laya) (see general_settings).
 # Local services are defined in config/llmgateway.defaults.yaml.
 # ============================================================
@@ -55,9 +56,9 @@ model_list:
       mode: audio_speech
 
   # ── OpenRouter policy ───────────────────────────────────────
-  # Everything routed through OpenRouter is a cheap model, with ONE
-  # deliberate exception: deep-reasoning (Opus 5.5). decision (Jev) is a
-  # meta-router and prices per request. deep-research calls xAI directly.
+  # Everything routed through OpenRouter is a cheap model. decision (Jev)
+  # and auto are meta-routers and price per request. deep-reasoning calls
+  # Anthropic directly, deep-research calls xAI directly.
 
   # ── coding ──────────────────────────────────────────────────
   # Cheap coding workhorse. Qwen3.8 27B primary (vision + tools),
@@ -113,11 +114,12 @@ model_list:
       tpm: 1000000
 
   # ── deep-reasoning ──────────────────────────────────────────
-  # Premium: Claude Opus 5.5. The one non-cheap OpenRouter route.
+  # Premium: Claude Opus 5.5 direct from Anthropic (not OpenRouter).
+  # Inactive until ANTHROPIC_API_KEY is set in .env.
   - model_name: deep-reasoning
     litellm_params:
-      model: openrouter/anthropic/claude-opus-5.5
-      api_key: os.environ/OPENROUTER_API_KEY
+      model: anthropic/claude-opus-5-5
+      api_key: os.environ/ANTHROPIC_API_KEY
       rpm: 60
       tpm: 400000
 
@@ -138,6 +140,14 @@ model_list:
   - model_name: decision
     litellm_params:
       model: openrouter/typesafe/jev-router
+      api_key: os.environ/OPENROUTER_API_KEY
+
+  # ── auto ────────────────────────────────────────────────────
+  # OpenRouter Auto Router: OpenRouter picks the model per prompt.
+  # Billed at whichever model it picks, so it can land on premium ones.
+  - model_name: auto
+    litellm_params:
+      model: openrouter/openrouter/auto
       api_key: os.environ/OPENROUTER_API_KEY
 
 

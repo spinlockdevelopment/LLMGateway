@@ -2469,13 +2469,13 @@ async function loadLitellmRoutes() {
   // authenticate with the caller's LiteLLM key, not a provider env key.
   function renderPassThroughRow(pt) {
     const name = String(pt.path || '').replace(/^\/+/, '');
-    const sub = pt.include_subpath ? `${pt.path}/*` : pt.path;
-    const authNote = pt.auth ? 'LiteLLM key required' : 'no auth';
+    const shown = pt.include_subpath ? `${pt.path}/*` : pt.path;
+    const target = pt.target || '';
     return `
       <tr>
-        <td><strong>${escapeHtml(pt.path)}</strong><div class="route-fallback">${escapeHtml(sub)} · ${escapeHtml(authNote)}</div></td>
+        <td><strong>${escapeHtml(shown)}</strong></td>
         <td><span class="chip pass-through">Pass-through</span></td>
-        <td class="mono">${escapeHtml(pt.target || '')}</td>
+        <td class="mono">${pt.model ? `${escapeHtml(pt.model)}<div class="route-api-base">${escapeHtml(target)}</div>` : escapeHtml(target)}</td>
         <td>${copyCell(name)}</td>
       </tr>`;
   }

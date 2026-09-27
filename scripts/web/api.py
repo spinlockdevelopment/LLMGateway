@@ -27,6 +27,7 @@ import sys
 import time
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import psutil
 import yaml as pyyaml
@@ -458,6 +459,14 @@ def create_api_router() -> APIRouter:
         # pass_through_endpoints: raw proxy paths (e.g. /local-decision) for backends
         # that aren't chat models, forwarded as-is by LiteLLM.
         general_settings = parsed.get("general_settings") or {}
+        # Label each by the managed service listening on the target's port
+        # (host.docker.internal:8087 → laya → its model).
+        registry = getattr(request.app.state, "service_registry", None)
+        model_by_port: dict[int, str] = {}
+        for svc in (registry.services.values() if registry else []):
+            port = urlparse(svc.health_url or "").port
+            if port and svc.model:
+                model_by_port[port] = svc.model
         pass_through: list[dict[str, Any]] = []
         for entry in general_settings.get("pass_through_endpoints") or []:
             if not isinstance(entry, dict) or not entry.get("path"):
@@ -465,6 +474,7 @@ def create_api_router() -> APIRouter:
             pass_through.append({
                 "path": entry["path"],
                 "target": entry.get("target"),
+                "model": model_by_port.get(urlparse(entry.get("target") or "").port),
                 "include_subpath": bool(entry.get("include_subpath")),
                 "auth": str(entry.get("auth")).lower() == "true",
             })
