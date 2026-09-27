@@ -17,11 +17,12 @@
 
 ## Routing policy
 
-- Everything routed through OpenRouter must be a **cheap** model. The one
-  deliberate exception is `deep-reasoning` (Opus 5.5). Don't add another
-  premium OpenRouter route without asking.
-- Premium routes are named `deep-*` (dashboard category "frontier");
-  `deep-research` calls xAI directly (`XAI_API_KEY`).
+- Everything routed through OpenRouter must be a **cheap** model; `auto`
+  (OpenRouter Auto Router) and `decision` (Jev) are meta-routers. Don't
+  add a premium OpenRouter route without asking.
+- Premium routes are named `deep-*` (dashboard category "frontier") and
+  call providers directly: `deep-reasoning` → Anthropic
+  (`ANTHROPIC_API_KEY`), `deep-research` → xAI (`XAI_API_KEY`).
 - No aliases. Local routes: `local`, `transcribe`, `speech`,
   `/local-decision` (Laya pass-through). The local model stays Gemma-4;
   don't propose swapping it.
@@ -32,11 +33,13 @@
 - Apply LiteLLM config/.env changes via `/ui/litellm-config/save`, never `docker compose restart`. Restart keeps the old env, so a rotated key silently never lands. 2026-09-26
 - Measure model memory as max(RSS, phys_footprint). MPS/Metal weights are invisible to RSS (laya-serve: 32 MB RSS vs 3.35 GB real). 2026-09-26
 - Keep dashboard rows minimal: no explanatory subtitle lines beyond "↳ fallback:". User removed them as noise. 2026-09-26
+- Don't `./gw restart management` until a config save's LiteLLM recreate finishes. The management process runs the recreate; killing it left LiteLLM exited. 2026-09-26
 - Don't propose swapping the local model off Gemma or re-running the Gemma vs Qwen A/B. User closed it. 2026-09-26
 
 ## Next
 
-- Add `XAI_API_KEY` on the Secrets page to activate `deep-research`.
+- Add `ANTHROPIC_API_KEY` and `XAI_API_KEY` on the Secrets page to activate
+  `deep-reasoning` and `deep-research`.
 
 ## Todo
 
