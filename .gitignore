@@ -43,7 +43,8 @@ scripts/*/tmp/
 /logs/
 
 # --- Claude / Cursor / IDE ---
-.claude/
+.claude/*
+!.claude/skills/
 .cursor/
 .vscode/
 .idea/

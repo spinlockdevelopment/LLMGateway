@@ -13,7 +13,7 @@ set -euo pipefail
 
 VENV="${LAYA_VENV:-$HOME/.local/share/llmgateway/venv-laya}"
 PY="${PYTHON:-/opt/homebrew/bin/python3.12}"
-VERSION="${LAYA_VERSION:-0.3.20}"
+VERSION="${LAYA_VERSION:-0.4.0}"
 
 if [[ ! -x "$VENV/bin/python" ]]; then
   echo "Creating venv at $VENV"

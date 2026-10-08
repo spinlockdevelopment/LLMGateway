@@ -30,6 +30,11 @@ model_list:
       model: openai/gemma-4-26b-a4b
       api_base: http://host.docker.internal:8082/v1
       api_key: none
+      # One slot (--parallel 1): a request queued behind a long thinking
+      # answer gets no first byte for minutes. 120 s timeouts + retries
+      # re-queued it and Open WebUI showed nothing.
+      timeout: 600
+      stream_timeout: 600
 
   # ── transcribe ──────────────────────────────────────────────
   # Speech-to-text: whisper.cpp whisper-server (large-v3-turbo) on the
@@ -215,6 +220,10 @@ router_settings:
   # Retry on specific errors
   retry_after: 5
   num_retries: 2
+  # Retrying a timed-out local request only re-queues it on the same slot.
+  model_group_retry_policy:
+    local:
+      TimeoutErrorRetries: 0
 
 
 
@@ -252,6 +261,45 @@ general_settings:
   # Allow direct model pass-through for models not in model_list
   # (clients can request any litellm-supported model string)
   # enable_all_model_access: true
+
+
+# ── PII guardrails (config/guardrails/pii_guard.py) ───────────
+# On for every request except local-only routes (all deployments on this
+# host), so PII never leaves the box but `local` can process it privately.
+# Order matters: pii-mask masks identifiers first, then pii-laya blocks if
+# the masked text still reveals someone's health or finances. Both fail
+# closed. Gap: street addresses (no Presidio recognizer; Laya too noisy).
+# Never give a local route a remote fallback: the guard is skipped for it.
+
+guardrails:
+  - guardrail_name: pii-mask
+    litellm_params:
+      guardrail: pii_guard.LocalAwarePresidio
+      mode: pre_call
+      default_on: true
+      presidio_analyzer_api_base: http://presidio-analyzer:3000
+      presidio_anonymizer_api_base: http://presidio-anonymizer:3000
+      output_parse_pii: true  # restore the real values in responses
+      pii_entities_config:
+        PERSON: MASK
+        EMAIL_ADDRESS: MASK
+        PHONE_NUMBER: MASK
+        US_SSN: MASK
+        US_ITIN: MASK
+        US_PASSPORT: MASK
+        US_DRIVER_LICENSE: MASK
+        US_BANK_NUMBER: MASK
+        CREDIT_CARD: MASK
+        IBAN_CODE: MASK
+        MEDICAL_LICENSE: MASK
+
+  - guardrail_name: pii-laya
+    litellm_params:
+      guardrail: pii_guard.LayaPII
+      mode: pre_call
+      default_on: true
+      laya_api_base: http://host.docker.internal:8087
+      threshold: 0.7
 
 
 # ── Web Search Tools (managed by the proxy) ───────────────────
