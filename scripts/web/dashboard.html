@@ -1387,7 +1387,9 @@ document.querySelectorAll('.topnav-link[data-tab]').forEach(item => {
 async function api(path, opts) {
   try {
     const r = await fetch(path, opts);
-    return await r.json();
+    const body = await r.json();
+    if (!r.ok && body && typeof body === 'object' && !body.error) body.error = 'HTTP ' + r.status;
+    return body;
   } catch (e) {
     console.error('API error:', path, e);
     return null;
@@ -1587,10 +1589,10 @@ async function restartStack() {
 async function restartContainer(name) {
   toast('Restarting ' + name + '...', 'success');
   const r = await api('/ui/docker/container/' + encodeURIComponent(name) + '/restart', { method: 'POST' });
-  if (r && r.status === 'restarting') {
-    toast(name + ' restarting', 'success');
+  if (r && r.status === 'restarted') {
+    toast(name + ' restarted', 'success');
   } else {
-    toast(name + ' restart failed', 'error');
+    toast(name + ' restart failed' + (r && r.error ? ': ' + r.error : ''), 'error');
   }
   setTimeout(() => {
     try { refreshDashboard(); } catch (_) {}
@@ -2227,7 +2229,8 @@ function toggleLogsAutoRefresh() {
 }
 
 async function svcAction(name, action) {
-  toast(action.charAt(0).toUpperCase() + action.slice(1) + 'ing ' + name + '...', 'success');
+  const verb = { start: 'Starting', stop: 'Stopping', restart: 'Restarting', enable: 'Enabling', disable: 'Disabling' }[action] || action;
+  toast(verb + ' ' + name + '...', 'success');
   const r = await api('/ui/services/' + name + '/' + action, { method: 'POST' });
   if (r) {
     toast(name + ': ' + (r.status || 'done'), r.status === 'failed' ? 'error' : 'success');

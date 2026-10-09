@@ -41,12 +41,12 @@ class DockerDesktop(ProvisioningStep):
 
     def install(self) -> None:
         # Check if the cask is already present (app installed but docker CLI missing?)
-        cask_check = run(["brew", "list", "--cask", "docker"], check=False, timeout=20)
+        cask_check = run(["brew", "list", "--cask", "docker-desktop"], check=False, timeout=20)
         if cask_check.returncode == 0:
             log.info("  Docker cask already installed — attempting to start daemon...")
         else:
             log.info("  Installing Docker Desktop via Homebrew cask...")
-            run(["brew", "install", "--cask", "docker"], timeout=600)
+            run(["brew", "install", "--cask", "docker-desktop"], timeout=600)
             log.info("  Docker Desktop cask installed")
 
         # Open Docker Desktop so it can finish first-run setup
@@ -54,8 +54,8 @@ class DockerDesktop(ProvisioningStep):
         self._wait_for_daemon()
 
     def upgrade(self) -> None:
-        log.info("  Upgrading Docker Desktop via Homebrew cask...")
-        run(["brew", "upgrade", "--cask", "docker"], check=False, timeout=600)
+        # Docker Desktop updates itself from its menu; a brew upgrade fights that.
+        log.info("  Docker Desktop: update from its menu (Check for updates)")
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 

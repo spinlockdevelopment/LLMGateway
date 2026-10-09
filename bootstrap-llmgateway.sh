@@ -325,7 +325,7 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
   # helper components — all without GUI prompts.
   if ! has_docker; then
     info "Installing Docker Desktop via Homebrew cask..."
-    $BREW install --cask docker
+    $BREW install --cask docker-desktop
 
     # Accept the Docker license and install privileged components headlessly.
     # The install binary lives inside Docker.app after the cask copies it.

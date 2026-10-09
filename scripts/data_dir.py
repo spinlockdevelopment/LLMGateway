@@ -9,7 +9,6 @@ Layout:
   <data_dir>/
     .env                          (secrets / API keys)
     config/llmgateway.yaml        (user config overrides)
-    litellm-config.yaml           (LiteLLM proxy routes; synced to repo copy)
     setup-config.yaml             (initial setup choices)
     logs/                         (management service stdout/stderr)
     backups/                      (config backups)
@@ -87,6 +86,3 @@ def backups_dir() -> Path:
     return get_data_dir() / "backups"
 
 
-def litellm_config_path() -> Path:
-    """Path to the LiteLLM configuration file."""
-    return get_data_dir() / "litellm-config.yaml"

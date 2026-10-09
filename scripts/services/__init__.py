@@ -96,6 +96,7 @@ class BaseService:
         self._pid: Optional[int] = None
         self._started_at: Optional[float] = None
         self._restart_count: int = 0
+        self._next_restart_at: float = 0.0
         self._last_error: Optional[str] = None
         self._state: ServiceState = ServiceState.STOPPED
 
@@ -151,7 +152,9 @@ class BaseService:
             log.debug(f"  [{self.name}] Disabled — skipping start")
             return False
 
-        if self._state == ServiceState.RUNNING and self._is_process_alive():
+        # Any live process (RUNNING or UNHEALTHY) counts: a second launch
+        # would fail to bind the port and orphan the tracked pid.
+        if self._is_process_alive():
             log.debug(f"  [{self.name}] Already running (pid {self._pid})")
             return True
 
@@ -418,9 +421,17 @@ class ServiceRegistry:
         while True:
             try:
                 await asyncio.sleep(interval)
+                now = time.time()
 
                 for svc in self._services.values():
-                    if svc.state not in (ServiceState.RUNNING, ServiceState.UNHEALTHY):
+                    # FAILED after an auto-restart stays in the loop until the
+                    # attempt budget is spent; a FAILED manual start does not.
+                    retrying = (
+                        svc.state == ServiceState.FAILED
+                        and svc._restart_count > 0
+                        and (max_restarts == 0 or svc._restart_count < max_restarts)
+                    )
+                    if svc.state not in (ServiceState.RUNNING, ServiceState.UNHEALTHY) and not retrying:
                         continue
 
                     healthy = await svc.health_check()
@@ -433,33 +444,36 @@ class ServiceRegistry:
                         not healthy
                         and svc.state == ServiceState.RUNNING
                         and svc._started_at
-                        and time.time() - svc._started_at < grace
+                        and now - svc._started_at < grace
                     ):
                         continue
 
-                    if healthy and svc.state == ServiceState.UNHEALTHY:
-                        svc._state = ServiceState.RUNNING
-                        log.info(f"  [{svc.name}] Recovered — now healthy")
-                    elif not healthy and svc.state == ServiceState.RUNNING:
+                    if healthy:
+                        if svc.state == ServiceState.UNHEALTHY:
+                            svc._state = ServiceState.RUNNING
+                            log.info(f"  [{svc.name}] Recovered — now healthy")
+                        # Stable for 10 min → a later blip gets a fresh budget.
+                        if svc._restart_count and svc._started_at and now - svc._started_at > 600:
+                            svc._restart_count = 0
+                    elif svc.state == ServiceState.RUNNING:
                         svc._state = ServiceState.UNHEALTHY
+                        svc._next_restart_at = now + delay
                         log.warning(f"  [{svc.name}] Health check failed — UNHEALTHY")
-                    elif not healthy and svc.state == ServiceState.UNHEALTHY:
-                        # Already unhealthy — attempt restart if within limits
-                        if max_restarts == 0 or svc._restart_count < max_restarts:
-                            wait = delay * (backoff ** svc._restart_count)
-                            log.warning(
-                                f"  [{svc.name}] Restarting "
-                                f"(attempt {svc._restart_count + 1}, "
-                                f"wait {wait:.0f}s)..."
-                            )
-                            await asyncio.sleep(wait)
-                            await svc.restart()
-                        else:
-                            svc._state = ServiceState.FAILED
-                            log.error(
-                                f"  [{svc.name}] Max restart attempts "
-                                f"({max_restarts}) exceeded — FAILED"
-                            )
+                    elif max_restarts and svc._restart_count >= max_restarts:
+                        svc._state = ServiceState.FAILED
+                        log.error(
+                            f"  [{svc.name}] Max restart attempts "
+                            f"({max_restarts}) exceeded — FAILED"
+                        )
+                    elif now >= svc._next_restart_at:
+                        # Backoff is a per-service deadline, not a sleep, so
+                        # one sick service doesn't stall checks on the rest.
+                        log.warning(
+                            f"  [{svc.name}] Restarting "
+                            f"(attempt {svc._restart_count + 1})..."
+                        )
+                        await svc.restart()
+                        svc._next_restart_at = time.time() + delay * (backoff ** svc._restart_count)
 
             except asyncio.CancelledError:
                 break

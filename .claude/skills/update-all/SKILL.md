@@ -38,14 +38,14 @@ Paths: compose `docker/docker-compose.yml`; host services
 
 | Component | Pinned in | Update | Restart |
 |---|---|---|---|
-| Open WebUI | compose `open-webui` image tag | bump tag | `docker compose -f docker/docker-compose.yml --env-file /opt/storage/llmgateway/.env up -d --no-deps open-webui` |
-| LiteLLM | compose `litellm` image **digest** | `docker pull ghcr.io/berriai/litellm:v<X>` → `docker inspect --format '{{index .RepoDigests 0}}'` → paste digest | Back up DB first (below), `up -d litellm`, then `prisma db push` (below) |
-| Presidio ×2 | compose digests | same digest procedure | `up -d presidio-analyzer presidio-anonymizer`, then test a remote route (guards fail closed) |
-| Postgres / Redis | `postgres:16-alpine`, `redis:8-alpine` (floating) | `docker compose pull postgres redis` | `up -d postgres redis`. Never bump the postgres **major** without a dump/restore |
+| Open WebUI | compose `open-webui` image tag | bump tag | `curl -X POST localhost:8080/ui/docker/container/open-webui/restart` (recreates with `--no-deps`) |
+| LiteLLM | compose `litellm` image **digest** | `docker pull ghcr.io/berriai/litellm:v<X>` → `docker inspect --format '{{index .RepoDigests 0}}'` → paste digest | Back up DB first (below), `curl -X POST localhost:8080/ui/docker/container/llm-gateway/restart`, then `prisma db push` (below) |
+| Presidio ×2 | compose digests | same digest procedure | same endpoint for `presidio-analyzer` and `presidio-anonymizer`, then test a remote route (guards fail closed) |
+| Postgres / Redis | `postgres:16-alpine`, `redis:8-alpine` (floating) | `docker compose pull postgres redis` | same endpoint for `llm-postgres`, `llm-redis`. Never bump the postgres **major** without a dump/restore |
 | Hermes | external: `~/src/hermes-agent` (fork, branch `test-setup`) | merge `NousResearch/hermes-agent:main`, `docker compose build gateway` there | recreate container; see Hermes below |
 | llama.cpp (`local` :8082) | brew `llama.cpp` | `brew upgrade llama.cpp` | `curl -X POST localhost:8080/ui/services/local/stop` then `/start` |
 | whisper.cpp (`whisper-large` :8083) | brew `whisper.cpp` | `brew upgrade whisper.cpp` | `/ui/services/whisper-large/stop`, `/start` |
-| mlx-audio (`kokoro` :8880, `whisper-fast` :8086) | venv `~/.local/share/llmgateway/venv-mlx` | `…/venv-mlx/bin/pip install -U "mlx-audio[tts,stt,server]"` (+ `brew upgrade ffmpeg`) | `/ui/services/kokoro/stop`, `/start` |
+| mlx-audio (`kokoro` :8880) | venv `~/.local/share/llmgateway/venv-mlx` | `…/venv-mlx/bin/pip install -U "mlx-audio[tts,stt,server]"` (+ `brew upgrade ffmpeg`) | `/ui/services/kokoro/stop`, `/start` |
 | Laya (`laya` :8087) | `scripts/install-laya.sh` `VERSION=` | bump `LAYA_VERSION`, run the script | `/ui/services/laya/stop`, `/start` |
 | Docker Desktop | app | Docker menu → Check for updates (GUI; can't be done from a shell) | It restarts every container; afterwards run `./gw health` |
 | Gateway itself | this repo | `git pull` | `./gw restart management` |
@@ -87,8 +87,9 @@ it. Tag `pre-update-<date>` before merging. Don't push without asking.
 ## Rules that bite
 - LiteLLM config / `.env` changes: POST YAML to `/ui/litellm-config/save`.
   Never `docker compose restart`, which keeps the old env.
-- `./gw restart <docker svc>` is `compose restart`, so it won't pick up a new
-  image or env. Use `up -d <svc>`.
+- `./gw restart <container>` and the endpoint above recreate (`up -d --no-deps
+  --force-recreate`), so a new image or env lands. This shell can't read `.env`
+  (TCC), so don't run compose `up` from it.
 - `./gw restart management` only after any LiteLLM recreate has finished.
 - Service binary/model path changes need `./gw restart management`.
 - Local model stays Gemma-4. Upgrading llama.cpp is fine; swapping the GGUF isn't.

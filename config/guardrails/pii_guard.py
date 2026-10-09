@@ -56,19 +56,23 @@ def is_local_route(data: dict) -> bool:
 
 
 def _text_of(content) -> str:
+    """Text of a message body. Recurses into blocks that nest their own
+    content (Anthropic tool_result), so agent turns -- whose newest user
+    message is all tool output -- still reach Laya."""
     if isinstance(content, str):
         return content
     if isinstance(content, list):
-        return "\n".join(
-            p.get("text", "") for p in content if isinstance(p, dict) and isinstance(p.get("text"), str)
-        )
+        parts = (_text_of(p.get("text") if isinstance(p.get("text"), str) else p.get("content"))
+                 for p in content if isinstance(p, dict))
+        return "\n".join(t for t in parts if t)
     return ""
 
 
 def latest_user_text(data: dict) -> str:
-    """Newest user-authored text across chat, Anthropic, Responses and text APIs."""
+    """Newest user- or tool-supplied text across chat, Anthropic, Responses
+    and text APIs (an OpenAI agent's newest turn is a role=tool message)."""
     for m in reversed(data.get("messages") or []):
-        if isinstance(m, dict) and m.get("role") == "user":
+        if isinstance(m, dict) and m.get("role") in ("user", "tool"):
             return _text_of(m.get("content"))
     inp = data.get("input")
     if isinstance(inp, list):
@@ -199,10 +203,13 @@ class LayaPII(CustomGuardrail):
         answers = r.json()["answers"]
         return max(((k, float(answers[k]["noul"])) for k in LAYA_QUESTIONS), key=lambda kv: kv[1])
 
+    def should_run_guardrail(self, data, event_type: GuardrailEventHooks) -> bool:
+        if is_local_route(data):
+            return False
+        return super().should_run_guardrail(data=data, event_type=event_type)
+
     async def async_pre_call_hook(self, user_api_key_dict, cache, data: dict, call_type):
         if not self.should_run_guardrail(data=data, event_type=GuardrailEventHooks.pre_call):
-            return data
-        if is_local_route(data):
             return data
         text = latest_user_text(data)
         if not text.strip():

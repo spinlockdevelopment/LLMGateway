@@ -46,15 +46,9 @@ _start_time = time.time()
 # inside its VM, so the VM process — `com.docker.virtualization` — represents
 # the entire managed stack on the host. Hence "docker" → services.
 _MODEL_SIGS = (
-    "llama-server", "llama.cpp", "llama_cpp",
-    "model-runner", "modelrunner",
-    "vllm", "mlx-", "mlx_lm",
-    "lmstudio", "lm-studio",
-    # Audio models (whisper.cpp STT, Kokoro TTS). Faster-whisper /
-    # whisper-cpp processes load model weights into RSS too — count them
-    # alongside the LLM ones so the bar reflects total model memory.
-    "whisper-server", "whisper.cpp", "whisper_cpp", "faster-whisper",
-    "faster_whisper", "kokoro", "piper",
+    "llama-server", "llama.cpp",
+    # Audio models: whisper.cpp STT, Kokoro TTS under mlx_audio.server.
+    "whisper-server", "whisper.cpp", "mlx_audio", "kokoro",
     # Laya decision model (laya-serve under the venv's python).
     "laya-serve", "venv-laya",
 )
@@ -292,17 +286,9 @@ def create_api_router() -> APIRouter:
         litellm-config.yaml. Used by the dashboard to show endpoints clients
         can connect to.
         """
-        repo_dir = getattr(request.app.state, "repo_dir", None)
-        data_dir = getattr(request.app.state, "data_dir", None) or repo_dir
-
-        # Repo copy first — it's what docker-compose mounts into the
-        # container; the data-dir copy is only a mirror written on save.
-        candidates: list[Path] = []
-        if repo_dir is not None:
-            candidates.append(repo_dir / "config" / "litellm-config.yaml")
-        if data_dir is not None:
-            candidates.append(data_dir / "litellm-config.yaml")
-        yaml_path = next((p for p in candidates if p.exists()), None)
+        yaml_path = request.app.state.repo_dir / "config" / "litellm-config.yaml"
+        if not yaml_path.exists():
+            yaml_path = None
 
         base_url = "http://localhost:4000"
         if yaml_path is None:
@@ -352,17 +338,9 @@ def create_api_router() -> APIRouter:
         request actually goes (provider/backend), and which env var (and
         whether it's set in .env) authenticates the call.
         """
-        repo_dir = getattr(request.app.state, "repo_dir", None)
-        data_dir = getattr(request.app.state, "data_dir", None) or repo_dir
-
-        # Repo copy first — it's what docker-compose mounts into the
-        # container; the data-dir copy is only a mirror written on save.
-        candidates: list[Path] = []
-        if repo_dir is not None:
-            candidates.append(repo_dir / "config" / "litellm-config.yaml")
-        if data_dir is not None:
-            candidates.append(data_dir / "litellm-config.yaml")
-        yaml_path = next((p for p in candidates if p.exists()), None)
+        yaml_path = request.app.state.repo_dir / "config" / "litellm-config.yaml"
+        if not yaml_path.exists():
+            yaml_path = None
 
         if yaml_path is None:
             return {"routes": [], "aliases": {}, "fallbacks": [], "env_keys_present": []}

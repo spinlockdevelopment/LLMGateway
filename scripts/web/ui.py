@@ -108,6 +108,21 @@ def _present_env_keys(env_path: Path) -> set[str]:
     return keys
 
 
+def _litellm_cfg(repo_dir: Path) -> Path:
+    """The one LiteLLM config: the repo file docker-compose bind-mounts."""
+    return repo_dir / "config" / "litellm-config.yaml"
+
+
+def _backup(path: Path, dest_dir: Path) -> None:
+    """Copy path to dest_dir/<name>.<timestamp>.bak, keeping the newest _ENV_MAX_BACKUPS."""
+    if not path.exists():
+        return
+    ts = datetime.now().strftime("%Y%m%d-%H%M%S")
+    shutil.copy2(path, dest_dir / f"{path.name}.{ts}{_ENV_BACKUP_SUFFIX}")
+    for old in sorted(dest_dir.glob(f"{path.name}.*{_ENV_BACKUP_SUFFIX}"), reverse=True)[_ENV_MAX_BACKUPS:]:
+        old.unlink(missing_ok=True)
+
+
 def sync_search_tools_with_env(repo_dir: Path, data_dir: Path) -> list[str]:
     """
     Idempotent sync: for each web-search env var present in .env, ensure the
@@ -121,14 +136,10 @@ def sync_search_tools_with_env(repo_dir: Path, data_dir: Path) -> list[str]:
     if not present:
         return []
 
-    data_cfg = data_dir / "litellm-config.yaml"
-    repo_cfg = repo_dir / "config" / "litellm-config.yaml"
-    if data_cfg.exists():
-        cfg_text = data_cfg.read_text(encoding="utf-8")
-    elif repo_cfg.exists():
-        cfg_text = repo_cfg.read_text(encoding="utf-8")
-    else:
+    repo_cfg = _litellm_cfg(repo_dir)
+    if not repo_cfg.exists():
         return []
+    cfg_text = repo_cfg.read_text(encoding="utf-8")
 
     already = _existing_search_tool_env_keys(cfg_text)
     to_add: list[tuple[str, str, str]] = []
@@ -143,12 +154,7 @@ def sync_search_tools_with_env(repo_dir: Path, data_dir: Path) -> list[str]:
 
     new_text = _insert_search_tool_entries(cfg_text, to_add)
     try:
-        if data_cfg.exists():
-            ts = datetime.now().strftime("%Y%m%d-%H%M%S")
-            shutil.copy2(data_cfg, data_cfg.parent / f"litellm-config.{ts}.yaml.bak")
-        data_cfg.parent.mkdir(parents=True, exist_ok=True)
-        data_cfg.write_text(new_text, encoding="utf-8")
-        repo_cfg.parent.mkdir(parents=True, exist_ok=True)
+        _backup(repo_cfg, data_dir)
         repo_cfg.write_text(new_text, encoding="utf-8")
     except OSError:
         log.warning(
@@ -200,92 +206,58 @@ def _insert_search_tool_entries(yaml_text: str, entries: list[tuple[str, str, st
     return before + "".join(block_lines) + addition + "".join(trailing_blanks) + after
 
 
-# Keys in .env that affect LiteLLM — changes to any of these require a container restart.
-_LITELLM_ENV_KEYS = frozenset({
-    "LITELLM_MASTER_KEY",
-    "LITELLM_SALT_KEY",
-    # LLM provider auth
-    "OPENROUTER_API_KEY", "OPENROUTER_API_BASE",
-    "ANTHROPIC_API_KEY", "ANTHROPIC_API_BASE",
-    "OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_ORGANIZATION",
-    "GEMINI_API_KEY", "GEMINI_API_BASE",
-    "XAI_API_KEY", "XAI_API_BASE",
-    "AZURE_API_KEY", "AZURE_API_BASE", "AZURE_API_VERSION",
-    "PERPLEXITY_API_KEY",
-    "DEEPSEEK_API_KEY", "MISTRAL_API_KEY", "TOGETHER_API_KEY",
-    "COHERE_API_KEY", "FIREWORKS_API_KEY", "REPLICATE_API_KEY",
-    # Web-search providers (consumed by websearch_interception callback)
-    "TAVILY_API_KEY", "EXA_API_KEY",
-    "BRAVE_SEARCH_API_KEY", "SERPER_API_KEY",
-    # OAuth + SSO
-    "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET",
-    "OAUTH_TOKEN_INFO_ENDPOINT",
-    "OAUTH_USER_ID_FIELD_NAME", "OAUTH_USER_ROLE_FIELD_NAME", "OAUTH_USER_TEAM_ID_FIELD_NAME",
-    # Logging callbacks
-    "LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY", "LANGFUSE_HOST",
-    "HELICONE_API_KEY",
-})
-
 # Strong references to fire-and-forget background tasks to prevent GC collection.
 _background_tasks: set[asyncio.Task] = set()
 
 _DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
 
 
-async def _restart_litellm_container(repo_dir: Path, data_dir: Path | None = None) -> bool:
-    """
-    Restart the litellm Docker Compose service so it picks up .env changes.
+async def _run_cmd(cmd: list[str], timeout: float, merge_stderr: bool = False) -> tuple[int, str, str]:
+    """Run a subprocess, return (rc, stdout, stderr). No shell. merge_stderr
+    interleaves stderr into stdout in arrival order (e.g. `docker logs`)."""
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.STDOUT if merge_stderr else asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise
+    return (
+        proc.returncode or 0,
+        stdout.decode("utf-8", errors="replace"),
+        (stderr or b"").decode("utf-8", errors="replace"),
+    )
 
-    Best-effort: logs warnings on failure but never raises.
-    Returns True if the restart command succeeded.
-    """
-    compose_file = repo_dir / "docker" / "docker-compose.yml"
-    if not compose_file.exists():
-        log.warning("  docker-compose.yml not found — skipping LiteLLM restart")
-        return False
 
-    # Build command with --env-file pointing to data_dir/.env
-    cmd = ["docker", "compose", "-f", str(compose_file)]
+async def _recreate(repo_dir: Path, data_dir: Path | None, *services: str) -> str | None:
+    """`compose up -d --no-deps --force-recreate` so .env, config and image
+    changes land (`restart` keeps the old ones). No services = whole stack.
+    Returns None on success, else the error text. Never raises."""
+    cmd = ["docker", "compose", "-f", str(repo_dir / "docker" / "docker-compose.yml")]
     env_file = (data_dir or repo_dir) / ".env"
     if env_file.exists():
-        cmd.extend(["--env-file", str(env_file)])
-    # `restart` reuses the container's original environment, so .env edits
-    # would never land; force-recreate re-reads .env (and the config mount).
-    cmd.extend(["up", "-d", "--no-deps", "--force-recreate", "litellm"])
-
+        cmd += ["--env-file", str(env_file)]
+    cmd += ["up", "-d", "--force-recreate"] + (["--no-deps", *services] if services else [])
     try:
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=60)
-        if proc.returncode == 0:
-            log.info("  LiteLLM container recreated after config/.env change")
-            return True
-        else:
-            err = (stderr or stdout or b"").decode(errors="replace").strip()
-            log.warning("  LiteLLM restart failed (rc=%d): %s", proc.returncode, err)
-            return False
-    except asyncio.TimeoutError:
-        log.warning("  LiteLLM restart timed out (60s)")
-        return False
-    except FileNotFoundError:
-        log.warning("  docker command not found — cannot restart LiteLLM")
-        return False
-    except Exception:
-        log.warning("  LiteLLM restart failed unexpectedly", exc_info=True)
-        return False
+        rc, out, err = await _run_cmd(cmd, timeout=180)
+    except (asyncio.TimeoutError, OSError) as e:
+        rc, out, err = 1, "", f"{type(e).__name__}: {e}"
+    if rc == 0:
+        log.info("  Recreated %s", ", ".join(services) or "stack")
+        return None
+    msg = (err or out).strip()[-2000:]
+    log.warning("  Recreate %s failed (rc=%d): %s", ", ".join(services) or "stack", rc, msg)
+    return msg
 
 
-def _litellm_keys_changed(old_entries: list[dict], new_entries: list[dict]) -> bool:
-    """
-    Compare old and new .env entries to determine if any LiteLLM-relevant
-    keys have changed (added, removed, or modified).
-    """
-    old_map = {e["key"]: e["value"] for e in old_entries if e["key"] in _LITELLM_ENV_KEYS}
-    new_map = {e["key"]: e["value"] for e in new_entries if e["key"] in _LITELLM_ENV_KEYS}
-    return old_map != new_map
+def _recreate_in_background(repo_dir: Path, data_dir: Path | None, *services: str) -> None:
+    task = asyncio.create_task(_recreate(repo_dir, data_dir, *services))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
 
 def create_ui_router() -> APIRouter:
@@ -352,18 +324,6 @@ def create_ui_router() -> APIRouter:
             defaults[key] = rest.strip()
         return defaults
 
-    def _create_env_backup(env_path: Path) -> None:
-        """Create a timestamped backup of .env and prune old backups."""
-        if not env_path.exists():
-            return
-        timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        backup = env_path.parent / f".env.{timestamp}{_ENV_BACKUP_SUFFIX}"
-        shutil.copy2(env_path, backup)
-        log.debug("Env backup created: %s", backup)
-        backups = sorted(env_path.parent.glob(f".env.*{_ENV_BACKUP_SUFFIX}"), reverse=True)
-        for old in backups[_ENV_MAX_BACKUPS:]:
-            old.unlink(missing_ok=True)
-
     # ── Secrets routes ────────────────────────────────────────────────────────
 
     @router.get("/ui/secrets/example")
@@ -393,7 +353,7 @@ def create_ui_router() -> APIRouter:
 
     @router.post("/ui/secrets/save")
     async def save_secrets(request: Request):
-        """Save .env from key-value list. Backs up existing .env. Blank values omitted. Base URL vars only written when their associated API key is set. DATABASE_URL is never written. Automatically restarts the LiteLLM container if any LiteLLM-relevant keys changed."""
+        """Save .env from key-value list. Backs up existing .env. Blank values omitted. Base URL vars only written when their associated API key is set. DATABASE_URL is never written. Recreates the LiteLLM container if anything changed."""
         body = await request.json()
         entries = body.get("entries", [])
         if not isinstance(entries, list):
@@ -404,7 +364,7 @@ def create_ui_router() -> APIRouter:
         # Snapshot current .env entries before overwriting (for change detection)
         old_entries = _parse_env_file(env_path)
 
-        _create_env_backup(env_path)
+        _backup(env_path, env_path.parent)
 
         keys_to_value = {}
         order = []
@@ -413,6 +373,8 @@ def create_ui_router() -> APIRouter:
             v = (item.get("value") or "").strip()
             if not k or k in _EXCLUDED_ENV_KEYS or "=" in k or "\n" in k:
                 continue
+            if "\n" in v or "\r" in v:
+                return JSONResponse(status_code=400, content={"error": f"{k}: value must be one line"})
             keys_to_value[k] = v
             if k not in order:
                 order.append(k)
@@ -444,19 +406,13 @@ def create_ui_router() -> APIRouter:
             if search_tools_added:
                 log.info("  Auto-added search_tools: %s", search_tools_added)
 
-        # Detect if any LiteLLM-relevant env vars changed and restart if needed.
-        # A search_tools edit also requires a restart even if the env keys
-        # themselves are unchanged (rare — would only happen if the user
-        # somehow saved without touching the search keys but the config file
-        # is missing entries).
+        # LiteLLM loads all of .env (env_file), so any change needs a recreate.
         new_entries = _parse_env_file(env_path)
         litellm_restarting = False
-        if _litellm_keys_changed(old_entries, new_entries) or search_tools_added:
+        if old_entries != new_entries or search_tools_added:
             if repo_dir is not None:
-                log.info("  LiteLLM-relevant env vars changed — restarting container...")
-                task = asyncio.create_task(_restart_litellm_container(repo_dir, data_dir))
-                _background_tasks.add(task)
-                task.add_done_callback(_background_tasks.discard)
+                log.info("  .env changed — recreating LiteLLM...")
+                _recreate_in_background(repo_dir, data_dir, "litellm")
                 litellm_restarting = True
 
         return {
@@ -530,27 +486,18 @@ def create_ui_router() -> APIRouter:
         return {"yaml": cm.get_yaml_text()}
 
     # ── LiteLLM config (litellm-config.yaml) ──────────────────────────────────
-    # Edits the file mounted into the litellm Docker container. The data_dir
-    # copy is the source of truth at runtime; on save we also overwrite the
-    # repo copy that docker-compose actually mounts, then restart the container.
+    # Edits the repo file bind-mounted into the litellm container, then
+    # recreates the container. Backups go to the data dir.
 
-    def _litellm_cfg_paths(request: Request) -> tuple[Path, Path]:
+    def _litellm_cfg_path(request: Request) -> Path:
         repo_dir = getattr(request.app.state, "repo_dir", None)
-        data_dir = getattr(request.app.state, "data_dir", None) or repo_dir
         if repo_dir is None:
             raise HTTPException(500, "Repository path not configured")
-        return data_dir / "litellm-config.yaml", repo_dir / "config" / "litellm-config.yaml"
+        return _litellm_cfg(repo_dir)
 
     def _read_litellm_yaml(request: Request) -> str:
-        # Prefer the repo copy: it is the file docker-compose bind-mounts
-        # into the LiteLLM container. The data-dir copy is a mirror written
-        # on save and goes stale when the repo file is edited directly.
-        data_cfg, repo_cfg = _litellm_cfg_paths(request)
-        if repo_cfg.exists():
-            return repo_cfg.read_text(encoding="utf-8")
-        if data_cfg.exists():
-            return data_cfg.read_text(encoding="utf-8")
-        return ""
+        cfg = _litellm_cfg_path(request)
+        return cfg.read_text(encoding="utf-8") if cfg.exists() else ""
 
     def _validate_litellm_yaml(yaml_text: str) -> tuple[list[str], list[str], dict | None]:
         import yaml as pyyaml
@@ -591,33 +538,20 @@ def create_ui_router() -> APIRouter:
         if errors:
             return JSONResponse(status_code=400, content={"errors": errors, "warnings": warnings})
 
-        data_cfg, repo_cfg = _litellm_cfg_paths(request)
-
-        if data_cfg.exists():
-            timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-            backup = data_cfg.parent / f"litellm-config.{timestamp}.yaml.bak"
-            try:
-                shutil.copy2(data_cfg, backup)
-            except OSError:
-                log.warning("  Could not back up litellm-config.yaml", exc_info=True)
-
+        repo_cfg = _litellm_cfg_path(request)
+        repo_dir = request.app.state.repo_dir
+        data_dir = getattr(request.app.state, "data_dir", None) or repo_dir
         try:
-            data_cfg.parent.mkdir(parents=True, exist_ok=True)
-            data_cfg.write_text(yaml_text, encoding="utf-8")
-            repo_cfg.parent.mkdir(parents=True, exist_ok=True)
+            _backup(repo_cfg, data_dir)
             repo_cfg.write_text(yaml_text, encoding="utf-8")
         except OSError as e:
             log.exception("Failed to write litellm-config.yaml")
             return JSONResponse(status_code=500, content={"errors": [str(e)], "warnings": warnings})
 
-        repo_dir = getattr(request.app.state, "repo_dir", None)
-        data_dir = getattr(request.app.state, "data_dir", None)
         litellm_restarting = False
         if repo_dir is not None:
-            log.info("  LiteLLM config edited — restarting container...")
-            task = asyncio.create_task(_restart_litellm_container(repo_dir, data_dir))
-            _background_tasks.add(task)
-            task.add_done_callback(_background_tasks.discard)
+            log.info("  LiteLLM config edited — recreating container...")
+            _recreate_in_background(repo_dir, data_dir, "litellm")
             litellm_restarting = True
 
         return {"status": "saved", "warnings": warnings, "litellm_restarting": litellm_restarting}
@@ -822,18 +756,25 @@ def create_ui_router() -> APIRouter:
         "litellm":    ("llm-gateway",  "LiteLLM proxy",       "core"),
         "postgres":   ("llm-postgres", "PostgreSQL",          "core"),
         "open-webui": ("open-webui",   "Open WebUI",          "core"),
+        "redis":      ("llm-redis",    "Redis",               "core"),
+        "presidio-analyzer":   ("presidio-analyzer",   "Presidio analyzer",   "core"),
+        "presidio-anonymizer": ("presidio-anonymizer", "Presidio anonymizer", "core"),
+        "hermes":     ("hermes-dashboard", "Hermes",          "core"),
         "grafana":    ("grafana",      "Grafana",             "observability"),
         "prometheus": ("prometheus",   "Prometheus",          "observability"),
         "loki":       ("loki",         "Loki",                "observability"),
         "alloy":      ("alloy",        "Alloy",               "observability"),
     }
 
-    _FILE_LOG_SOURCES = {
-        # source_name : (filename_under_data_dir/logs, human_label, group_name)
-        "management":     ("gateway.log",        "LLMGateway Service", "host"),
-        "llama-server":   ("llama-server.log",   "llama.cpp server",  "host"),
-        "whisper-server": ("whisper-server.log", "whisper.cpp server","host"),
-    }
+    def _file_log_sources(request: Request) -> dict[str, tuple[Path, str]]:
+        """source_name -> (path, label): the management log (launchd writes it
+        under ~/Library/Logs) plus data_dir/logs/<service>.log per host service."""
+        from data_dir import log_dir as gateway_log_dir
+        sources = {"management": (Path.home() / "Library/Logs/llm-gateway/gateway.log",
+                                  "LLMGateway Service")}
+        for svc in request.app.state.service_registry.services.values():
+            sources[svc.name] = (gateway_log_dir() / f"{svc.name}.log", svc.description or svc.name)
+        return sources
 
     async def _container_exists(name: str) -> bool:
         if not shutil.which("docker"):
@@ -866,17 +807,9 @@ def create_ui_router() -> APIRouter:
                     "group": group,
                 })
 
-        from data_dir import log_dir as gateway_log_dir
-        log_root = gateway_log_dir()
-        for src, (filename, label, group) in _FILE_LOG_SOURCES.items():
-            path = log_root / filename
+        for src, (path, label) in _file_log_sources(request).items():
             if path.exists() and path.stat().st_size > 0:
-                sources.append({
-                    "id": src,
-                    "label": label,
-                    "kind": "file",
-                    "group": group,
-                })
+                sources.append({"id": src, "label": label, "kind": "file", "group": "host"})
 
         return {"sources": sources}
 
@@ -910,7 +843,7 @@ def create_ui_router() -> APIRouter:
             try:
                 rc, out, err = await _run_cmd(
                     ["docker", "logs", "--tail", str(max_lines), container],
-                    timeout=15,
+                    timeout=15, merge_stderr=True,
                 )
             except asyncio.TimeoutError:
                 return JSONResponse(status_code=504, content={"error": "docker logs timed out"})
@@ -919,15 +852,12 @@ def create_ui_router() -> APIRouter:
                     status_code=500,
                     content={"error": "docker logs failed", "stderr": err[:2000]},
                 )
-            # `docker logs` mixes stdout+stderr; either may be empty alone.
-            combined = (out + err).splitlines()
-            return {"lines": combined[-max_lines:], "source": source}
+            return {"lines": out.splitlines()[-max_lines:], "source": source}
 
         # File source: tail the log file under data_dir/logs.
-        if source in _FILE_LOG_SOURCES:
-            from data_dir import log_dir as gateway_log_dir
-            filename, _label, _group = _FILE_LOG_SOURCES[source]
-            log_path = gateway_log_dir() / filename
+        file_sources = _file_log_sources(request)
+        if source in file_sources:
+            log_path = file_sources[source][0]
             if not log_path.exists():
                 return {"lines": [], "message": "No log file yet."}
             try:
@@ -964,58 +894,36 @@ def create_ui_router() -> APIRouter:
 
     @router.post("/ui/docker/stack/restart")
     async def docker_stack_restart(request: Request):
-        """Restart the entire docker-compose stack."""
-        compose_file = _compose_file_for(request)
-        if not compose_file.exists():
+        """Recreate the whole compose stack (runs in the background)."""
+        if not _compose_file_for(request).exists():
             raise HTTPException(404, "docker-compose.yml not found")
-        data_dir = getattr(request.app.state, "data_dir", None)
-        repo_dir = getattr(request.app.state, "repo_dir", None)
-        env_file = (data_dir or repo_dir) / ".env" if (data_dir or repo_dir) else None
-
-        cmd = ["docker", "compose", "-f", str(compose_file)]
-        if env_file and env_file.exists():
-            cmd.extend(["--env-file", str(env_file)])
-        cmd.append("restart")
-
-        async def _run():
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                await asyncio.wait_for(proc.communicate(), timeout=120)
-            except Exception:
-                log.warning("docker compose restart failed", exc_info=True)
-
-        task = asyncio.create_task(_run())
-        _background_tasks.add(task)
-        task.add_done_callback(_background_tasks.discard)
+        _recreate_in_background(request.app.state.repo_dir, getattr(request.app.state, "data_dir", None))
         return {"status": "restarting"}
 
     @router.post("/ui/docker/container/{name}/restart")
     async def docker_container_restart(name: str, request: Request):
-        """Restart a single container by container name."""
+        """Recreate one container of this compose stack; `docker restart`
+        for containers from other projects (e.g. Hermes)."""
         if not _DOCKER_NAME_RE.match(name):
             raise HTTPException(400, "invalid container name")
         if not shutil.which("docker"):
             raise HTTPException(404, "docker CLI not found")
-
-        async def _run():
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    "docker", "restart", name,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                await asyncio.wait_for(proc.communicate(), timeout=60)
-            except Exception:
-                log.warning("docker restart %s failed", name, exc_info=True)
-
-        task = asyncio.create_task(_run())
-        _background_tasks.add(task)
-        task.add_done_callback(_background_tasks.discard)
-        return {"status": "restarting", "container": name}
+        rc, out, err = await _run_cmd(["docker", "inspect", "-f",
+            '{{index .Config.Labels "com.docker.compose.service"}}|'
+            '{{index .Config.Labels "com.docker.compose.project.config_files"}}', name], timeout=10)
+        if rc != 0:
+            raise HTTPException(404, f"container not found: {name}")
+        service, _, config_files = out.strip().partition("|")
+        compose_file = _compose_file_for(request)
+        if service and str(compose_file.resolve()) in config_files:
+            error = await _recreate(request.app.state.repo_dir,
+                                    getattr(request.app.state, "data_dir", None), service)
+        else:
+            rc, _, err = await _run_cmd(["docker", "restart", name], timeout=60)
+            error = None if rc == 0 else err.strip()
+        if error:
+            return JSONResponse(status_code=500, content={"error": error, "container": name})
+        return {"status": "restarted", "container": name}
 
     # ── Observability stack toggle (Grafana + Prometheus + Loki + Alloy) ────
     # The four observability containers live behind a docker-compose
@@ -1208,25 +1116,6 @@ def create_ui_router() -> APIRouter:
         "google/gemma-4-26B-A4B-it",
         "google/gemma-3-27b-it",
     ]
-
-    async def _run_cmd(cmd: list[str], timeout: float) -> tuple[int, str, str]:
-        """Run a subprocess, return (rc, stdout, stderr). No shell."""
-        proc = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-        try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:
-            proc.kill()
-            await proc.wait()
-            raise
-        return (
-            proc.returncode or 0,
-            stdout.decode("utf-8", errors="replace"),
-            stderr.decode("utf-8", errors="replace"),
-        )
 
     @router.get("/ui/dmr/llmfit/status")
     async def llmfit_status():

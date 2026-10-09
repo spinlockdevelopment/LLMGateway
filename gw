@@ -14,8 +14,8 @@ Usage:
 Components:
     all            Every enabled component (full teardown/restart in safe order)
     management     Gateway management service (llmgateway.py / launchd)
-    llama-server   llama.cpp server (bare metal, default port 8081)
-    whisper-server whisper.cpp server (bare metal, default port 8083)
+    <service>      Host model server run by management (local, whisper-large,
+                   kokoro, laya, … — see `gw` status)
     docker         Entire Docker Compose stack
     litellm        LiteLLM proxy container
     postgres       PostgreSQL container
@@ -52,31 +52,11 @@ from pathlib import Path
 REPO_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(REPO_DIR / "scripts"))
 
-# Import shared modules — graceful fallback if something is broken
-try:
-    from console import (
-        info, success, warn, error, bold, dim, green, red, yellow, cyan,
-        heading, separator, blank,
-    )
-    from data_dir import get_data_dir, setup_config_path, log_dir
-except ImportError:
-    # Minimal fallback if scripts/ is broken
-    def info(msg=""): print(msg)
-    def success(msg): print(f"  ✓ {msg}")
-    def warn(msg): print(f"  ⚠ Warning: {msg}")
-    def error(msg): print(f"  ✗ Error: {msg}")
-    def bold(t): return t
-    def dim(t): return t
-    def green(t): return t
-    def red(t): return t
-    def yellow(t): return t
-    def cyan(t): return t
-    def heading(t): print(f"\n  {t}")
-    def separator(w=88): print(f"  {'─' * w}")
-    def blank(): print()
-    def get_data_dir(): return Path.home() / ".llm-gateway"
-    def setup_config_path(): return get_data_dir() / "setup-config.yaml"
-    def log_dir(): return get_data_dir() / "logs"
+from console import (
+    info, success, warn, error, bold, dim, green, red, yellow, cyan,
+    heading, separator, blank,
+)
+from data_dir import get_data_dir, setup_config_path, log_dir
 
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -85,8 +65,9 @@ MANAGEMENT_LABEL = "com.local.llm-gateway"
 MANAGEMENT_SCRIPT = REPO_DIR / "scripts" / "llmgateway.py"
 MANAGEMENT_PLIST = Path.home() / "Library" / "LaunchAgents" / f"{MANAGEMENT_LABEL}.plist"
 MANAGEMENT_PORT = 8080
-LLAMA_SERVER_DEFAULT_PORT = 8081
-WHISPER_SERVER_DEFAULT_PORT = 8083
+MANAGEMENT_URL = f"http://localhost:{MANAGEMENT_PORT}"
+# launchd writes the management log here (see scripts/launchd/manager.py).
+MANAGEMENT_LOG = Path.home() / "Library" / "Logs" / "llm-gateway" / "gateway.log"
 
 
 # ── Log file setup ───────────────────────────────────────────────────────────
@@ -172,11 +153,6 @@ def _enabled_components() -> set[str]:
     # Observability stack is opt-in (default off)
     if config.get("install_observability", False):
         components.update(_OBSERVABILITY_COMPONENTS)
-    # Show optional components based on setup config
-    if config.get("install_llama_cpp", False):
-        components.add("llama-server")
-    if config.get("install_whisper", False):
-        components.add("whisper-server")
     return components
 
 
@@ -256,45 +232,28 @@ def management_state() -> str:
     return "absent"
 
 
-def _llama_server_active_port() -> int | None:
-    """Return the port a healthy llama-server is currently listening on, or None.
-
-    The management daemon launches `services.local` on the port from
-    llmgateway.yaml (typically 8082); `gw start llama-server` launches the
-    bare-metal slot on LLAMA_SERVER_DEFAULT_PORT (8081). Probe both.
-    """
-    for port in (LLAMA_SERVER_DEFAULT_PORT, 8082):
-        if _http_ok(f"http://localhost:{port}/health"):
-            return port
-    return None
-
-
-def llama_server_state() -> str:
-    if _llama_server_active_port() is not None:
-        return "running"
-    if _process_running("llama-server"):
-        return "starting"
+def _management_json(path: str, method: str = "GET", timeout: float = 5.0):
+    """Call the management API; return parsed JSON, or None if it is down."""
+    req = urllib.request.Request(f"{MANAGEMENT_URL}{path}", method=method)
+    if method != "GET":
+        req.add_header("content-type", "application/json")
+        req.data = b"{}"
     try:
-        import shutil
-        if shutil.which("llama-server"):
-            return "stopped"
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read())
+    except urllib.error.HTTPError as exc:
+        try:
+            return json.loads(exc.read())
+        except Exception:
+            return {"error": f"HTTP {exc.code}"}
     except Exception:
-        pass
-    return "absent"
+        return None
 
 
-def whisper_server_state() -> str:
-    if _http_ok(f"http://localhost:{WHISPER_SERVER_DEFAULT_PORT}/health"):
-        return "running"
-    if _process_running("whisper-server"):
-        return "starting"
-    try:
-        import shutil
-        if shutil.which("whisper-server"):
-            return "stopped"
-    except Exception:
-        pass
-    return "absent"
+def _host_services() -> list[dict]:
+    """Host model servers supervised by management (empty if it is down)."""
+    data = _management_json("/api/status")
+    return (data or {}).get("services", [])
 
 
 # ── Display helpers ───────────────────────────────────────────────────────────
@@ -360,33 +319,25 @@ def print_volume(name: str, desc: str = "") -> None:
 
 # ── Docker compose helper ────────────────────────────────────────────────────
 
-def _tts_enabled() -> bool:
-    """Whether the Kokoro TTS container is enabled for this install.
+def _compose_cmd(*args: str) -> list[str]:
+    """Build a docker compose command for read-only/teardown use (ps, logs, down).
 
-    Defaults to False — TTS is opt-in via the Services panel toggle.
-    """
-    return bool(_load_setup_config().get("install_tts", False))
-
-
-def _compose_cmd(*args: str, force_observability: bool = False, force_tts: bool = False) -> list[str]:
-    """Build docker compose command with --env-file from data_dir.
-
-    When a profile is enabled (or `force_*=True` for the case where the
-    caller is explicitly enabling/disabling it), pass `--profile <name>`
-    so the profiled services are visible to compose. Without the flag,
-    compose hides them from every operation including `down` — which is
-    the right behavior for the lean default install.
+    No --env-file: this shell can't read the data dir (macOS TCC), and an
+    `up` without it would recreate containers with empty keys. Anything that
+    (re)creates containers goes through the management service instead.
     """
     cmd = ["docker", "compose", "-f", str(COMPOSE_FILE)]
-    if force_observability or _observability_enabled():
+    if _observability_enabled():
         cmd.extend(["--profile", "observability"])
-    if force_tts or _tts_enabled():
-        cmd.extend(["--profile", "tts"])
-    env_file = get_data_dir() / ".env"
-    if env_file.exists():
-        cmd.extend(["--env-file", str(env_file)])
     cmd.extend(args)
     return cmd
+
+
+def _compose_containers() -> list[str]:
+    """Container names of every compose service (running or not)."""
+    result = subprocess.run(_compose_cmd("ps", "-a", "--format", "{{.Name}}"),
+                            capture_output=True, text=True, timeout=15)
+    return [ln.strip() for ln in result.stdout.splitlines() if ln.strip()]
 
 
 def _venv_python_for_repo(repo_dir: Path) -> str | None:
@@ -401,17 +352,50 @@ def _venv_python_for_repo(repo_dir: Path) -> str | None:
     return None
 
 
-def _resolve_compose_service(name: str) -> str:
-    """Map user-facing name to docker compose service name."""
+def _resolve_container(name: str) -> str:
+    """Map user-facing component name to its container name."""
     return {
-        "litellm": "litellm",
-        "postgres": "postgres", "db": "postgres",
+        "litellm": "llm-gateway",
+        "postgres": "llm-postgres", "db": "llm-postgres",
+        "redis": "llm-redis",
         "open-webui": "open-webui",
+        "presidio-analyzer": "presidio-analyzer",
+        "presidio-anonymizer": "presidio-anonymizer",
         "grafana": "grafana",
         "prometheus": "prometheus",
         "loki": "loki",
         "alloy": "alloy",
     }.get(name, "")
+
+
+def _container_action(action: str, container: str) -> bool:
+    """start/stop a container directly; restart = recreate via management.
+
+    Restart recreates (`up -d --no-deps --force-recreate`) so a rotated key
+    or image bump lands; `docker restart` would keep the old env and image.
+    """
+    if action != "restart":
+        return subprocess.run(["docker", action, container]).returncode == 0
+    resp = _management_json(f"/ui/docker/container/{container}/restart", "POST", timeout=180)
+    if resp is None:
+        error("Management service is down — it runs container recreates. Start it first.")
+        return False
+    if resp.get("error") or resp.get("detail"):
+        error(str(resp.get("error") or resp.get("detail")))
+        return False
+    return True
+
+
+def _host_service_action(action: str, name: str) -> bool:
+    """start/stop/restart a host model server through the management API."""
+    resp = _management_json(f"/ui/services/{name}/{action}", "POST")
+    if resp is None:
+        error("Management service is down — host services run under it.")
+        return False
+    if resp.get("error") or resp.get("detail"):
+        error(str(resp.get("error") or resp.get("detail")))
+        return False
+    return True
 
 
 def _pgrep_pid_label(pattern: str, label: str) -> str:
@@ -438,53 +422,13 @@ def _spawn_detached(cmd: list[str]) -> None:
     )
 
 
-# Bare-metal services managed via shell commands (binary, install hint, launch argv).
-_BARE_METAL_SERVICES: dict[str, tuple[str, str, list[str]]] = {
-    "llama-server": (
-        "llama-server",
-        "brew install llama.cpp",
-        ["llama-server", "--host", "0.0.0.0", "--port", str(LLAMA_SERVER_DEFAULT_PORT)],
-    ),
-    "whisper-server": (
-        "whisper-server",
-        "brew install whisper-cpp",
-        ["whisper-server", "--host", "0.0.0.0", "--port", str(WHISPER_SERVER_DEFAULT_PORT)],
-    ),
-}
-
-
-def _start_bare_metal(name: str) -> bool:
-    """Start a bare-metal service (llama-server/whisper-server). Returns False if binary missing."""
-    binary, hint, argv = _BARE_METAL_SERVICES[name]
-    if not shutil.which(binary):
-        error(f"{binary} not found. Install: {hint}")
-        return False
-    _spawn_detached(argv)
-    return True
-
-
-def _brew_service_started(service: str) -> bool:
-    """Return True if `brew services list` knows about *service*."""
-    try:
-        result = subprocess.run(
-            ["brew", "services", "list"], capture_output=True, text=True, timeout=15,
-        )
-        return result.returncode == 0 and service in (result.stdout or "")
-    except Exception:
-        return False
-
-
 # ── "all" orchestration ──────────────────────────────────────────────────────
 
 def _ordered_components_for_stop() -> list[str]:
     """Return enabled components in safe stop order: front-facing first, backends last."""
     enabled = _enabled_components()
     # Front-facing → backends. Docker stack is treated as one unit (compose down).
-    candidates = [
-        "management",
-        "llama-server", "whisper-server",
-        "docker",
-    ]
+    candidates = ["management", "docker"]
     return [c for c in candidates if c in enabled]
 
 
@@ -562,23 +506,14 @@ def cmd_status(show_more: bool = False) -> None:
             _pgrep_pid_label("llmgateway.py", "llmgateway.py"),
         ))
 
-    if "llama-server" in enabled:
-        active_port = _llama_server_active_port() or LLAMA_SERVER_DEFAULT_PORT
+    # Host model servers, as the management service supervises them.
+    for svc in _host_services():
         internal_rows.append((
-            "llama-server",
-            llama_server_state(),
-            f"http://0.0.0.0:{active_port}",
-            "llama.cpp GGUF server",
-            _pgrep_pid_label("llama-server", "llama-server"),
-        ))
-
-    if "whisper-server" in enabled:
-        internal_rows.append((
-            "whisper-server",
-            whisper_server_state(),
-            f"http://0.0.0.0:{WHISPER_SERVER_DEFAULT_PORT}",
-            "Speech-to-text (whisper.cpp)",
-            _pgrep_pid_label("whisper-server", "whisper-server"),
+            svc["name"],
+            svc.get("state", "?"),
+            f"http://localhost:{svc['port']}" if svc.get("port") else "",
+            svc.get("description", ""),
+            f"pid:{svc['pid']}" if svc.get("pid") else "",
         ))
 
     blank()
@@ -594,7 +529,7 @@ def cmd_status(show_more: bool = False) -> None:
     else:
         docker_rows = [
             ("llm-gateway",  "litellm",    f"http://{public_host}:4000", "LiteLLM proxy (UI → /ui)"),
-            ("llm-postgres", "postgres",   "http://0.0.0.0:5432",        "PostgreSQL — spend tracking"),
+            ("llm-postgres", "postgres",   "localhost:5432",             "PostgreSQL — spend tracking"),
             ("open-webui",   "open-webui", f"http://{public_host}:3001", "Open WebUI chat front-end"),
             ("grafana",      "grafana",    f"http://{public_host}:3000", "Grafana dashboards"),
             ("prometheus",   "prometheus", f"http://{public_host}:9090", "Prometheus metrics"),
@@ -653,7 +588,7 @@ def cmd_status(show_more: bool = False) -> None:
     info(f"\n  {dim('Service accounts')}")
     blank()
     user = os.environ.get("USER", "unknown")
-    info(f"  {'Host (local):':<18s} {bold(user)}  {dim('management, llama-server')}")
+    info(f"  {'Host (local):':<18s} {bold(user)}  {dim('management + host model servers')}")
     info(f"  {'PostgreSQL:':<18s} {bold('litellm')}  {dim('LiteLLM DB (docker stack)')}")
 
     # Read Grafana user from .env (only relevant when observability is on)
@@ -683,7 +618,7 @@ def cmd_status(show_more: bool = False) -> None:
     secrets_path = data_dir / ".env"
     defaults_path = REPO_DIR / "config" / "llmgateway.defaults.yaml"
     user_cfg_path = data_dir / "config" / "llmgateway.yaml"
-    litellm_cfg_path = data_dir / "litellm-config.yaml"
+    litellm_cfg_path = REPO_DIR / "config" / "litellm-config.yaml"
 
     # Order: setup, secrets, then config files.
     print_path("setup", _prefer_tilde(setup_path), "initial setup choices")
@@ -696,7 +631,7 @@ def cmd_status(show_more: bool = False) -> None:
 
     info(f"\n  {dim('Logs')}")
     blank()
-    print_path("log", _prefer_tilde(data_dir / "logs" / "gateway.log"), "management service")
+    print_path("log", _prefer_tilde(MANAGEMENT_LOG), "management service")
     print_path("log", _prefer_tilde(data_dir / "logs" / "gw.log"), "gw script (this run)")
 
     if show_more:
@@ -825,16 +760,9 @@ def _management_checks() -> list[dict]:
     code, ms, body = _http_probe(url)
     data = _json_or_none(body) if code == 200 else None
     if data is None:
-        rows = [{"name": "management", "target": url, "state": "down",
+        # Host model servers run under management, so they are down with it.
+        return [{"name": "management", "target": url, "state": "down",
                  "code": str(code) if code else "---", "ms": ms, "detail": body[:60]}]
-        # Management is down, so fall back to probing the known bare-metal ports.
-        enabled = _enabled_components()
-        if "llama-server" in enabled:
-            port = _llama_server_active_port() or LLAMA_SERVER_DEFAULT_PORT
-            rows.append(_http_check("llama-server", f"http://localhost:{port}/health"))
-        if "whisper-server" in enabled:
-            rows.append(_http_check("whisper-server", f"http://localhost:{WHISPER_SERVER_DEFAULT_PORT}/health"))
-        return rows
 
     mem = data.get("memory", {})
     rows = [{"name": "management", "target": url, "state": "ok", "code": "200", "ms": ms,
@@ -969,153 +897,123 @@ def cmd_health(as_json: bool = False) -> int:
     return 1 if failed else 0
 
 
-def cmd_start(name: str) -> None:
-    """Start a component."""
-    if name == "all":
-        _all_action("start")
-        return
-    if name in ("management", "gateway"):
-        info(f"  Starting management service...")
+def _management_action(action: str) -> None:
+    """start/stop/restart the management service via launchd."""
+    if action in ("stop", "restart"):
         if MANAGEMENT_PLIST.exists():
-            subprocess.run(["launchctl", "load", str(MANAGEMENT_PLIST)],
-                           capture_output=True)
-        else:
-            warn("Launchd plist not installed — starting directly.")
-            info(f"  {dim('Install with: python3 scripts/llmgateway.py --install')}")
-            python_bin = _venv_python_for_repo(REPO_DIR) or sys.executable
-            _spawn_detached([python_bin, str(MANAGEMENT_SCRIPT)])
-    elif name in _BARE_METAL_SERVICES:
-        info(f"  Starting {name}...")
-        if not _start_bare_metal(name):
+            subprocess.run(["launchctl", "unload", str(MANAGEMENT_PLIST)], capture_output=True)
+        subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
+        if action == "stop":
             return
-    elif name == "docker":
-        info(f"  Starting Docker Compose stack...")
-        subprocess.run(_compose_cmd("up", "-d"))
-    elif name == "hermes-dashboard":
-        info(f"  Starting {name}...")
-        subprocess.run(["docker", "start", name])
+        time.sleep(1)
+    if MANAGEMENT_PLIST.exists():
+        subprocess.run(["launchctl", "load", str(MANAGEMENT_PLIST)], capture_output=True)
     else:
-        svc = _resolve_compose_service(name)
-        if not svc:
-            error(f"Unknown component: {name}")
-            cmd_usage()
-            return
-        info(f"  Starting {name}...")
-        subprocess.run(_compose_cmd("up", "-d", svc))
+        warn("Launchd plist not installed — starting directly.")
+        info(f"  {dim('Install with: python3 scripts/llmgateway.py --install')}")
+        python_bin = _venv_python_for_repo(REPO_DIR) or sys.executable
+        _spawn_detached([python_bin, str(MANAGEMENT_SCRIPT)])
 
-    success("Done.")
-    _log(f"Started: {name}")
+
+def _docker_stack_action(action: str) -> bool:
+    """start/stop every compose container; restart = recreate via management."""
+    if action == "restart":
+        resp = _management_json("/ui/docker/stack/restart", "POST", timeout=300)
+        if resp is None:
+            error("Management service is down — it runs container recreates. Start it first.")
+            return False
+        return not (resp.get("error") or resp.get("detail"))
+    containers = _compose_containers()
+    if not containers:
+        error("No compose containers found. Create them once with the setup script.")
+        return False
+    return subprocess.run(["docker", action, *containers]).returncode == 0
+
+
+def cmd_action(action: str, name: str) -> None:
+    """start / stop / restart one component."""
+    if name == "all":
+        _all_action(action)
+        return
+    verb = {"start": "Starting", "stop": "Stopping", "restart": "Restarting"}[action]
+    host_names = {svc["name"] for svc in _host_services()}
+
+    if name in ("management", "gateway"):
+        info(f"  {verb} management service...")
+        _management_action(action)
+        ok = True
+    elif name in host_names:
+        info(f"  {verb} {name}...")
+        ok = _host_service_action(action, name)
+    elif name == "docker":
+        info(f"  {verb} Docker Compose stack...")
+        ok = _docker_stack_action(action)
+    elif name == "hermes-dashboard":
+        # Standalone container, not in compose; recreate steps live in the
+        # update-all skill.
+        info(f"  {verb} {name}...")
+        ok = subprocess.run(["docker", action, name]).returncode == 0
+    elif _resolve_container(name):
+        info(f"  {verb} {name}...")
+        ok = _container_action(action, _resolve_container(name))
+    else:
+        error(f"Unknown component: {name}")
+        if host_names:
+            info(f"  {dim('Host services: ' + ', '.join(sorted(host_names)))}")
+        cmd_usage()
+        return
+
+    if ok:
+        success("Done.")
+        _log(f"{action}: {name}")
+
+
+def cmd_start(name: str) -> None:
+    cmd_action("start", name)
 
 
 def cmd_stop(name: str) -> None:
-    """Stop a component."""
-    if name == "all":
-        _all_action("stop")
-        return
-    if name in ("management", "gateway"):
-        info(f"  Stopping management service...")
-        if MANAGEMENT_PLIST.exists():
-            subprocess.run(["launchctl", "unload", str(MANAGEMENT_PLIST)],
-                           capture_output=True)
-        subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
-    elif name in _BARE_METAL_SERVICES:
-        info(f"  Stopping {name}...")
-        subprocess.run(["pkill", "-f", name], capture_output=True)
-    elif name == "docker":
-        info(f"  Stopping Docker Compose stack...")
-        subprocess.run(_compose_cmd("down"))
-    elif name == "hermes-dashboard":
-        info(f"  Stopping {name}...")
-        subprocess.run(["docker", "stop", name])
-    else:
-        svc = _resolve_compose_service(name)
-        if not svc:
-            error(f"Unknown component: {name}")
-            cmd_usage()
-            return
-        info(f"  Stopping {name}...")
-        subprocess.run(_compose_cmd("stop", svc))
-
-    success("Done.")
-    _log(f"Stopped: {name}")
+    cmd_action("stop", name)
 
 
 def cmd_restart(name: str) -> None:
-    """Restart a component."""
-    if name == "all":
-        _all_action("restart")
-        return
-    if name in ("management", "gateway"):
-        info(f"  Restarting management service...")
-        if MANAGEMENT_PLIST.exists():
-            subprocess.run(["launchctl", "unload", str(MANAGEMENT_PLIST)],
-                           capture_output=True)
-            time.sleep(0.5)
-            subprocess.run(["launchctl", "load", str(MANAGEMENT_PLIST)])
-        else:
-            subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
-            time.sleep(1)
-            python_bin = _venv_python_for_repo(REPO_DIR) or sys.executable
-            _spawn_detached([python_bin, str(MANAGEMENT_SCRIPT)])
-    elif name in _BARE_METAL_SERVICES:
-        info(f"  Restarting {name}...")
-        subprocess.run(["pkill", "-f", name], capture_output=True)
-        time.sleep(1)
-        _start_bare_metal(name)
-    elif name == "docker":
-        info(f"  Restarting Docker Compose stack...")
-        subprocess.run(_compose_cmd("restart"))
-    elif name == "hermes-dashboard":
-        info(f"  Restarting {name}...")
-        subprocess.run(["docker", "restart", name])
-    else:
-        svc = _resolve_compose_service(name)
-        if not svc:
-            error(f"Unknown component: {name}")
-            cmd_usage()
-            return
-        info(f"  Restarting {name}...")
-        subprocess.run(_compose_cmd("restart", svc))
+    cmd_action("restart", name)
 
-    success("Done.")
-    _log(f"Restarted: {name}")
+
+def _tail_file(path: Path) -> None:
+    info(f"  {dim(f'Tailing {path} (Ctrl-C to stop)...')}")
+    try:
+        subprocess.run(["tail", "-n", "50", "-f", str(path)])
+    except KeyboardInterrupt:
+        pass
 
 
 def cmd_logs(name: str) -> None:
     """Tail logs for a component."""
-    data_dir = get_data_dir()
-
     if name in ("management", "gateway"):
-        log_file = data_dir / "logs" / "gateway.log"
-        if log_file.exists():
-            info(f"  {dim(f'Tailing {log_file} (Ctrl-C to stop)...')}")
-            try:
-                subprocess.run(["tail", "-f", str(log_file)])
-            except KeyboardInterrupt:
-                pass
+        if MANAGEMENT_LOG.exists():
+            _tail_file(MANAGEMENT_LOG)
         else:
-            warn(f"Log not found: {log_file}")
-            info(f"  {dim('The log is created when the management service runs via launchd.')}")
-    elif name in ("llama-server", "whisper-server"):
-        info(f"  {dim(f'No dedicated log for {name}.')}")
-        log_file = data_dir / "logs" / "gateway-stdout.log"
-        if log_file.exists():
-            info(f"  {dim('Management service log may include subprocess output:')}")
-            try:
-                subprocess.run(["tail", "-f", str(log_file)])
-            except KeyboardInterrupt:
-                pass
+            warn(f"Log not found: {MANAGEMENT_LOG}")
+    elif name in {svc["name"] for svc in _host_services()}:
+        # Host logs live under the data dir, which this shell can't read
+        # (macOS TCC); the management service reads them for us.
+        # lean: last 200 lines, no follow; poll /ui/logs/<name>/tail if -f is needed.
+        data = _management_json(f"/ui/logs/{name}/tail?lines=200") or {}
+        for line in data.get("lines", []):
+            print(line)
+        if not data.get("lines"):
+            warn(data.get("message") or data.get("error") or data.get("detail") or "No log lines.")
     elif name == "docker":
         subprocess.run(_compose_cmd("logs", "-f", "--tail=50"))
-    elif name == "hermes-dashboard":
-        subprocess.run(["docker", "logs", "-f", "--tail=50", name])
+    elif name == "hermes-dashboard" or _resolve_container(name):
+        try:
+            subprocess.run(["docker", "logs", "-f", "--tail=50", _resolve_container(name) or name])
+        except KeyboardInterrupt:
+            pass
     else:
-        svc = _resolve_compose_service(name)
-        if not svc:
-            error(f"Unknown component: {name}")
-            cmd_usage()
-            return
-        subprocess.run(_compose_cmd("logs", "-f", "--tail=50", svc))
+        error(f"Unknown component: {name}")
+        cmd_usage()
 
 
 def cmd_uninstall() -> None:
@@ -1138,12 +1036,7 @@ def cmd_uninstall() -> None:
         subprocess.run(["pkill", "-f", "llmgateway.py"], capture_output=True)
         success("done")
 
-    # 2. llama-server / whisper-server
-    for proc in ("llama-server", "whisper-server"):
-        if _process_running(proc):
-            info(f"  Stopping {proc}...")
-            subprocess.run(["pkill", "-f", proc], capture_output=True)
-            success("done")
+    # Host model servers stop with management (registry.stop_all on shutdown).
 
     # 4. CLI symlink (gw on PATH)
     try:
@@ -1193,11 +1086,12 @@ def cmd_usage() -> None:
     info(f"  {bold('Components:')}")
     info(f"    {'all':<14s}  Every enabled component (front-facing → backend order)")
     info(f"    {'management':<14s}  Gateway web UI + management service (launchd)")
-    info(f"    {'llama-server':<14s}  llama.cpp server  → http://localhost:8081")
-    info(f"    {'whisper-server':<14s}  whisper.cpp STT   → http://localhost:8083")
+    info(f"    {'<service>':<14s}  Host model server run by management (local, whisper-large, kokoro, laya…)")
     info(f"    {'docker':<14s}  Entire Docker Compose stack")
     info(f"    {'litellm':<14s}  LiteLLM proxy     → http://localhost:4000")
     info(f"    {'postgres':<14s}  PostgreSQL container")
+    info(f"    {'redis':<14s}  Redis cache container")
+    info(f"    {'presidio-*':<14s}  presidio-analyzer / presidio-anonymizer (PII guard)")
     info(f"    {'open-webui':<14s}  Open WebUI chat   → http://localhost:3001")
     info(f"    {'grafana':<14s}  Grafana dashboards → http://localhost:3000")
     info(f"    {'prometheus':<14s}  Prometheus metrics → http://localhost:9090")
