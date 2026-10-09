@@ -5,7 +5,8 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  # LiteLLM Proxy /metrics endpoint (built-in Prometheus callback)
+  # LiteLLM Proxy /metrics endpoint (built-in Prometheus callback).
+  # /metrics requires a key: add `authorization: {credentials: <master key>}`.
   - job_name: litellm
     static_configs:
       - targets: ["llm-gateway:4000"]
