@@ -28,7 +28,6 @@ import argparse
 import asyncio
 import contextlib
 import logging
-import os
 import platform
 import signal
 import sys
@@ -41,53 +40,6 @@ sys.path.insert(0, str(_SCRIPT_DIR))
 
 _LOG_FORMAT = "%(asctime)s [%(levelname)-8s] %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-
-
-def _ensure_venv(log: logging.Logger) -> None:
-    """
-    Verify that the gateway is running inside the project virtual environment.
-
-    Uses sys.prefix vs sys.base_prefix (the standard Python venv detection
-    mechanism) rather than resolving sys.executable, because resolve() follows
-    symlinks and venv interpreters on macOS are symlink chains back to the
-    system/Homebrew Python binary.
-
-    Always logs the current Python executable path. If the interpreter is not
-    running inside the repo's .venv, log a critical error, wait for a keypress
-    in interactive shells, and abort. All output goes through the shared logger
-    so every line carries a timestamp and level, matching the rest of the daemon.
-    """
-    venv_dir = _REPO_DIR / ".venv"
-
-    log.info(f"Python executable: {sys.executable}")
-
-    is_any_venv = sys.prefix != sys.base_prefix
-    is_project_venv = (
-        is_any_venv
-        and Path(sys.prefix).resolve() == venv_dir.resolve()
-    )
-
-    if is_project_venv:
-        log.info(f"Virtual env: {venv_dir} (OK)")
-        return
-
-    log.critical("Service is not running inside the project virtual environment.")
-    log.critical(f"Expected venv at: {venv_dir}")
-    if is_any_venv:
-        log.critical(f"Active venv: {sys.prefix}")
-        log.critical("A virtual environment is active, but it is not the project venv.")
-    else:
-        log.critical("No virtual environment is active.")
-    log.critical("Run ./bootstrap-llmgateway.sh to create the venv,")
-    log.critical("then use the venv Python interpreter to run this script.")
-
-    if sys.stdin is not None and sys.stdin.isatty():
-        try:
-            input("[llm-gateway] Press Enter to abort...")
-        except (EOFError, KeyboardInterrupt):
-            pass
-
-    sys.exit(1)
 
 
 def _setup_logging(level: str = "INFO") -> logging.Logger:
@@ -111,46 +63,26 @@ def _setup_logging(level: str = "INFO") -> logging.Logger:
     return logger
 
 
-# ── Service factory ───────────────────────────────────────────────────────────
+def _load_config():
+    """Return (ConfigManager, data_dir): repo defaults + data-dir overrides."""
+    from config.manager import ConfigManager
+    from data_dir import get_data_dir
 
-def _create_service(name: str, svc_config: dict):
-    """Instantiate the correct service manager based on config type."""
-    from services.llamacpp import LlamaCppService
-    from services.whisper import WhisperService
-
-    svc_type = svc_config.get("type", "").lower()
-
-    if svc_type == "llamacpp":
-        return LlamaCppService(name, svc_config)
-    elif svc_type in ("whisper", "audio", "generic"):
-        # "audio" covers mlx_audio.server (TTS + STT in one process) and
-        # "generic" any other binary+env server (e.g. laya-serve); the
-        # underlying handler is the same generic binary+args wrapper.
-        return WhisperService(name, svc_config)
-    else:
-        logging.getLogger("llm-gateway").warning(
-            f"  Unknown service type '{svc_type}' for '{name}' — skipping"
-        )
-        return None
+    data_dir = get_data_dir()
+    cm = ConfigManager(_REPO_DIR / "config", user_config_dir=data_dir / "config")
+    cm.load()
+    return cm, data_dir
 
 
 # ── Commands ──────────────────────────────────────────────────────────────────
 
 def cmd_install(log: logging.Logger) -> int:
     """Register the gateway as a macOS launchd agent."""
-    from config.manager import ConfigManager
-    from data_dir import get_data_dir
     from launchd.manager import install
     from cli_symlink import install_symlink
 
-    data_dir = get_data_dir()
-    config_dir = _REPO_DIR / "config"
-    user_config_dir = data_dir / "config"
-    cm = ConfigManager(config_dir, user_config_dir=user_config_dir)
-    cm.load()
-
-    port = cm.config.get("gateway", {}).get("port", 8080)
-    ok = install(repo_dir=_REPO_DIR, port=port, data_dir=data_dir)
+    _, data_dir = _load_config()
+    ok = install(repo_dir=_REPO_DIR, data_dir=data_dir)
     if ok:
         log.info("Launch agent installed. The gateway will start on next login.")
         log.info("To start now: launchctl load ~/Library/LaunchAgents/com.local.llm-gateway.plist")
@@ -171,17 +103,10 @@ def cmd_uninstall(log: logging.Logger) -> int:
 def cmd_status(log: logging.Logger) -> int:
     """Print status to stdout without starting the server."""
     import psutil
-    from config.manager import ConfigManager
-    from data_dir import get_data_dir
-    from services import ServiceRegistry
     from launchd.manager import status as launchd_status
     from steps.ssh_setup import check_remote_login_status
 
-    data_dir = get_data_dir()
-    config_dir = _REPO_DIR / "config"
-    user_config_dir = data_dir / "config"
-    cm = ConfigManager(config_dir, user_config_dir=user_config_dir)
-    cm.load()
+    cm, _ = _load_config()
 
     log.info("=" * 52)
     log.info("  LLM Gateway — Status")
@@ -225,17 +150,10 @@ def cmd_status(log: logging.Logger) -> int:
 
 async def cmd_serve(log: logging.Logger) -> int:
     """Start the web UI, REST API, and service manager."""
-    from config.manager import ConfigManager
-    from data_dir import get_data_dir
-    from services import ServiceRegistry
+    from services import Service, ServiceRegistry
     from web import create_app
 
-    # Load config — defaults from repo, user overrides from data_dir
-    data_dir = get_data_dir()
-    config_dir = _REPO_DIR / "config"
-    user_config_dir = data_dir / "config"
-    cm = ConfigManager(config_dir, user_config_dir=user_config_dir)
-    warnings = cm.load()
+    cm, data_dir = _load_config()
 
     gateway_cfg = cm.config.get("gateway", {})
     host = gateway_cfg.get("host", "127.0.0.1")
@@ -253,9 +171,7 @@ async def cmd_serve(log: logging.Logger) -> int:
 
     services_config = cm.config.get("services", {})
     for name, svc_cfg in services_config.items():
-        svc = _create_service(name, svc_cfg)
-        if svc is not None:
-            registry.register(svc)
+        registry.register(Service(name, svc_cfg))
 
     # Reconcile litellm-config.yaml with .env: add search_tools entries for
     # any web-search API key (Tavily/Exa/Brave/Serper) that's set but not yet
@@ -277,7 +193,7 @@ async def cmd_serve(log: logging.Logger) -> int:
     log.info("=" * 52)
     log.info(f"  Dashboard:    http://{host}:{port}")
     log.info(f"  REST API:     http://{host}:{port}/api/status")
-    log.info(f"  Config dir:   {config_dir}")
+    log.info(f"  Config dir:   {_REPO_DIR / 'config'}")
     log.info(f"  Data dir:     {data_dir}")
     svc_count = sum(1 for s in registry.services.values() if s.enabled)
     log.info(f"  Services:     {svc_count} enabled / {len(registry.services)} configured")

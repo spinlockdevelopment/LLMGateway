@@ -33,6 +33,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 
+from .endpoints import _parse_env, _run
+
 log = logging.getLogger("llm-gateway")
 
 _EXCLUDED_ENV_KEYS = frozenset({"DATABASE_URL"})
@@ -94,18 +96,8 @@ def _existing_search_tool_env_keys(yaml_text: str) -> set[str]:
 
 
 def _present_env_keys(env_path: Path) -> set[str]:
-    """Parse a .env file and return keys whose value is non-empty."""
-    if not env_path.exists():
-        return set()
-    keys: set[str] = set()
-    for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, val = line.partition("=")
-        if val.strip():
-            keys.add(key.strip())
-    return keys
+    """Keys in a .env file whose value is non-empty."""
+    return {k for k, v in _parse_env(env_path, strip_quotes=False).items() if v}
 
 
 def _litellm_cfg(repo_dir: Path) -> Path:
@@ -213,24 +205,14 @@ _DASHBOARD_PATH = Path(__file__).parent / "dashboard.html"
 
 
 async def _run_cmd(cmd: list[str], timeout: float, merge_stderr: bool = False) -> tuple[int, str, str]:
-    """Run a subprocess, return (rc, stdout, stderr). No shell. merge_stderr
-    interleaves stderr into stdout in arrival order (e.g. `docker logs`)."""
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.STDOUT if merge_stderr else asyncio.subprocess.PIPE,
-    )
-    try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-    except asyncio.TimeoutError:
-        proc.kill()
-        await proc.wait()
-        raise
-    return (
-        proc.returncode or 0,
-        stdout.decode("utf-8", errors="replace"),
-        (stderr or b"").decode("utf-8", errors="replace"),
-    )
+    """endpoints._run with decoded output; raises FileNotFoundError /
+    asyncio.TimeoutError instead of returning -1 / -2."""
+    rc, out, err = await _run(*cmd, timeout=timeout, merge_stderr=merge_stderr)
+    if rc == -1:
+        raise FileNotFoundError(cmd[0])
+    if rc == -2:
+        raise asyncio.TimeoutError
+    return rc, out.decode("utf-8", errors="replace"), err.decode("utf-8", errors="replace")
 
 
 async def _recreate(repo_dir: Path, data_dir: Path | None, *services: str) -> str | None:
@@ -288,41 +270,13 @@ def create_ui_router() -> APIRouter:
         return data_dir / ".env", repo_dir / ".env.example"
 
     def _parse_env_file(path: Path) -> list[dict]:
-        """Parse a .env file into list of {key, value}. Skips comments and empty lines."""
-        if not path.exists():
-            return []
-        entries = []
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            key, _, rest = line.partition("=")
-            key = key.strip()
-            if key in _EXCLUDED_ENV_KEYS:
-                continue
-            value = rest.strip()
-            entries.append({"key": key, "value": value})
-        return entries
+        """.env as an ordered [{key, value}] list, raw values, DATABASE_URL excluded."""
+        return [{"key": k, "value": v} for k, v in _parse_env(path, strip_quotes=False).items()
+                if k not in _EXCLUDED_ENV_KEYS]
 
     def _parse_env_example(path: Path) -> dict[str, str]:
-        """Parse .env.example into key -> default value. Excludes DATABASE_URL."""
-        if not path.exists():
-            return {}
-        defaults = {}
-        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if "=" not in line:
-                continue
-            key, _, rest = line.partition("=")
-            key = key.strip()
-            if key in _EXCLUDED_ENV_KEYS:
-                continue
-            defaults[key] = rest.strip()
-        return defaults
+        """.env.example as key -> default value, DATABASE_URL excluded."""
+        return {e["key"]: e["value"] for e in _parse_env_file(path)}
 
     # ── Secrets routes ────────────────────────────────────────────────────────
 

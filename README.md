@@ -1,280 +1,89 @@
 # LLM Gateway
 
-A single place to send all your LLM traffic on an Apple Silicon Mac. **LiteLLM Proxy** does the routing, auth, and spend tracking; a small **management interface** gives you a local dashboard with config editor and control over optional local services (llama.cpp, Whisper). Local inference is provided by **Docker Model Runner** (bundled with Docker Desktop, running llama.cpp on Apple Metal). Point Claude Code, Cursor, Agents or any compatible client at one endpoint to route to local models or your subscriptions (e.g. Claude, OpenAI, Gemini, OpenRouter).
-
----
-
-## Architecture (simple view)
-
-```
-                    Tools / Agents
-         Claude Code · Cursor · OpenClaw · (etc)
-                              │
-                              ▼
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  YOUR MACHINE                                                               │
-│                                                                             │
-│  ┌──────────────────────┐ ┌──────────────────────┐ ┌──────────────────────┐ │
-│  │  Management svc      │ │  LiteLLM Proxy       │ │  Observability       │ │
-│  │  port 8080           │ │  port 4000           │ │  Grafana · port 3000 │ │
-│  └──────────┬───────────┘ └──────────┬───────────┘ └──────────┬───────────┘ │
-│             │                        │                        │             │
-│             └────────────────────────┼────────────────────────┘             │
-│                                                                             │
-│                              Docker stack                                   │
-│  LiteLLM · Docker Model Runner · PostgreSQL · Grafana · Prometheus · Loki   │
-│                                       │                                     │
-│                                       │               ┌──────────────────┐  │
-│             LiteLLM Proxy ────────────┼────────────▶ │ Local inference  │  │
-│                 │                     │               │ · Docker Model   │  │
-│                 │                     ▼               │   Runner (Metal) │  │
-│                 │                                     │ · llama-server   │  │
-│                 │                                     │ · whisper-server │  │
-│                 │                                     └──────────────────┘  │
-└─────────────────┼───────────────────────────────────────────────────────────┘
-                  │
-                  ▼
-                  Cloud Services
-         Claude · OpenAI · OpenRouter · (etc)
-
+One OpenAI-compatible endpoint for all LLM traffic on a single 32 GB M4 Mac
+mini. LiteLLM (:4000) routes each request to a local model on the host or to
+a cheap remote one. A management service (:8080) runs the host model servers
+and serves the dashboard.
 
 ```
+client ─▶ LiteLLM :4000 ─┬─▶ host.docker.internal: Gemma :8082 · whisper :8083
+          (PII guards on │                         Kokoro :8880 · Laya :8087
+           remote routes)└─▶ OpenRouter · Anthropic · xAI
+```
 
-- **Tools/agents** (e.g. Claude Code, Cursor, OpenClaw) send requests to **LiteLLM Proxy** at `http://<this-mac>:4000`.
-- **Your machine** runs the **management app** (port 8080), **LiteLLM Proxy** (port 4000), and **observability** (Grafana), linked to the **Docker stack** (LiteLLM, PostgreSQL, Grafana, Prometheus, Loki, Alloy).
-- **LiteLLM** routes traffic **out** to **cloud services** (OpenRouter, Anthropic, etc.) and **down** to **local inference** (Docker Model Runner; optionally llama-server or Whisper).
+## Routes
 
----
+| Route | Backend | Notes |
+|---|---|---|
+| `local` | Gemma-4-26B-A4B on llama-server :8082 | May carry PII; never has a remote fallback |
+| `transcribe` | whisper.cpp :8083 | `/v1/audio/transcriptions` |
+| `speech` | Kokoro (mlx-audio) :8880 | `/v1/audio/speech` |
+| `/local-decision` | Laya :8087 | Pass-through: `POST /local-decision/v1/systemone` |
+| `coding`, `reasoning`, `research` | OpenRouter (cheap models, load-balanced) | |
+| `decision`, `auto` | OpenRouter meta-routers (Jev, Auto Router) | `auto` can land on premium models |
+| `deep-reasoning` | Anthropic direct | Needs `ANTHROPIC_API_KEY` |
+| `deep-research` | xAI direct | Needs `XAI_API_KEY` |
 
-## What’s in this repo
+Remote routes pass two guards from `config/guardrails/pii_guard.py`:
+`pii-mask` (Presidio masks names, emails, IDs and card numbers) and `pii-laya`
+(blocks text that still reveals someone's health or finances). Both fail
+closed. Local routes skip them.
 
-| Piece | Purpose |
-|-------|--------|
-| **LiteLLM Proxy** (Docker) | One API endpoint; routes requests to local models, Anthropic, OpenAI, OpenRouter, etc; virtual keys, spend tracking, dashboard at `/ui`. |
-| **Management app** (Python) | Web UI + REST API; config editor; starts/monitors optional local models (llama.cpp / Whisper). |
-| **Bootstrap** (`bootstrap-llmgateway.sh`) | Ensures OS-level prerequisites (Xcode CLT, Homebrew, Git, Python 3.11+, Docker Desktop) are installed, creates a Python venv, then hands off to the setup script. Only requests `sudo` when a missing dependency requires it. Can clone the repo into `~/src/LLMGateway` when run via curl. |
-| **Setup** (`scripts/setup-llmgateway.py`) | Application-level provisioning: Git repo, Node.js, Claude Code CLI, Docker stack, `.env`, optional components (llama-server, whisper-server, SSH), and installs the management console as a launchd agent. Runs as a standard user — no admin required. |
-
-This repo is config, Docker stack, and the management tooling for running LiteLLM which handles routing, auth, and usage. 
-
----
-
-## What you need
-
-- Mac with Apple Silicon (M1/M2/M3/M4)
-- API keys for the providers you want to use: [OpenRouter](https://openrouter.ai/keys), [Anthropic](https://console.anthropic.com/), [OpenAI](https://platform.openai.com/settings/organization/api-keys), etc.
-- Docker Desktop (bootstrap installs it automatically if missing)
-
----
-
-## Get running
-
-### 1. Bootstrap (OS-level prerequisites)
-
-The bootstrap script checks for Homebrew, Git, Python 3.11+, and Docker Desktop. If everything is already installed, **no elevated privileges are needed**. If any dependency is missing, the script asks you before installing (use `--install` or `--launch` to skip the prompt). Installation requires `sudo` for the missing tools only (Xcode CLT, Homebrew, Docker Desktop, etc.), then the script drops back to your normal user account for the remaining steps. After prerequisites are in place, the bootstrap creates a Python virtual environment at `~/src/LLMGateway/.venv` and installs pip dependencies.
-
-**Option A — clone then run (recommended):**
+## Connect a client
 
 ```bash
-git clone https://github.com/spinlockdevelopment/LLMGateway.git ~/src/LLMGateway
-cd ~/src/LLMGateway
-./bootstrap-llmgateway.sh            # interactive (asks before each step)
-./bootstrap-llmgateway.sh --install  # auto-install deps, ask before launching setup
-./bootstrap-llmgateway.sh --launch   # fully automatic (no prompts)
+curl http://<host>:4000/v1/chat/completions \
+  -H "Authorization: Bearer $LITELLM_KEY" -H 'content-type: application/json' \
+  -d '{"model":"local","messages":[{"role":"user","content":"hi"}]}'
 ```
 
-**Option B — curl (script clones into `~/src/LLMGateway` for you):**
+Base URL `http://<host>:4000/v1`. The key is `LITELLM_MASTER_KEY` from `.env`
+or a virtual key made in the LiteLLM UI (`/ui`). On the tailnet, use HTTPS:
+:443 LiteLLM, :8443 Open WebUI, :8444 dashboard, :9443 Hermes.
+
+## Components
+
+- **Docker** (`docker/docker-compose.yml`): LiteLLM (digest-pinned), Postgres 16
+  (keys, spend), Redis 8 (cache), Presidio analyzer + anonymizer, Open WebUI
+  (:3001). Prometheus/Grafana/Loki/Alloy sit behind the opt-in `observability`
+  profile and are off.
+- **Host** (`config/llmgateway.defaults.yaml`, user override in
+  `/opt/storage/llmgateway/config/llmgateway.yaml`): llama-server, whisper-server,
+  mlx-audio, laya-serve. The management service (launchd) starts and supervises
+  them.
+- **Data** `/opt/storage/llmgateway`: `.env`, Docker volumes, service logs in
+  `logs/<service>.log`. The management log is `~/Library/Logs/llm-gateway/gateway.log`.
+
+## Operate
+
+```bash
+./gw                          # status of every component
+./gw health                   # probe all endpoints; exit 1 if any down
+./gw start|stop|restart <c>   # host service (local, kokoro…), container, docker, management
+./gw logs <c>
+```
+
+Container restarts recreate the container, so `.env` and image changes land.
+Edit routes on the dashboard (or POST to `/ui/litellm-config/save`); that
+recreates LiteLLM. Updates: `.claude/skills/update-all/SKILL.md`.
+
+## Fresh machine
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/spinlockdevelopment/LLMGateway/main/bootstrap-llmgateway.sh | bash
 ```
 
-### 2. Setup (application provisioning)
+The bootstrap installs Homebrew, git, Python, Docker Desktop and the repo venv,
+then runs `scripts/setup-llmgateway.py`. Setup writes `.env`, starts the Docker
+stack, installs llama.cpp/whisper.cpp from Homebrew and registers the launchd
+service.
 
-The setup script is launched automatically at the end of bootstrap. It provisions application-level components: Git repo sync, Node.js, Claude Code CLI, Docker stack, `.env` from template, and optional components (llama-server, whisper-server, SSH). It also installs the management console as a launchd agent.
+Setup does **not** reproduce the full live host. Do these by hand:
 
-> **The setup script should be run as a standard user account, not an administrator.** It does not require `sudo` or elevated privileges. If run as root, it will warn you and ask for confirmation before continuing. Running as root can cause file ownership issues with the venv and launchd agent.
-
-**macOS:** When the setup script runs Docker (pull/up), you may see a system dialog: *"Terminal would like to access data from other apps."* Click **Allow**. To stop the prompt from reappearing, grant the permission permanently: **System Settings → Privacy & Security → Automation** and ensure your terminal app (Terminal, iTerm, etc.) is listed and allowed.
-
-To re-run setup manually (safe to run repeatedly — all steps are idempotent):
-
-```bash
-cd ~/src/LLMGateway
-.venv/bin/python3 scripts/setup-llmgateway.py
-```
-
-To only check status (no changes):
-
-```bash
-.venv/bin/python3 scripts/setup-llmgateway.py --status
-```
-
-### 3. Add your API keys
-
-Use the dashboard **Secrets** tab (http://localhost:8080) to edit `.env`, or copy and edit by hand:
-
-```bash
-cp .env.example .env
-# Edit .env: set any API keys you need; LITELLM_MASTER_KEY is used for the proxy UI and virtual keys
-```
-
-`.env.example` is the template: it lists API keys and base URLs (with defaults) for OpenRouter, Anthropic, OpenAI, Google, xAI, Azure, Perplexity, and others, plus optional LiteLLM OAuth 2.0 variables. Everything is optional. Base URL vars are only written to `.env` when their associated API key is set. Blank entries are not written when saving from the UI.
-
-### 4. Pull local models (optional)
-
-Local inference uses Docker Model Runner, bundled with Docker Desktop. The `local-fast` (aliased as `heartbeat`) and `local-only` routes ship pointing at `ai/smollm2`; pull it (or any other model) with:
-
-```bash
-docker model pull ai/smollm2
-docker model list
-```
-
-Browse the catalog with `docker model search <query>` (e.g. `docker model search qwen`). DMR exposes an OpenAI-compatible API; LiteLLM reaches it at `http://model-runner.docker.internal/engines/v1` from inside its container.
-
-### 5. Verify
-
-- **LiteLLM Proxy:** http://localhost:4000/health/liveliness → `{"status":"healthy"}`
-- **LiteLLM UI:** http://localhost:4000/ui (login with `LITELLM_MASTER_KEY`)
-- **Management dashboard:** http://localhost:8080
-
-### Permissions after git pull
-
-Scripts are committed with the executable bit set, so a fresh clone on macOS, Linux, or WSL should have `gw` and `bootstrap-llmgateway.sh` executable. On Windows, Git may not apply the executable bit; if `./gw` or `./bootstrap-llmgateway.sh` fail with "Permission denied", run: `chmod +x gw bootstrap-llmgateway.sh scripts/setup-llmgateway.py scripts/llmgateway.py`. If `.venv/bin/python3` is not executable, run: `chmod +x .venv/bin/activate .venv/bin/python*`.
-
----
-
-## Commands
-
-**Bootstrap:**
-
-| Command | Effect |
-|---------|--------|
-| `./bootstrap-llmgateway.sh` | Interactive — asks before installing missing deps, asks before launching setup. |
-| `./bootstrap-llmgateway.sh --install` | Auto-installs missing deps (no prompt), but still asks before launching setup. |
-| `./bootstrap-llmgateway.sh --launch` | Fully automatic — installs deps and launches setup with no prompts. |
-
-**Setup (run directly or launched by bootstrap):**
-
-| Command | Effect |
-|---------|--------|
-| `.venv/bin/python3 scripts/setup-llmgateway.py` | Application provisioning: Docker stack, Node, Claude Code, optional components, management console. Safe to re-run. |
-| `.venv/bin/python3 scripts/setup-llmgateway.py --status` | Status check only (no changes made). |
-| `.venv/bin/python3 scripts/setup-llmgateway.py --verbose` | Setup with debug-level output. |
-
-You can also pass `--status` or `--verbose` through bootstrap: `./bootstrap-llmgateway.sh --launch --status`.
-
----
-
-## Using the dashboard
-
-Open **http://localhost:8080**.
-
-- **Config** — Edit gateway settings (ports, which services are enabled, health check intervals). Stored in `config/llmgateway.yaml` (overrides `config/llmgateway.defaults.yaml`).
-- **Secrets** — Edit `.env`: API keys, provider base URLs (OpenRouter, OpenAI, Anthropic, etc.), optional OAuth 2.0 vars. Template is `.env.example`; blank entries are not saved. Saving automatically restarts the LiteLLM container if any relevant keys changed.
-- **Services** — See status of llama-server, Whisper; start/stop/restart.
-- **REST API** — Read-only: `GET /api/status`, `GET /api/services`, `GET /api/config`, `GET /api/health`.
-
-LiteLLM’s own UI (keys, spend, models) is at **http://localhost:4000/ui** (use `LITELLM_MASTER_KEY`).
-
----
-
-## Connect Claude Code or Cursor
-
-Use the **LiteLLM Proxy** endpoint and a key (master or a generated virtual key).
-
-**Claude Code:**
-
-```bash
-export ANTHROPIC_BASE_URL=http://<this-mac-ip-or-hostname>:4000
-export ANTHROPIC_API_KEY=sk-gateway-master-change-me
-```
-
-**Cursor:** In settings set API Base URL to `http://<this-mac>:4000/v1` and API Key to your master or virtual key.
-
-To create a dedicated key (recommended):
-
-```bash
-curl -X POST http://localhost:4000/key/generate \
-  -H "Authorization: Bearer sk-gateway-master-change-me" \
-  -H "Content-Type: application/json" \
-  -d '{"key_alias": "claude-code", "max_budget": 50.0, "budget_duration": "monthly"}'
-```
-
-Use the returned key as `ANTHROPIC_API_KEY` or in Cursor.
-
----
-
-## How routing works
-
-Clients send requests to LiteLLM with a **model name**. LiteLLM maps that to real backends using `litellm-config.yaml`.
-
-| You request | Routed to (default) |
-|-------------|----------------------|
-| `local` | Gemma-4-26B-A4B on the gateway-managed llama-server `:8082` — local |
-| `transcribe` | Whisper large-v3-turbo on local whisper-server `:8083` (`/v1/audio/transcriptions`) |
-| `speech` | Kokoro-82M on local mlx_audio `:8880` (`/v1/audio/speech`) |
-| `coding` | Qwen3.8 27B → DeepSeek V4 Pro via OpenRouter (cheap; falls back to `reasoning`) |
-| `reasoning` | DeepSeek V4 Pro → Qwen3.8 27B via OpenRouter (cheap; falls back to `coding`) |
-| `research` | DeepSeek V4.1 Flash → Qwen3.8 Flash via OpenRouter (cheap) |
-| `deep-reasoning` | Claude Opus 5.5 via OpenRouter (premium) |
-| `deep-research` | Grok 4.7 direct from xAI — needs `XAI_API_KEY` (premium) |
-| `decision` | TypeSafe Jev Router via OpenRouter (picks model + effort per request) |
-| `POST /local-decision/v1/systemone` | Pass-through to local Laya (`laya-serve`) on `:8087` (classifier, not chat) |
-
-Editing `litellm-config.yaml` (and restarting the LiteLLM container or stack) changes routing. You can also add models at runtime via the LiteLLM UI or API.
-
-**Web search** — the proxy holds Tavily (default) and Exa keys as `search_tools`. Call them directly with `POST /v1/search/tavily-search` (or `exa-search`), or include a `litellm_web_search` tool in a chat request to any route and the `websearch_interception` callback runs the search server-side. See [LiteLLM Web Search](https://docs.litellm.ai/docs/completion/web_search).
-
----
-
-## Configuration at a glance
-
-| What | Where |
-|------|--------|
-| Gateway (dashboard port, services, health, Docker) | `config/llmgateway.defaults.yaml` (defaults) and `config/llmgateway.yaml` (your overrides). Edit in dashboard or on disk. |
-| LiteLLM (models, routing, fallbacks) | `config/litellm-config.yaml` in the repo. |
-| API keys, provider base URLs, OAuth | `.env` (from `.env.example`). Edit in dashboard **Secrets** or on disk. |
-
----
-
-## Project structure
-
-```
-LLMGateway/
-├── bootstrap-llmgateway.sh      # OS prerequisites (sudo only if needed), venv, then hands off to setup; supports curl | bash
-├── requirements.txt             # Python deps for management app
-├── .env.example                 # Template for API keys, base URLs, OAuth (Secrets UI)
-├── config/
-│   ├── llmgateway.defaults.yaml # Gateway defaults (do not edit; override in llmgateway.yaml)
-│   └── litellm-config.yaml      # LiteLLM Proxy: routing, models, providers
-├── scripts/
-│   ├── llmgateway.py            # Management app: web UI, service manager, launchd
-│   ├── setup-llmgateway.py      # Provisioning: Git, Node, Docker, .env, Docker stack
-│   ├── config/                  # Config load/save/validate
-│   ├── launchd/                 # macOS launchd install/uninstall
-│   ├── services/                # llama.cpp, Whisper service managers
-│   ├── steps/                   # Provisioning steps (Docker, llama.cpp, etc.)
-│   └── web/                     # Dashboard HTML, API, UI routes
-└── docker/
-    ├── docker-compose.yml       # LiteLLM, PostgreSQL, Grafana, Prometheus, Loki, Alloy
-    ├── prometheus/
-    ├── alloy/
-    └── grafana/
-```
-
----
-
-## Virtual keys and observability
-
-**Virtual keys** — In LiteLLM UI (http://localhost:4000/ui) you can create keys with budgets, rate limits, and model restrictions. Use these instead of the master key for Claude Code, Cursor, or scripts.
-
-**Observability** — Grafana at http://localhost:3000 (default login `admin` / `llmgateway`), Prometheus at http://localhost:9090. LiteLLM exposes `/metrics`; logs can be collected via Grafana Alloy (see `docker/alloy`).
-
----
-
-## Optional: local llama.cpp or Whisper
-
-In `config/llmgateway.yaml` (or the dashboard) you can enable `local-fast` / `local-coding` (llama-server) or `local-whispr`. Set `enabled: true` and fill in paths (e.g. `--model` for the GGUF file). The gateway will start and monitor them. LiteLLM routes to these via `litellm-config.yaml` at `http://host.docker.internal:<port>/v1`.
-
-Docker Model Runner (DMR) is used **only as a model downloader** — pull GGUFs with `docker model pull` and point the gateway's `local-fast` / `local-coding` services at the on-disk file. The LiteLLM container no longer routes through `model-runner.docker.internal`.
+- **mlx-audio venv** (Kokoro): `~/.local/share/llmgateway/venv-mlx`,
+  `pip install "mlx-audio[tts,stt,server]"`.
+- **Laya**: `scripts/install-laya.sh`.
+- **Model files**: the Gemma GGUF and whisper model under `/opt/storage`; set
+  their paths in the user override.
+- **Tailnet HTTPS**: `tailscale serve` for the four ports above.
+- **Hermes**: built from `~/src/hermes-agent`; see the update-all skill.

@@ -32,8 +32,9 @@ from typing import Any
 
 # ── Environment ─────────────────────────────────────────────────────────────
 
-def _parse_env(path: Path) -> dict[str, str]:
-    """Minimal .env reader — KEY=VALUE, '#' comments, optional quotes."""
+def _parse_env(path: Path, strip_quotes: bool = True) -> dict[str, str]:
+    """Minimal .env reader — KEY=VALUE, '#' comments, optional quotes.
+    Shared by api.py and ui.py; keys keep file order."""
     out: dict[str, str] = {}
     if not path.exists():
         return out
@@ -43,19 +44,20 @@ def _parse_env(path: Path) -> dict[str, str]:
             continue
         key, _, val = line.partition("=")
         val = val.strip()
-        if len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
+        if strip_quotes and len(val) >= 2 and val[0] == val[-1] and val[0] in "\"'":
             val = val[1:-1]
         out[key.strip()] = val
     return out
 
 
-async def _run(*args: str, timeout: float = 10.0) -> tuple[int, bytes, bytes]:
-    """Run a command, returning (rc, stdout, stderr). rc=-1 if not installed."""
+async def _run(*args: str, timeout: float = 10.0, merge_stderr: bool = False) -> tuple[int, bytes, bytes]:
+    """Run a command, returning (rc, stdout, stderr). rc=-1 if not installed,
+    -2 on timeout. merge_stderr interleaves stderr into stdout in order."""
     try:
         proc = await asyncio.create_subprocess_exec(
             *args,
             stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT if merge_stderr else asyncio.subprocess.PIPE,
         )
     except FileNotFoundError:
         return -1, b"", b"not found"
@@ -66,8 +68,9 @@ async def _run(*args: str, timeout: float = 10.0) -> tuple[int, bytes, bytes]:
             proc.kill()
         except ProcessLookupError:
             pass
+        await proc.wait()
         return -2, b"", b"timed out"
-    return proc.returncode or 0, out, err
+    return proc.returncode or 0, out, err or b""
 
 
 # ── Host reachability ───────────────────────────────────────────────────────
@@ -162,20 +165,23 @@ def _port_binds(ports: str) -> dict[int, set[str]]:
     return binds
 
 
-async def _container_info() -> dict[str, dict[str, Any]]:
-    """Container name → {'state': 'running'|…, 'binds': {host_port: {ip,…}}}."""
-    rc, out, _ = await _run("docker", "ps", "-a", "--format", "{{json .}}", timeout=15)
-    if rc != 0:
-        return {}
-    info: dict[str, dict[str, Any]] = {}
-    for raw in out.splitlines():
-        raw = raw.strip()
-        if not raw:
-            continue
+async def _docker_ps() -> tuple[int, list[dict[str, Any]], str]:
+    """`docker ps -a` rows as dicts: (rc, rows, stderr). rc=-1 if no docker."""
+    rc, out, err = await _run("docker", "ps", "-a", "--format", "{{json .}}", timeout=15)
+    rows: list[dict[str, Any]] = []
+    for raw in out.splitlines() if rc == 0 else []:
         try:
-            row = json.loads(raw.decode("utf-8"))
+            rows.append(json.loads(raw.decode("utf-8")))
         except Exception:
             continue
+    return rc, rows, err.decode(errors="replace").strip()
+
+
+async def _container_info() -> dict[str, dict[str, Any]]:
+    """Container name → {'state': 'running'|…, 'binds': {host_port: {ip,…}}}."""
+    _, rows, _ = await _docker_ps()
+    info: dict[str, dict[str, Any]] = {}
+    for row in rows:
         name = row.get("Names")
         if name:
             info[name] = {

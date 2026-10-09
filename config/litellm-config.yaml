@@ -1,8 +1,7 @@
 # ============================================================
 # LLM Gateway — LiteLLM Proxy Configuration
 # ============================================================
-# Default stack: Anthropic Claude via OpenRouter + native llama-server locals
-# Clients: Claude Code, Cursor IDE, any OpenAI/Anthropic SDK
+# Clients: Open WebUI, Hermes, Claude Code, any OpenAI/Anthropic SDK
 #
 # Routes: local (Gemma-4 on the host llama-server at :8082, reached via
 # host.docker.internal), transcribe (whisper :8083), speech (Kokoro :8880); cheap OpenRouter routes coding, reasoning,
@@ -172,17 +171,11 @@ litellm_settings:
   # Run the `litellm_web_search` tool server-side (first search_tools
   # entry unless search_tool_name is set) for these upstream providers.
   websearch_interception_params:
-    enabled_providers: ["openrouter", "openai", "xai"]
+    enabled_providers: ["openrouter", "xai"]
     search_tool_name: tavily-search
 
   # Drop unsupported params instead of erroring
   drop_params: true
-
-  # Fallback chains: if the primary pseudo-model fails entirely, try these
-  # alternatives.
-  fallbacks:
-    - {"coding": ["reasoning"]}
-    - {"reasoning": ["coding"]}
 
   # Cache — Redis response caching (see docker-compose.yml `redis` service)
   cache: true
@@ -194,8 +187,6 @@ litellm_settings:
   # Request logging (opt-in — stores prompts in spend logs table)
   # store_prompts_in_spend_logs: true
 
-  # Retry settings
-  num_retries: 2
   request_timeout: 120
 
 
@@ -205,11 +196,7 @@ router_settings:
   # Use priority ordering (order parameter) with fallback
   enable_pre_call_checks: true
 
-  # Routing strategy for same-priority deployments
-  routing_strategy: simple-shuffle
-
-  # Cooldown: if a deployment fails 3 times, skip it for 60s
-  allowed_fails: 3
+  # Cooldown: a deployment that fails 3 times (default) is skipped for 60s
   cooldown_time: 60
 
   # Retry on specific errors
@@ -323,7 +310,7 @@ search_tools:
 #   LITELLM_MASTER_KEY    — admin key for /key, /team, /ui (required)
 #   DATABASE_URL          — PostgreSQL connection string (set by stack)
 #   OPENROUTER_API_KEY    — primary remote provider (required)
-#   ANTHROPIC_API_KEY     — direct Anthropic fallback (optional)
+#   ANTHROPIC_API_KEY     — deep-reasoning (Anthropic direct)
 #   OPENAI_API_KEY        — direct OpenAI (optional)
 #   OPENAI_BASE_URL       — custom OpenAI base URL (optional; OPENAI_API_BASE also supported)
 #   GEMINI_API_KEY        — Google AI Studio (optional)

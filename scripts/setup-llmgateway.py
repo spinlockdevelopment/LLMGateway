@@ -143,7 +143,7 @@ def _install_management_console(data_dir: Path) -> bool:
         port = cm.config.get("gateway", {}).get("port", 8080)
 
         info(f"  Registering management console on port {port}...")
-        ok = launchd_install(repo_dir=_REPO_DIR, port=port, data_dir=data_dir)
+        ok = launchd_install(repo_dir=_REPO_DIR, data_dir=data_dir)
         if not ok:
             error("Failed to install launchd agent")
             return False

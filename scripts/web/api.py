@@ -22,7 +22,6 @@ import ctypes
 import ctypes.util
 import json
 import platform
-import socket
 import sys
 import time
 from pathlib import Path
@@ -34,7 +33,7 @@ import yaml as pyyaml
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-from .endpoints import build_catalog, probe as probe_endpoint
+from .endpoints import _docker_ps, _lan_ip, _parse_env, _run, build_catalog, probe as probe_endpoint
 
 
 _start_time = time.time()
@@ -351,17 +350,8 @@ def create_api_router() -> APIRouter:
             return {"routes": [], "aliases": {}, "fallbacks": [], "env_keys_present": []}
 
         # Which env vars are actually set (in the .env file LiteLLM reads).
-        env_keys_present: set[str] = set()
-        if data_dir is not None:
-            env_path = data_dir / ".env"
-            if env_path.exists():
-                for line in env_path.read_text(encoding="utf-8", errors="replace").splitlines():
-                    line = line.strip()
-                    if not line or line.startswith("#") or "=" not in line:
-                        continue
-                    key, _, val = line.partition("=")
-                    if val.strip():
-                        env_keys_present.add(key.strip())
+        env = _parse_env(request.app.state.data_dir / ".env", strip_quotes=False)
+        env_keys_present = {k for k, v in env.items() if v}
 
         def _classify(provider: str, api_base: str | None) -> str:
             p = (provider or "").lower()
@@ -488,49 +478,27 @@ def create_api_router() -> APIRouter:
         docker-compose stack (config paths, data mounts, and exposed ports).
         """
 
-        async def _docker_ps() -> list[dict[str, Any]]:
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    "docker",
-                    "ps",
-                    "-a",
-                    "--format",
-                    "{{json .}}",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-            except FileNotFoundError:
+        async def _containers() -> list[dict[str, Any]]:
+            rc, rows, err = await _docker_ps()
+            if rc == -1:
                 raise HTTPException(
                     status_code=503,
                     detail="docker CLI not found — install Docker Desktop first",
                 )
-
-            stdout, stderr = await proc.communicate()
-            if proc.returncode != 0:
-                msg = stderr.decode(errors="replace").strip() or "docker ps failed"
-                raise HTTPException(status_code=503, detail=msg)
-
-            containers: list[dict[str, Any]] = []
-            for raw in stdout.splitlines():
-                raw = raw.strip()
-                if not raw:
-                    continue
-                try:
-                    info = json.loads(raw.decode("utf-8"))
-                except Exception:
-                    continue
-                containers.append(
-                    {
-                        "id": info.get("ID"),
-                        "name": info.get("Names"),
-                        "image": info.get("Image"),
-                        "status": info.get("Status"),
-                        "state": info.get("State"),
-                        "ports": info.get("Ports"),
-                        "created": info.get("RunningFor"),
-                    }
-                )
-            return containers
+            if rc != 0:
+                raise HTTPException(status_code=503, detail=err or "docker ps failed")
+            return [
+                {
+                    "id": info.get("ID"),
+                    "name": info.get("Names"),
+                    "image": info.get("Image"),
+                    "status": info.get("Status"),
+                    "state": info.get("State"),
+                    "ports": info.get("Ports"),
+                    "created": info.get("RunningFor"),
+                }
+                for info in rows
+            ]
 
         def _load_compose_metadata() -> dict[str, dict[str, Any]]:
             repo_dir = Path(__file__).resolve().parents[2]
@@ -600,7 +568,7 @@ def create_api_router() -> APIRouter:
 
             return meta_by_container
 
-        containers = await _docker_ps()
+        containers = await _containers()
         compose_meta = _load_compose_metadata()
 
         for c in containers:
@@ -622,30 +590,7 @@ def create_api_router() -> APIRouter:
         the same network even when Tailscale is down or not installed.
         """
 
-        def _lan_ip() -> str | None:
-            # UDP "connect" just picks a route/local address — no packet is
-            # actually sent — so this works offline and doesn't require the
-            # target host to be reachable.
-            try:
-                with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-                    s.connect(("8.8.8.8", 80))
-                    return s.getsockname()[0]
-            except OSError:
-                return None
-
         lan_ip = _lan_ip()
-
-        async def _run(*args: str) -> tuple[int, bytes, bytes]:
-            try:
-                proc = await asyncio.create_subprocess_exec(
-                    *args,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-            except FileNotFoundError:
-                return -1, b"", b"not found"
-            out, err = await proc.communicate()
-            return proc.returncode or 0, out, err
 
         # `tailscale` not on PATH → report not_installed and bail.
         rc, out, err = await _run("tailscale", "status", "--json")

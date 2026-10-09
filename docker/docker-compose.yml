@@ -1,19 +1,15 @@
 # ============================================================
 # LLM Gateway — Docker Compose Stack
 # ============================================================
-# LiteLLM Proxy + PostgreSQL + Observability (Prometheus, Grafana, Loki, Alloy)
+# LiteLLM + Postgres + Redis + Presidio + Open WebUI. Observability
+# (Prometheus, Grafana, Loki, Alloy) is opt-in: `--profile observability`.
+# Local models run on the host (config/llmgateway.defaults.yaml); containers
+# reach them at host.docker.internal, so those servers bind 0.0.0.0.
 #
-# Usage:
-#   docker compose -f docker/docker-compose.yml up -d
+# Recreate a service through the management service (it can read .env):
+#   curl -X POST localhost:8080/ui/docker/container/<container>/restart
 #
-# Local inference is provided by Docker Model Runner (bundled with Docker
-# Desktop). LiteLLM reaches it at http://model-runner.docker.internal/engines/v1.
-#
-# After startup:
-#   LiteLLM Proxy:  http://localhost:4000
-#   LiteLLM UI:     http://localhost:4000/ui
-#   Grafana:        http://localhost:3000
-#   Prometheus:     http://localhost:9090
+#   LiteLLM: http://localhost:4000 (UI /ui)   Open WebUI: http://localhost:3001
 # ============================================================
 
 services:
@@ -58,8 +54,8 @@ services:
   litellm:
     # Pinned by digest — `main-latest` is a moving tag and silently jumped
     # the DB schema ahead of the existing Postgres volume (login 500s when
-    # the proxy queries columns the DB lacks). This digest == v1.98.0 as
-    # pulled 2026-08-26, migrated against the schema via `prisma db push`
+    # the proxy queries columns the DB lacks). This digest == v1.104.0,
+    # migrated against the schema via `prisma db push`
     # below. To upgrade: bump the digest, then
     # `docker exec llm-gateway prisma db push` to migrate the DB before/after
     # rollout.
@@ -206,15 +202,11 @@ services:
     networks:
       - gateway-net
 
-  # Note: Kokoro TTS used to run here as the `kokoro` service (profile: tts).
-  # It now runs as a gateway-managed mlx_audio.server process (Metal GPU/ANE
-  # via MLX) — see config/llmgateway.defaults.yaml services.kokoro.
-
   # ── Open WebUI ─────────────────────────────────────────────
   # Browser chat UI wired to:
   #   chat → LiteLLM proxy (in-network)        http://litellm:4000/v1
   #   TTS  → Kokoro on host's mlx_audio.server http://host.docker.internal:8880/v1
-  #   STT  → Whisper on host's mlx_audio.server http://host.docker.internal:8086/v1
+  #   STT  → whisper.cpp on the host           http://host.docker.internal:8083/v1
   # Reachable at http://localhost:3001.
   open-webui:
     image: ghcr.io/open-webui/open-webui:0.11.4

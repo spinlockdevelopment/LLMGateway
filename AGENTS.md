@@ -60,10 +60,9 @@ Routing policy:
 ./gw restart management               # after scripts/ or service-config changes
 ./gw logs <component>
 curl -s localhost:8080/api/status     # host service states
-curl -X POST localhost:8080/ui/services/<name>/{stop,start}   # one host service
+./gw restart <host-service|container>  # containers are recreated (--no-deps --force-recreate)
 python3 -c 'import json;print(json.dumps({"yaml":open("config/litellm-config.yaml").read()}))' \
   | curl -s -X POST localhost:8080/ui/litellm-config/save -H 'content-type: application/json' --data-binary @-
-docker compose -f docker/docker-compose.yml --env-file /opt/storage/llmgateway/.env up -d --no-deps <svc>
 ```
 Updates: the `/update-all` skill (`.claude/skills/update-all/SKILL.md`).
 No test suite; verify with `./gw health` plus one request per touched route.
@@ -88,14 +87,17 @@ or remote providers. The management service (launchd) starts host servers from
 | `config/guardrails/pii_guard.py` | `pii-mask` (Presidio) + `pii-laya`, mounted at `/app/pii_guard.py` |
 | `config/llmgateway.defaults.yaml` | Host service definitions (binary, args, port) |
 | `docker/docker-compose.yml` | Container stack and image pins |
-| `headless/` | Stdlib headless llama.cpp shim (branch `feat/headless`, not installed) |
+| `.claude/skills/update-all/` | Component update procedure |
 
 ## Done
-- Committed and pushed; PR open if the branch needs one.
+- Work on a branch; `./gw health` plus one request per touched route pass.
+- Merge to `main` and push once the user says so.
 
 ## Rules
 - Put installable venvs/tools on the internal disk (`~/.local/share/llmgateway/`), not `/opt/storage`. TCC blocks interactive shells there even under sudo; installs failed (laya, then mlx-audio moved to `venv-mlx`). 2026-10-07
-- Apply LiteLLM config/.env changes via `/ui/litellm-config/save`; recreate other containers with `up -d --no-deps`, never `docker compose restart` or `gw restart <container>`. Restart keeps the old env and image, so a rotated key or bump silently never lands. 2026-10-07
+- Apply LiteLLM config changes via `/ui/litellm-config/save`; recreate containers via `./gw restart <container>` or `POST /ui/docker/container/<name>/restart`, never `docker compose restart`. Restart keeps the old env and image, so a rotated key or bump silently never lands. 2026-10-07
+- Never run `docker compose up` from an interactive shell. TCC blocks it from reading `/opt/storage/llmgateway/.env`; the management service (launchd) can, so it does every recreate. 2026-10-09
+- Keep host model servers on `--host 0.0.0.0`. Docker Desktop can't reach a host port bound to 127.0.0.1 via `host.docker.internal` (tested 2026-10-09).
 - Don't `./gw restart management` until a config save's LiteLLM recreate finishes. The management process runs the recreate; killing it left LiteLLM exited. 2026-09-26
 - After rewriting the launchd plist, run `.venv/bin/python scripts/llmgateway.py --install`. `gw start management` only `launchctl load`s the old plist, which can point at the wrong python. 2026-05-28
 - Keep launchd `StandardOut/ErrorPath` under `~/Library/Logs/`. A path under `/Volumes/*` exits 78 (EX_CONFIG) before any code runs. 2026-05-28
@@ -113,22 +115,18 @@ or remote providers. The management service (launchd) starts host servers from
 Add `ANTHROPIC_API_KEY` and `XAI_API_KEY` on the Secrets page to activate
 `deep-reasoning` and `deep-research`.
 - P1 — Update Docker Desktop 4.90 → 4.94 from its menu (restarts all containers), then `./gw health`.
-- P1 — Log in to Hermes at :9443; if fine, `docker rm hermes-dashboard-old` and push `~/src/hermes-agent` branch `test-setup`.
-- P2 — `embed` route: local `llama-server --embedding` (Qwen3-Embedding-0.6B GGUF, ~0.6 GB) or OpenRouter `voyageai/voyage-4-lite` ($0.02/M). Measure memory first (Models bucket ~20.5 GB of 32).
-- P2 — `rerank` route: local `llama-server --reranking` with bge-reranker-v2-m3 GGUF (~0.6 GB); LiteLLM exposes `/v1/rerank`.
-- P2 — MCP gateway in LiteLLM (`mcp_servers:`): fetch/crawl, GitHub; later scoped filesystem/git and Playwright.
+- P1 — Log in to Hermes at :9443; if fine, `docker rm hermes-dashboard-old`, push `~/src/hermes-agent` branch `test-setup`, then `docker image prune -a && docker builder prune` (~60 GB).
+- P1 — LAN exposure: LiteLLM :4000 uses the default master key `sk-gateway-master-change-me`, and Open WebUI :3001 runs `WEBUI_AUTH=false`, both on 0.0.0.0. Rotate the key (update Open WebUI, Hermes, clients) or publish both on 127.0.0.1 (tailnet `serve` still works).
+- P2 — Point Open WebUI STT/TTS at LiteLLM `transcribe` / `speech` (compose `AUDIO_*`: base `http://litellm:4000/v1`, a virtual key); also set it in Admin → Audio, which overrides env.
 - P2 — More Laya guard questions: prompt-injection, secrets. Street addresses are an open PII gap.
-- P2 — Point Open WebUI STT/TTS at LiteLLM `transcribe` / `speech` instead of :8083 / :8880 (keys + spend logging).
-- P3 — `image` route: OpenRouter `google/gemini-3.1-flash-lite-image` via `/v1/images/generations`.
-- P3 — Stray empty `llama-server --port 8081` (no model, 18 MB) has run since 2026-09-22; stop it if unused.
-- P3 — Optional `/v1/ocr` (Mistral key) and `/v1/vector_stores` (after `embed`).
-- P3 — confirm: define ## Done (merge? deploy command?)
+- P3 — Dead features (declined 2026-10-09; ask first): observability profile, DMR/llmfit Models tabs, `whisper-fast`, mutex groups, `benchmark/` on main, one-off setup scripts.
+- P3 — Setup doesn't install venv-mlx, Laya, the GGUF, `tailscale serve` or Hermes (see README).
 
 ## Notes & Pointers
 - History: `git log`, not this file.
 - Data dir `/opt/storage/llmgateway` (symlink to `/Volumes/External2T`): `.env`, docker volumes, service logs in `logs/<service>.log`, user config override. Survives an OS wipe. Interactive shells can't write it (TCC); the launchd job can.
 - The local GGUF path lives in the user override `/opt/storage/llmgateway/config/llmgateway.yaml`; changing it needs `./gw restart management`. Unused `Qwen3.6-35B-A3B-UD-Q4_K_M.gguf` (22 GB) is on disk; delete only if asked.
-- Gemma-4-26B-A4B at 128K q8_0 KV leaves ~10 GB headroom; working set tracks tokens used, not allocated ctx.
+- Memory: with every service up, ~2 GB is available of 32 GB (2026-10-09); Gemma-4-26B-A4B at 128K q8_0 KV is ~18 GB. Measure before adding a model.
 - Hermes is built from `~/src/hermes-agent` (fork, branch `test-setup`), not this repo; recreate steps are in the update-all skill.
 - Tailnet HTTPS: :443 LiteLLM, :8443 Open WebUI (mic needs HTTPS), :8444 dashboard, :9443 Hermes.
 - OrbStack was A/B tested 2026-06-23: ~1 GB lighter, drop-in compatible, not adopted.

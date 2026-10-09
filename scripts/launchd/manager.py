@@ -28,8 +28,6 @@ def _plist_path() -> Path:
 def generate_plist(
     python_bin: str,
     script_path: str,
-    config_dir: str,
-    port: int = 8080,
     log_dir: Optional[str] = None,
     venv_bin_dir: Optional[str] = None,
     data_dir: Optional[str] = None,
@@ -40,8 +38,6 @@ def generate_plist(
     Args:
         python_bin:  Absolute path to the Python interpreter (prefer venv).
         script_path: Absolute path to scripts/llmgateway.py.
-        config_dir:  Absolute path to the config/ directory (defaults).
-        port:        Gateway web UI port.
         log_dir:     Directory for stdout/stderr logs (default: data_dir/logs).
         venv_bin_dir: If set, prepended to PATH so subprocesses see venv tools.
         data_dir:    LLM_GATEWAY_DATA_DIR — where .env, user config, logs live.
@@ -106,11 +102,7 @@ def _venv_python_for_repo(repo_dir: Path) -> Optional[Path]:
     return None
 
 
-def install(
-    repo_dir: Path,
-    port: int = 8080,
-    data_dir: Optional[Path] = None,
-) -> bool:
+def install(repo_dir: Path, data_dir: Optional[Path] = None) -> bool:
     """
     Generate the plist and install it to ~/Library/LaunchAgents.
     Uses the repo's .venv Python when present so the agent has access to
@@ -119,18 +111,15 @@ def install(
     """
     repo_dir = Path(repo_dir).resolve()
     venv_python = _venv_python_for_repo(repo_dir)
-    if venv_python is not None:
-        python_bin = str(venv_python)
-        venv_bin_dir = str(venv_python.parent)
-        log.info(f"  Using venv Python: {python_bin}")
-    else:
+    if venv_python is None:
         log.error("  Project virtual environment not found.")
         log.error("  Expected: .venv with a Python interpreter inside the repo.")
         log.error("  Run ./bootstrap-llmgateway.sh (or create the venv) and retry.")
         return False
+    python_bin = str(venv_python)
+    log.info(f"  Using venv Python: {python_bin}")
 
     script_path = str(repo_dir / "scripts" / "llmgateway.py")
-    config_dir = str(repo_dir / "config")
 
     # Resolve data_dir.
     # Note: use absolute(), NOT resolve(), so symlinks like
@@ -148,9 +137,7 @@ def install(
     plist_data = generate_plist(
         python_bin=python_bin,
         script_path=script_path,
-        config_dir=config_dir,
-        port=port,
-        venv_bin_dir=venv_bin_dir,
+        venv_bin_dir=str(venv_python.parent),
         data_dir=data_dir_str,
     )
 

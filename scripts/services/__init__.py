@@ -1,8 +1,8 @@
 """
 Service lifecycle management for local inference processes.
 
-Each service type (llama-server, whisper-server) extends the
-BaseService class and provides its own start/stop/health-check logic.
+Every host server (llama-server, whisper-server, mlx_audio.server,
+laya-serve) is the same binary + args + env wrapper: the Service class.
 
 Services are launched as independent processes (not children of the gateway).
 The ServiceRegistry owns the collection and runs the background health loop.
@@ -67,21 +67,11 @@ class ServiceStatus:
         }
 
 
-class BaseService:
+class Service:
     """
-    Abstract base for managed local inference services.
-
-    Subclasses MUST implement:
-      - _build_command() -> list[str]  — the command + args to launch.
-      - service_type                   — class-level string identifier.
-
-    Subclasses MAY override:
-      - _post_start()    — hook called after process launch.
-      - _pre_stop()      — hook called before SIGTERM.
-      - health_check()   — custom health logic (default: HTTP GET).
+    A managed host server: `binary` + `args` (flag: value) + `extra_args`,
+    with `environment` merged into os.environ. The config `type:` is a label.
     """
-
-    service_type: str = "base"
 
     def __init__(self, name: str, svc_config: dict) -> None:
         self.name = name
@@ -135,11 +125,18 @@ class BaseService:
                 return None
         return None
 
-    # ── Abstract method ───────────────────────────────────────────────────────
-
     def _build_command(self) -> list[str]:
         """Return the command list to start the service process."""
-        raise NotImplementedError
+        cmd = [os.path.expanduser(self.svc_config.get("binary", ""))]
+        args = self.svc_config.get("args", {})
+        if isinstance(args, dict):
+            for flag, value in args.items():
+                if value is not None and str(value).strip():
+                    cmd += [str(flag), str(value)]
+        extra = self.svc_config.get("extra_args", [])
+        if isinstance(extra, list):
+            cmd.extend(str(a) for a in extra if a)
+        return cmd
 
     # ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -201,7 +198,6 @@ class BaseService:
                     f"Process exited immediately (exit code {exit_code})"
                 )
 
-            await self._post_start()
             self._state = ServiceState.RUNNING
             log.info(f"  [{self.name}] Started (pid {self._pid})")
             return True
@@ -221,8 +217,6 @@ class BaseService:
         log.info(f"  [{self.name}] Stopping (pid {self._pid})...")
 
         try:
-            await self._pre_stop()
-
             if self._pid is not None and self._is_process_alive():
                 # SIGTERM for graceful shutdown
                 os.kill(self._pid, signal.SIGTERM)
@@ -321,14 +315,6 @@ class BaseService:
             return False
         return self._process.poll() is None
 
-    async def _post_start(self) -> None:
-        """Hook called after the process is launched. Override in subclass."""
-        pass
-
-    async def _pre_stop(self) -> None:
-        """Hook called before sending SIGTERM. Override in subclass."""
-        pass
-
 
 class ServiceRegistry:
     """
@@ -336,22 +322,22 @@ class ServiceRegistry:
     """
 
     def __init__(self, health_config: dict) -> None:
-        self._services: dict[str, BaseService] = {}
+        self._services: dict[str, Service] = {}
         self._health_config = health_config
         self._monitor_task: Optional[asyncio.Task] = None
 
     @property
-    def services(self) -> dict[str, BaseService]:
+    def services(self) -> dict[str, Service]:
         return dict(self._services)
 
-    def register(self, service: BaseService) -> None:
+    def register(self, service: Service) -> None:
         self._services[service.name] = service
-        log.debug(f"  Registered service: {service.name} ({service.service_type})")
+        log.debug(f"  Registered service: {service.name}")
 
-    def get(self, name: str) -> Optional[BaseService]:
+    def get(self, name: str) -> Optional[Service]:
         return self._services.get(name)
 
-    def siblings_in_group(self, name: str) -> list[BaseService]:
+    def siblings_in_group(self, name: str) -> list[Service]:
         """Return other services sharing this service's mutex_group."""
         svc = self._services.get(name)
         if svc is None or not svc.mutex_group:
