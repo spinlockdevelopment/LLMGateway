@@ -95,10 +95,9 @@ or remote providers. The management service (launchd) starts host servers from
 
 ## Rules
 - Put installable venvs/tools on the internal disk (`~/.local/share/llmgateway/`), not `/opt/storage`. TCC blocks interactive shells there even under sudo; installs failed (laya, then mlx-audio moved to `venv-mlx`). 2026-10-07
-- Apply LiteLLM config changes via `/ui/litellm-config/save`; recreate containers via `./gw restart <container>` or `POST /ui/docker/container/<name>/restart`, never `docker compose restart`. Restart keeps the old env and image, so a rotated key or bump silently never lands. 2026-10-07
-- Never run `docker compose up` from an interactive shell. TCC blocks it from reading `/opt/storage/llmgateway/.env`; the management service (launchd) can, so it does every recreate. 2026-10-09
-- Keep host model servers on `--host 0.0.0.0`. Docker Desktop can't reach a host port bound to 127.0.0.1 via `host.docker.internal` (tested 2026-10-09).
-- Don't `./gw restart management` until a config save's LiteLLM recreate finishes. The management process runs the recreate; killing it left LiteLLM exited. 2026-09-26
+- Apply LiteLLM config changes via `/ui/litellm-config/save` and recreate containers via `./gw restart <container>` (management endpoint); never `docker compose restart`, never `compose up` from a shell, and don't `./gw restart management` until the recreate finishes. Restart keeps the old env and image; TCC blocks shells from reading `.env`; killing management mid-recreate left LiteLLM exited. 2026-10-09
+- Keep host model servers on `--host 0.0.0.0`. Docker Desktop can't reach a host port bound to 127.0.0.1 via `host.docker.internal`; tested and reverted. 2026-10-09
+- After editing `scripts/web/*.py` and restarting management, curl every `/api/*` and `/ui/*` GET route. A removed variable silently 500'd `/api/litellm/routes` until a later check. 2026-10-09
 - After rewriting the launchd plist, run `.venv/bin/python scripts/llmgateway.py --install`. `gw start management` only `launchctl load`s the old plist, which can point at the wrong python. 2026-05-28
 - Keep launchd `StandardOut/ErrorPath` under `~/Library/Logs/`. A path under `/Volumes/*` exits 78 (EX_CONFIG) before any code runs. 2026-05-28
 - Measure model memory as max(RSS, phys_footprint). MPS/Metal weights are invisible to RSS (laya-serve: 32 MB RSS vs 3.35 GB real). 2026-09-26
@@ -112,8 +111,10 @@ or remote providers. The management service (launchd) starts host servers from
 - Checkpoint each phase of a long multi-step run as its own commit on a test branch. One slow phase blocked the rest and a crash lost work. 2026-05-19
 
 ## Next
-Add `ANTHROPIC_API_KEY` and `XAI_API_KEY` on the Secrets page to activate
-`deep-reasoning` and `deep-research`.
+Rotate the OpenRouter key (a screenshot leaked it; history purged 2026-10-09)
+and save it on the Secrets page; ask GitHub Support to purge `refs/pull/1`,
+which still holds the screenshot. Then delete the session's `pre-purge.bundle`.
+- P1 — Add `ANTHROPIC_API_KEY` and `XAI_API_KEY` on the Secrets page to activate `deep-reasoning` and `deep-research`.
 - P1 — Update Docker Desktop 4.90 → 4.94 from its menu (restarts all containers), then `./gw health`.
 - P1 — Log in to Hermes at :9443; if fine, `docker rm hermes-dashboard-old`, push `~/src/hermes-agent` branch `test-setup`, then `docker image prune -a && docker builder prune` (~60 GB).
 - P1 — LAN exposure: LiteLLM :4000 uses the default master key `sk-gateway-master-change-me`, and Open WebUI :3001 runs `WEBUI_AUTH=false`, both on 0.0.0.0. Rotate the key (update Open WebUI, Hermes, clients) or publish both on 127.0.0.1 (tailnet `serve` still works).
@@ -131,3 +132,4 @@ Add `ANTHROPIC_API_KEY` and `XAI_API_KEY` on the Secrets page to activate
 - Tailnet HTTPS: :443 LiteLLM, :8443 Open WebUI (mic needs HTTPS), :8444 dashboard, :9443 Hermes.
 - OrbStack was A/B tested 2026-06-23: ~1 GB lighter, drop-in compatible, not adopted.
 - tinylang coding benchmark: branch `test/benchmark-tinylang`; read `benchmark/SESSION_STATE.md` first.
+<!-- lean-and-mean: review -->
